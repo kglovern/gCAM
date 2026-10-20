@@ -1,6 +1,9 @@
 /**
  * Purpose: Implementation module for GcodePreview in the components domain.
  */
+import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
+import { downloadGcode } from '../toolpaths/exportGcode';
+
 export function GcodePreview({
     gcode,
     fileName,
@@ -8,19 +11,6 @@ export function GcodePreview({
     gcode: string;
     fileName: string;
 }) {
-    const download = () => {
-        if (!gcode) return;
-        const blob = new Blob([gcode], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const base = (fileName || 'gcam').replace(/\.[^.]+$/, '');
-        // camcanvas always exported GRBL as fixed .nc
-        a.download = `${base}.nc`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
     return (
         <div className="space-y-2">
             <pre className="max-h-28 overflow-auto no-scrollbar rounded bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-robin-900 p-2 text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
@@ -28,7 +18,7 @@ export function GcodePreview({
                     'Import vectors and add a toolpath to generate G-code.'}
             </pre>
             <button
-                onClick={download}
+                onClick={() => downloadGcode(gcode, fileName)}
                 disabled={!gcode}
                 className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     gcode
@@ -38,6 +28,7 @@ export function GcodePreview({
             >
                 Save GCODE
             </button>
+            <SendToGsenderButton gcode={gcode} fileName={fileName} />
         </div>
     );
 }

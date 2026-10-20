@@ -15,6 +15,8 @@ import type { JobStock } from '../job/stock';
 import type { MachineTravelLimits } from '../cutting-parameters/types';
 import { JobStockSetup } from '../job/JobStockSetup';
 import { machineProfileById } from '../cutting-parameters/machines';
+import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
+import { downloadGcode } from './exportGcode';
 
 type Bitmap = {
     id: string;
@@ -235,7 +237,7 @@ export function ToolpathRail({
                 )}
             </div>
             {!showEditor && (
-                <div className="shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
+                <div className="shrink-0 space-y-2 border-t border-slate-200 p-3 dark:border-robin-900">
                     <button
                         type="button"
                         disabled={!gcode.trim()}
@@ -245,21 +247,11 @@ export function ToolpathRail({
                         <Download size={16} />
                         Export G-code
                     </button>
+                    <SendToGsenderButton gcode={gcode} fileName={fileName} />
                 </div>
             )}
         </aside>
     );
-}
-
-function downloadGcode(gcode: string, fileName: string) {
-    if (!gcode.trim()) return;
-    const blob = new Blob([gcode], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${(fileName || 'gcam').replace(/\.[^.]+$/, '')}.nc`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function CommittedToolpaths({
