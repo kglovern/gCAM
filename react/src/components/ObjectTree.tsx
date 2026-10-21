@@ -1,7 +1,15 @@
 /**
  * Purpose: Implementation module for ObjectTree in the components domain.
  */
-import { ChevronDown, ChevronRight, Eye, EyeOff, Trash2 } from 'lucide-react';
+import {
+    ChevronDown,
+    ChevronRight,
+    Eye,
+    EyeOff,
+    ListChecks,
+    Trash2,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { ViewLoop } from '../canvas/types';
 import { displayValue, lengthUnit, type UnitSystem } from '../lib/units';
@@ -35,7 +43,11 @@ export function ObjectTree({
     onResize,
     onClose,
     units,
+    additiveSelection = false,
+    onAdditiveChange,
 }: {
+    additiveSelection?: boolean;
+    onAdditiveChange?: (value: boolean) => void;
     loops: ViewLoop[];
     bitmaps: TreeBitmap[];
     selected: string[];
@@ -73,7 +85,10 @@ export function ObjectTree({
         return `Vector ${index + 1} (${loop.points.length} pts)`;
     };
     return (
-        <aside className="absolute top-2 left-2 z-10 w-52 max-h-[60%] flex flex-col rounded border border-slate-300 bg-white/95 text-xs text-slate-700 shadow-lg dark:border-robin-900 dark:bg-dark/95 dark:text-slate-200">
+        <aside
+            aria-label="Object browser"
+            className="absolute top-2 left-2 right-2 md:right-auto z-20 md:w-80 max-h-[85%] flex flex-col rounded border border-slate-300 bg-white/95 text-xs text-slate-700 shadow-lg dark:border-robin-900 dark:bg-dark/95 dark:text-slate-200"
+        >
             <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-200 dark:border-robin-900">
                 <span className="font-medium text-slate-900 dark:text-white">
                     Objects
@@ -81,13 +96,28 @@ export function ObjectTree({
                 <button
                     onClick={onClose}
                     aria-label="Close object browser"
-                    className="text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-dark-lighter dark:hover:text-white"
                 >
-                    ×
+                    <X size={18} />
                 </button>
             </div>
+            {onAdditiveChange && (
+                <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-2 dark:border-robin-900">
+                    <span>{selected.length} selected</span>
+                    <button
+                        type="button"
+                        aria-label="Multiple selection in object browser"
+                        aria-pressed={additiveSelection}
+                        onClick={() => onAdditiveChange(!additiveSelection)}
+                        className={`inline-flex min-h-11 items-center gap-2 rounded px-2 ${additiveSelection ? 'bg-robin-500 text-white' : ''}`}
+                    >
+                        <ListChecks size={18} />
+                        Multiple
+                    </button>
+                </div>
+            )}
             {(onGroup || onUngroup || onEdit || onMove || onResize) && (
-                <div className="flex gap-1 border-b border-slate-200 px-2 py-1.5 dark:border-robin-900">
+                <div className="flex flex-wrap gap-1 border-b border-slate-200 px-2 py-1.5 dark:border-robin-900">
                     {onGroup && (
                         <button
                             onClick={onGroup}
@@ -109,7 +139,7 @@ export function ObjectTree({
                     {onEdit && (
                         <button
                             onClick={onEdit}
-                            disabled={!selected.length}
+                            disabled={selected.length !== 1}
                             className="flex-1 rounded border border-slate-300 px-1.5 py-1 text-[11px] text-slate-600 hover:bg-slate-100 dark:border-robin-700 dark:text-slate-300 dark:hover:bg-dark-lighter disabled:opacity-40"
                         >
                             Edit
@@ -185,14 +215,20 @@ export function ObjectTree({
                             }}
                             className={`flex items-center gap-1 px-2 py-1 ${loop.groupId ? 'pl-4' : ''} ${
                                 isSelected
-                                    ? 'bg-robin-500/30 text-white'
+                                    ? 'bg-robin-100 text-robin-900 dark:bg-robin-500/30 dark:text-white'
                                     : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-dark-lighter'
                             } ${isHidden ? 'opacity-40' : ''}`}
                         >
                             <button
-                                className="flex-1 truncate text-left"
+                                aria-pressed={isSelected}
+                                className="min-w-0 flex-1 truncate text-left py-2"
                                 onClick={(event) => {
-                                    if (event.ctrlKey || event.metaKey) {
+                                    if (
+                                        additiveSelection ||
+                                        event.ctrlKey ||
+                                        event.metaKey ||
+                                        event.shiftKey
+                                    ) {
                                         onSelect(
                                             isSelected
                                                 ? selected.filter(
@@ -214,7 +250,7 @@ export function ObjectTree({
                                         : `Hide ${loop.id}`
                                 }
                                 onClick={() => onToggleHidden(loop.id)}
-                                className="text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                                className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-dark-lighter dark:hover:text-white"
                             >
                                 {isHidden ? (
                                     <EyeOff size={13} />
@@ -225,7 +261,7 @@ export function ObjectTree({
                             <button
                                 aria-label={`Delete ${loop.id}`}
                                 onClick={() => onDelete(loop.id)}
-                                className="text-slate-400 hover:text-red-500 dark:hover:text-red-400"
+                                className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-red-50 hover:text-red-500 dark:hover:text-red-400"
                             >
                                 <Trash2 size={13} />
                             </button>

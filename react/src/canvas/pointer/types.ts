@@ -77,6 +77,8 @@ export type CanvasPointerControllerProps = {
     onViewportLeave: () => void;
     onCommitLoop: (points: Point[], meta?: LoopMeta) => void;
     activeTool: Tool;
+    additiveSelection?: boolean;
+    panMode?: boolean;
     onTrimAt?: (point: Point) => void;
     onTrimStroke?: (points: Point[]) => void;
     trimBrushRef: { current: { points: Point[] } | null };
@@ -97,6 +99,11 @@ export type CanvasPointerControllerProps = {
     };
     selectedTabRef: { current: TabMarker | null };
     pendingAnchorRef: { current: Point | null };
+    angleSnapRef: { current: number | null };
+    selectedGuideRef: { current: string | null };
+    guideHoverRef: { current: string | null };
+    loopHoverRef: { current: { loopId: string; segmentIndex: number } | null };
+    onDeleteGuide: (id: string) => void;
     progressPointerRef: { current: Point | null };
     transformDragRef: { current: TransformDragState | null };
     onTransformCommit: (transform: TransformCommit | null) => void;

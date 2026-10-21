@@ -7,7 +7,11 @@ import {
     defaultArcBulgePoint,
     draftPoints,
 } from '../../draw/geometry';
-import { snapDrawPoint } from '../selectionGeometry';
+import {
+    constrainDrawAngle,
+    findDrawSnapTarget,
+    snapDrawPoint,
+} from '../selectionGeometry';
 import { worldAtEvent } from './helpers';
 import type {
     CanvasMouseEvent,
@@ -21,18 +25,41 @@ const CHAIN_TO_DRAW = new Set(['arc', 'bezier', 'polyline']);
 function snapped(
     event: CanvasMouseEvent,
     deps: CanvasPointerControllerProps,
+    anchor?: Point | null,
 ): Point | null {
     const canvas = deps.canvasRef.current;
     if (!canvas) return null;
     const view = deps.viewRef.current;
-    return snapDrawPoint(
+    const world = worldAtEvent(event, canvas, deps.cameraRef.current);
+    const target = findDrawSnapTarget(
         view.loops,
         view.hidden,
-        worldAtEvent(event, canvas, deps.cameraRef.current),
+        world,
         deps.cameraRef.current.scale,
         view.grid,
         view.guides,
     );
+    if (
+        event.shiftKey &&
+        anchor &&
+        view.drawTool &&
+        ['line', 'polyline', 'polygon'].includes(view.drawTool)
+    ) {
+        if (
+            target &&
+            ['endpoint', 'midpoint', 'edge', 'origin'].includes(target.kind)
+        ) {
+            deps.angleSnapRef.current = null;
+            return target.point;
+        }
+        const dx = world.x - anchor.x;
+        const dy = world.y - anchor.y;
+        deps.angleSnapRef.current =
+            Math.round((Math.atan2(dy, dx) * 180) / Math.PI / 15) * 15;
+        return constrainDrawAngle(world, anchor, 15);
+    }
+    deps.angleSnapRef.current = null;
+    return target?.point ?? world;
 }
 
 function snappedScreenPoint(
@@ -61,14 +88,17 @@ export function updateDrawDraft(
     deps: CanvasPointerControllerProps,
 ): boolean {
     const tool = deps.viewRef.current.drawTool;
-    if (!tool || tool === 'text') return false;
+    if (!tool || tool === 'text') {
+        deps.angleSnapRef.current = null;
+        return false;
+    }
     if (
         CLICK_TO_DRAW.has(tool) &&
         deps.pendingAnchorRef.current &&
         event.buttons !== 1
     ) {
-        const point = snapped(event, deps);
         const anchor = deps.pendingAnchorRef.current;
+        const point = snapped(event, deps, anchor);
         if (point && anchor)
             deps.draftRef.current = {
                 ax: anchor.x,
@@ -85,11 +115,13 @@ export function updateDrawDraft(
     if (!canvas) return false;
     const rect = canvas.getBoundingClientRect();
     const camera = deps.cameraRef.current;
+    const start = snappedScreenPoint(down, deps);
+    const end = snapped(event, deps, start);
     deps.draftRef.current = {
-        ax: (down.x - rect.left - camera.tx) / camera.scale,
-        ay: (camera.ty - (down.y - rect.top)) / camera.scale,
-        bx: (event.clientX - rect.left - camera.tx) / camera.scale,
-        by: (camera.ty - (event.clientY - rect.top)) / camera.scale,
+        ax: start?.x ?? (down.x - rect.left - camera.tx) / camera.scale,
+        ay: start?.y ?? (camera.ty - (down.y - rect.top)) / camera.scale,
+        bx: end?.x ?? (event.clientX - rect.left - camera.tx) / camera.scale,
+        by: end?.y ?? (camera.ty - (event.clientY - rect.top)) / camera.scale,
     };
     deps.forceTick();
     return true;
@@ -103,6 +135,10 @@ export function updateChainCursor(
     if (!tool || !CHAIN_TO_DRAW.has(tool) || !deps.clicksRef.current.length)
         return false;
     deps.updateCursor(event);
+    const clicks = deps.clicksRef.current;
+    const anchor = clicks[clicks.length - 1];
+    const point = snapped(event, deps, anchor);
+    if (point) deps.cursorRef.current = point;
     deps.forceTick();
     return true;
 }
@@ -118,13 +154,15 @@ export function finishDraw(
     const dragged =
         Math.hypot(event.clientX - down.x, event.clientY - down.y) >= 4;
     if (tool === 'text') {
-        const point = snapped(event, deps);
+        const clicks = deps.clicksRef.current;
+        const point = snapped(event, deps, clicks[clicks.length - 1]);
         if (point) deps.onCommitText(point);
         deps.forceTick();
         return true;
     }
     if (CHAIN_TO_DRAW.has(tool)) {
-        const point = snapped(event, deps);
+        const clicks = deps.clicksRef.current;
+        const point = snapped(event, deps, clicks[clicks.length - 1]);
         if (point) {
             const chain = [...deps.clicksRef.current, point];
             deps.clicksRef.current = chain;
@@ -152,18 +190,19 @@ export function finishDraw(
     if (!CLICK_TO_DRAW.has(tool)) return false;
     if (dragged) {
         const start = snappedScreenPoint(down, deps);
-        const end = snapped(event, deps);
+        const end = snapped(event, deps, start);
         if (!start || !end) return false;
         const view = deps.viewRef.current;
         const points = draftPoints(
             tool,
             { ax: start.x, ay: start.y, bx: end.x, by: end.y },
             view.drawSides,
-            view.grid.snap ? view.grid.spacingMm : null,
+            null,
             view.polygonMode,
         );
         deps.pendingAnchorRef.current = null;
         deps.draftRef.current = null;
+        deps.angleSnapRef.current = null;
         if (points && points.length >= 2) {
             const radius = Math.hypot(end.x - start.x, end.y - start.y);
             deps.onCommitLoop(points, {
@@ -181,7 +220,8 @@ export function finishDraw(
         deps.forceTick();
         return true;
     }
-    const point = snapped(event, deps);
+    const anchor = deps.pendingAnchorRef.current;
+    const point = snapped(event, deps, anchor);
     if (point) {
         const anchor = deps.pendingAnchorRef.current;
         if (!anchor) {
@@ -198,11 +238,12 @@ export function finishDraw(
                 tool,
                 { ax: anchor.x, ay: anchor.y, bx: point.x, by: point.y },
                 view.drawSides,
-                view.grid.snap ? view.grid.spacingMm : null,
+                null,
                 view.polygonMode,
             );
             deps.pendingAnchorRef.current = null;
             deps.draftRef.current = null;
+            deps.angleSnapRef.current = null;
             if (points && points.length >= 2) {
                 const radius = Math.hypot(
                     point.x - anchor.x,

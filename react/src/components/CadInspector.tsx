@@ -108,9 +108,9 @@ export function CadInspector({
     return (
         <aside
             aria-label="Selected shape properties"
-            className="absolute top-2 right-2 z-10 w-56 rounded-xl border border-slate-200 dark:border-robin-900 bg-white/95 dark:bg-dark/95 shadow-xl"
+            className="absolute top-2 right-2 z-20 w-[calc(100%-1rem)] sm:w-72 lg:w-56 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] overflow-y-auto rounded-xl border border-slate-200 dark:border-robin-900 bg-white/95 dark:bg-dark/95 shadow-xl"
         >
-            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-robin-900">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-white dark:bg-dark px-3 py-2 border-b border-slate-200 dark:border-robin-900">
                 <span className="text-sm font-medium text-slate-900 dark:text-white">
                     Shape
                 </span>

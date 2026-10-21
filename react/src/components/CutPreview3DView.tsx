@@ -2,6 +2,7 @@
  * Purpose: Implementation module for CutPreview3DView in the components domain.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
     MeshStockSimulator,
     type PreviewMemoryStats,
@@ -58,6 +59,7 @@ export function CutPreview3DView({
     gcode: string;
     onControlsChange?: (controls: PreviewControls | null) => void;
 }) {
+    const touch = useMediaQuery('(pointer: coarse)');
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const statusRef = useRef<HTMLDivElement>(null);
     const instanceRef = useRef<PreviewInstance | null>(null);
@@ -153,6 +155,10 @@ export function CutPreview3DView({
             simulate: () => {
                 const instance = instanceRef.current;
                 if (!instance) return;
+                if (running) {
+                    instance.togglePlayback();
+                    return;
+                }
                 instance.resetPlayback();
                 instance.setPlaybackSpeed(100);
                 instance.togglePlayback();
@@ -176,7 +182,11 @@ export function CutPreview3DView({
                 <canvas
                     ref={canvasRef}
                     className="w-full h-full block touch-none cursor-grab active:cursor-grabbing"
-                    aria-label="3D stock simulation. Drag to orbit, scroll to zoom, right-drag to pan."
+                    aria-label={
+                        touch
+                            ? '3D stock simulation. One finger orbits; two fingers pan and pinch to zoom.'
+                            : '3D stock simulation. Drag to orbit, scroll to zoom, right-drag to pan.'
+                    }
                 />
             </div>
             <div className="absolute top-2 right-2 flex gap-1 rounded border border-slate-300 bg-white/90 p-1 text-xs shadow dark:border-robin-800 dark:bg-dark/90">
@@ -227,7 +237,9 @@ export function CutPreview3DView({
                         : 'text-slate-500 border-slate-200'
                 }`}
             >
-                Drag to orbit · scroll to zoom · right-drag to pan
+                {touch
+                    ? 'One finger: orbit · Two fingers: pan / pinch to zoom'
+                    : 'Drag to orbit · scroll to zoom · right-drag to pan'}
             </div>
         </div>
     );
