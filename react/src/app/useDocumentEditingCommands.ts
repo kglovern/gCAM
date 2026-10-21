@@ -36,6 +36,8 @@ interface Options {
     setOffsetPreview: Dispatch<SetStateAction<{ x: number; y: number }[][]>>;
     setBooleanPreview: Dispatch<SetStateAction<{ x: number; y: number }[][]>>;
     setEditingId: Dispatch<SetStateAction<string | null>>;
+    rotaryProject?: unknown;
+    onLoadRotaryProject?: (slice: unknown) => void;
 }
 
 /** Cohesive document-edit command wiring; state remains owned by its domains. */
@@ -53,6 +55,8 @@ export function useDocumentEditingCommands({
     setOffsetPreview,
     setBooleanPreview,
     setEditingId,
+    rotaryProject,
+    onLoadRotaryProject,
 }: Options) {
     const {
         loops,
@@ -102,6 +106,8 @@ export function useDocumentEditingCommands({
         setStatus,
         pushHistory,
         newLoopId,
+        rotaryProject,
+        onLoadRotaryProject,
         onLoadedBounds: (loadedLoops) => {
             refreshBounds(loadedLoops);
             onFitView();

@@ -7,6 +7,7 @@ import { CadInspector } from '../components/CadInspector';
 import { ConfigPanel } from '../components/ConfigPanel';
 import { ObjectTree } from '../components/ObjectTree';
 import { OutputWorkspace } from '../toolpaths/OutputWorkspace';
+import { RotaryPanel } from '../rotary/components/RotaryPanel';
 import { ToolpathRail } from '../toolpaths/ToolpathRail';
 import type { AppWorkspaceModel } from './AppWorkspace';
 import type { EditorWorkspace } from './EditorWorkspace';
@@ -21,6 +22,7 @@ type TreeProps = ComponentProps<typeof ObjectTree>;
 type RailProps = ComponentProps<typeof ToolpathRail>;
 type OutputProps = Omit<ComponentProps<typeof OutputWorkspace>, 'mode'>;
 type ConfigProps = ComponentProps<typeof ConfigPanel>;
+type RotaryProps = ComponentProps<typeof RotaryPanel>;
 type DrawingState = ReturnType<typeof useDrawingWorkspaceState>;
 type TransformState = ReturnType<typeof useTransformWorkspaceState>;
 type ArrangeState = ReturnType<typeof useArrangeWorkspaceState>;
@@ -90,6 +92,7 @@ export interface WorkspaceModelOptions {
     toolpathRailProps: RailProps;
     previewWorkspaceProps: OutputProps;
     configPanelProps: ConfigProps;
+    rotaryPanelProps: RotaryProps;
 }
 
 export function createWorkspaceModel(
@@ -169,6 +172,7 @@ export function createWorkspaceModel(
             toolpathRailProps: options.toolpathRailProps,
             previewWorkspaceProps: options.previewWorkspaceProps,
             configPanelProps: options.configPanelProps,
+            rotaryPanelProps: options.rotaryPanelProps,
         },
     };
 }

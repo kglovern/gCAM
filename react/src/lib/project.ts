@@ -19,6 +19,11 @@ export interface ProjectSnapshot {
     guides: GuideLike[];
     fileName: string;
     stock?: JobStock;
+    /**
+     * Opaque rotary-workflow slice (owned + validated by src/rotary).
+     * Absent in older files; never required.
+     */
+    rotary?: unknown;
     layers?: DrawingLayer[];
     activeLayerId?: string;
 }
@@ -115,5 +120,6 @@ export function deserializeProject(raw: string): ProjectSnapshot {
             : [],
         fileName: doc.fileName || snap.fileName || '',
         stock: normalizeJobStock((snap as { stock?: unknown }).stock),
+        rotary: (snap as { rotary?: unknown }).rotary,
     };
 }

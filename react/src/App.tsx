@@ -10,6 +10,7 @@ import type { ViewLoop } from './canvas/types';
 import { useConfirmation } from './components/ConfirmDialog';
 import { useToasts } from './components/Toasts';
 import { useAppKeyboardShortcuts } from './interactions/useAppKeyboardShortcuts';
+import { useRotaryState } from './rotary/useRotaryState';
 import { useGuideCommands } from './interactions/useGuideCommands';
 import { useFileLoading } from './document/useFileLoading';
 import { useArrangeCommands } from './interactions/useArrangeCommands';
@@ -224,13 +225,24 @@ export default function App() {
     const { confirm, dialog: confirmDialog } = useConfirmation();
     const { expandedSelectedIds, selectedLoops, offsetSource, booleanLoops } =
         useVisibleSelection(loops, selected, hidden);
+    const rotary = useRotaryState();
 
     const undo = () => {
+        if (sideTab === 'rotary') {
+            rotary.undo();
+            setStatus('Undone.');
+            return;
+        }
         if (!undoDocument()) return;
         setStatus('Undone.');
     };
 
     const redo = () => {
+        if (sideTab === 'rotary') {
+            rotary.redo();
+            setStatus('Redone.');
+            return;
+        }
         if (!redoDocument()) return;
         setStatus('Redone.');
     };
@@ -415,6 +427,12 @@ export default function App() {
         setOffsetPreview,
         setBooleanPreview,
         setEditingId,
+        rotaryProject: rotary.snapshotProject(),
+        onLoadRotaryProject: (slice) => {
+            if (rotary.restoreProject(slice)) {
+                setStatus('Loaded rotary setup.');
+            }
+        },
     });
 
     const { editingEntry, preview, tabMarkers, gcode, previewToolpaths } =
@@ -447,8 +465,11 @@ export default function App() {
             setViewportCommand({ type: 'fit', token: Date.now() }),
         undo,
         redo,
-        deleteSelected: handleDeleteSelected,
-        duplicateSelected: handleDuplicateSelected,
+        // Rotary owns its keys (SVG editor) and its undo stack: the global
+        // 2.5D delete/duplicate must not fire while that tab is focused.
+        deleteSelected: sideTab === 'rotary' ? () => {} : handleDeleteSelected,
+        duplicateSelected:
+            sideTab === 'rotary' ? () => {} : handleDuplicateSelected,
     });
 
     const toolbarProps = createToolbarProps({
@@ -716,6 +737,7 @@ export default function App() {
         toolpathRailProps,
         previewWorkspaceProps,
         configPanelProps,
+        rotaryPanelProps: { units, rotary },
     });
 
     return (

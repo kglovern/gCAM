@@ -40,6 +40,8 @@ interface UseProjectFileCommandsOptions<
     guides: TGuide[];
     stock: JobStock;
     fileName: string;
+    rotaryProject?: unknown;
+    onLoadRotaryProject?: (slice: unknown) => void;
     setLoops: Dispatch<SetStateAction<TLoop[]>>;
     setSelected: Dispatch<SetStateAction<string[]>>;
     setHidden: Dispatch<SetStateAction<string[]>>;
@@ -65,6 +67,7 @@ export function useProjectFileCommands<
         if (
             !options.loops.length &&
             !options.stack.length &&
+            !options.rotaryProject &&
             !hasLayerContent(options.layers)
         ) {
             options.setStatus(
@@ -83,6 +86,8 @@ export function useProjectFileCommands<
             guides: options.guides,
             stock: options.stock,
             fileName: options.fileName,
+            // Keep the rotary setup in portable project files.
+            rotary: options.rotaryProject,
         });
         options.setStatus(`Exported ${name}.`);
     };
@@ -116,6 +121,7 @@ export function useProjectFileCommands<
             options.setGuides(snapshot.guides as TGuide[]);
             options.setStock(normalizeJobStock(snapshot.stock));
             options.setFileName(snapshot.fileName);
+            options.onLoadRotaryProject?.(snapshot.rotary);
             options.onLoadedBounds(loops);
             options.setStatus(`Loaded ${file.name}.`);
         } catch (error) {
