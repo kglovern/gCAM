@@ -518,11 +518,12 @@ function drawMarquee(
         w = Math.abs(marquee.x1 - marquee.x0),
         h = Math.abs(marquee.y1 - marquee.y0);
     if (![x, y, w, h].every(Number.isFinite)) return;
-    ctx.fillStyle = 'rgba(96,165,250,0.12)';
+    const crossing = marquee.x1 < marquee.x0;
+    ctx.fillStyle = crossing ? 'rgba(34,197,94,0.12)' : 'rgba(96,165,250,0.12)';
     ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(96,165,250,0.9)';
+    ctx.strokeStyle = crossing ? 'rgba(34,197,94,0.9)' : 'rgba(96,165,250,0.9)';
     ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
+    ctx.setLineDash(crossing ? [4, 3] : []);
     ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     ctx.setLineDash([]);
 }

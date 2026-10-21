@@ -33,9 +33,11 @@ export function OutputWorkspace({
     const emptyText = 'Add a toolpath to preview the cut';
     return (
         <main className="relative flex-1 min-w-0 bg-slate-100 dark:bg-slate-800 p-3 flex flex-col gap-3 min-h-0">
-            <div className="flex items-center gap-2 text-sm text-slate-300">
+            <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                 <Box size={18} className="text-robin-400" />
-                <span className="font-medium text-white">{title}</span>
+                <span className="font-medium text-slate-900 dark:text-white">
+                    {title}
+                </span>
                 <span className="text-xs text-slate-500">
                     {toolpaths.length
                         ? `${toolpaths.length} toolpath${toolpaths.length === 1 ? '' : 's'}`

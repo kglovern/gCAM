@@ -1,11 +1,12 @@
 /**
  * Purpose: Implementation module for ConfigPanel in the components domain.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Box, Grid, Layers, Lightbulb, Ruler, Settings } from 'lucide-react';
 import cx from 'classnames';
 import { displayValue, lengthUnit, toMm, type UnitSystem } from '../lib/units';
 import { UnitInput } from './UnitInput';
+import { PwaSettings } from '../pwa/PwaSettings';
 import {
     CUSTOM_MACHINE_PROFILE_ID,
     MACHINE_PROFILES,
@@ -261,6 +262,7 @@ export function ConfigPanel({
                 </p>
             </header>
 
+            <PwaSettings />
             <section className="space-y-4">
                 <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">
                     <Box size={16} className="text-robin-400" />
@@ -395,9 +397,10 @@ export function ConfigPanel({
                 <div className="space-y-3 bg-white dark:bg-slate-800/80 rounded-lg border border-slate-300 dark:border-robin-900/70 p-4 shadow-sm dark:shadow-[0_4px_16px_rgba(2,6,23,0.18)]">
                     <SettingRow
                         label="Dark Mode"
-                        description="Dark theme is the gSender default; light theme is on the roadmap"
+                        description="Choose the theme that is easiest to see in your workspace"
                     >
                         <Toggle
+                            label="Dark Mode"
                             checked={darkMode}
                             onChange={onDarkModeChange}
                         />
@@ -452,6 +455,7 @@ export function ConfigPanel({
                         description="Display grid lines on canvas"
                     >
                         <Toggle
+                            label="Show Grid"
                             checked={grid.visible}
                             onChange={(v) =>
                                 onGridChange({ ...grid, visible: v })
@@ -463,6 +467,7 @@ export function ConfigPanel({
                         description="Force drawing points to align with grid"
                     >
                         <Toggle
+                            label="Snap to Grid"
                             checked={grid.snap}
                             onChange={(v) => onGridChange({ ...grid, snap: v })}
                             disabled={!grid.visible}
@@ -527,6 +532,7 @@ export function ConfigPanel({
                         description="Default for new toolpaths (circular interpolation vs G1 segments)"
                     >
                         <Toggle
+                            label="Emit G2/G3 Arcs"
                             checked={emitArcs}
                             onChange={onEmitArcsChange}
                         />
@@ -631,17 +637,26 @@ function SettingRow({
     description: string;
     children: React.ReactNode;
 }) {
+    const descriptionId = useId();
     return (
-        <div className="flex items-center justify-between gap-4 min-h-[48px]">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 min-h-[48px]">
             <div className="flex-1 min-w-0">
                 <div className="font-medium text-slate-900 dark:text-white text-sm">
                     {label}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p
+                    id={descriptionId}
+                    className="text-xs text-slate-500 dark:text-slate-400"
+                >
                     {description}
                 </p>
             </div>
-            <div className="flex-shrink-0">{children}</div>
+            <div
+                className="w-full min-w-0 sm:w-auto sm:flex-shrink-0 [&>select]:max-w-full"
+                aria-describedby={descriptionId}
+            >
+                {children}
+            </div>
         </div>
     );
 }
@@ -650,7 +665,9 @@ function Toggle({
     checked,
     onChange,
     disabled,
+    label,
 }: {
+    label: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
     disabled?: boolean;
@@ -667,13 +684,14 @@ function Toggle({
                 checked ? 'bg-robin-500' : 'bg-slate-700',
                 disabled && 'opacity-50 cursor-not-allowed',
             )}
+            aria-label={label}
             role="switch"
             aria-checked={checked}
             aria-disabled={disabled}
         >
             <span
                 className={cx(
-                    'absolute top-1 left-1 w-6 h-6 rounded-full bg-white transition-transform shadow-lg',
+                    'absolute top-1/2 -translate-y-1/2 left-1 w-6 h-6 rounded-full bg-white transition-transform shadow-lg',
                     checked ? 'translate-x-6' : 'translate-x-0',
                 )}
             />

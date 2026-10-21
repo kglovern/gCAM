@@ -100,6 +100,42 @@ test('shows stock, the committed list, tabs and G-code export when nothing is se
     expect(screen.queryByText('Toolpath editor')).not.toBeInTheDocument();
 });
 
+test('keeps Clear Tabs visible but disabled with an explanation when no tabs exist', () => {
+    const entry: ToolpathStackEntry = {
+        id: 'path-no-tabs',
+        label: 'Outside profile',
+        args: {
+            loops: [],
+            operation: 'profile-outside',
+            toolDiameter: 6,
+            cutDepth: 3,
+            tabs: [],
+        },
+        preview: [
+            {
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 10, y: 0 },
+                ],
+            },
+        ],
+        toolpath: {},
+    };
+    render(<ToolpathRail {...makeProps({ stack: [entry] })} />);
+
+    expect(screen.getByRole('button', { name: 'Auto Tabs' })).toBeEnabled();
+    const clearButton = screen.getByRole('button', { name: 'Clear Tabs' });
+    expect(clearButton).toBeDisabled();
+    expect(clearButton).toHaveAttribute(
+        'aria-describedby',
+        'clear-tabs-hint-path-no-tabs',
+    );
+    expect(clearButton.parentElement).toHaveAttribute(
+        'title',
+        'There are no tabs to remove from this toolpath.',
+    );
+});
+
 test('hides job stock and removes the setup title while configuring selected geometry', () => {
     render(<ToolpathRail {...makeProps({ selected: ['vector-1'] })} />);
 
