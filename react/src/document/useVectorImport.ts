@@ -1,6 +1,11 @@
 /**
  * Purpose: React hook that owns the VectorImport workflow.
  */
+import {
+    normalizeLayers,
+    DEFAULT_LAYER_ID,
+    type DrawingLayer,
+} from '../layers/model';
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
@@ -20,6 +25,8 @@ interface ImportLoop {
 }
 
 interface UseVectorImportOptions<TLoop extends ImportLoop, TStack> {
+    setLayers?: Dispatch<SetStateAction<DrawingLayer[]>>;
+    setActiveLayerId?: Dispatch<SetStateAction<string>>;
     setLoops: Dispatch<SetStateAction<TLoop[]>>;
     setSelected: Dispatch<SetStateAction<string[]>>;
     setStack: Dispatch<SetStateAction<TStack[]>>;
@@ -51,6 +58,12 @@ export function useVectorImport<TLoop extends ImportLoop, TStack>(
         const loops = scaled.loops.map(
             (loop) =>
                 ({ ...loop, id: loop.id ?? options.newLoopId() }) as TLoop,
+        );
+        const layers = normalizeLayers(scaled.layers, scaled.loops);
+        options.setLayers?.(layers);
+        options.setActiveLayerId?.(
+            layers.find((layer) => layer.id !== DEFAULT_LAYER_ID)?.id ??
+                DEFAULT_LAYER_ID,
         );
         options.setLoops(loops);
         options.setBounds(scaled.bounds);

@@ -2,6 +2,7 @@
  * Purpose: Implementation module for ObjectTree in the components domain.
  */
 import { ChevronDown, ChevronRight, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { LayerPanel, type LayerPanelProps } from '../layers/LayerPanel';
 import { useState } from 'react';
 import type { ViewLoop } from '../canvas/types';
 import { displayValue, lengthUnit, type UnitSystem } from '../lib/units';
@@ -19,6 +20,7 @@ export interface TreeBitmap {
  * Mirrors the legacy object-tree panel in gSender compact styling.
  */
 export function ObjectTree({
+    layerPanel,
     loops,
     bitmaps,
     selected,
@@ -36,6 +38,7 @@ export function ObjectTree({
     onClose,
     units,
 }: {
+    layerPanel?: LayerPanelProps;
     loops: ViewLoop[];
     bitmaps: TreeBitmap[];
     selected: string[];
@@ -73,7 +76,7 @@ export function ObjectTree({
         return `Vector ${index + 1} (${loop.points.length} pts)`;
     };
     return (
-        <aside className="absolute top-2 left-2 z-10 w-52 max-h-[60%] flex flex-col rounded border border-slate-300 bg-white/95 text-xs text-slate-700 shadow-lg dark:border-robin-900 dark:bg-dark/95 dark:text-slate-200">
+        <aside className="absolute top-2 left-2 z-10 w-80 max-w-[calc(100%-1rem)] max-h-[85%] flex flex-col rounded border border-slate-300 bg-white/95 text-xs text-slate-700 shadow-lg dark:border-robin-900 dark:bg-dark/95 dark:text-slate-200">
             <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-200 dark:border-robin-900">
                 <span className="font-medium text-slate-900 dark:text-white">
                     Objects
@@ -136,6 +139,7 @@ export function ObjectTree({
                 </div>
             )}
             <div className="overflow-y-auto no-scrollbar">
+                {layerPanel && <LayerPanel {...layerPanel} />}
                 {!loops.length && (
                     <div className="px-2 py-3 text-slate-500 text-center">
                         No objects

@@ -1,10 +1,19 @@
 /**
  * Purpose: React hook that owns the NewCanvasCommand workflow.
  */
+import {
+    DEFAULT_LAYER_ID,
+    hasLayerContent,
+    normalizeLayers,
+    type DrawingLayer,
+} from '../layers/model';
 import type { Dispatch, SetStateAction } from 'react';
 import { IMPORT_START_STATUS } from '../lib/import';
 
 interface UseNewCanvasCommandOptions<TLoop, TStack, TBitmap, TGuide> {
+    setLayers?: Dispatch<SetStateAction<DrawingLayer[]>>;
+    setActiveLayerId?: Dispatch<SetStateAction<string>>;
+    layers?: DrawingLayer[];
     loops: TLoop[];
     stack: TStack[];
     bitmaps: TBitmap[];
@@ -42,7 +51,8 @@ export function useNewCanvasCommand<TLoop, TStack, TBitmap, TGuide>(
         const hasWork =
             options.loops.length > 0 ||
             options.stack.length > 0 ||
-            options.bitmaps.length > 0;
+            options.bitmaps.length > 0 ||
+            hasLayerContent(options.layers);
         if (
             hasWork &&
             !window.confirm('Clear the current vectors and toolpaths?')
@@ -53,6 +63,8 @@ export function useNewCanvasCommand<TLoop, TStack, TBitmap, TGuide>(
         options.setEmptyStateDismissed(true);
         options.setSelected([]);
         options.setHidden([]);
+        options.setLayers?.(normalizeLayers([], []));
+        options.setActiveLayerId?.(DEFAULT_LAYER_ID);
         options.setLoops([]);
         options.setBounds(null);
         options.setBitmaps([]);

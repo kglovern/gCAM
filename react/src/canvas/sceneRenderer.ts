@@ -1,6 +1,7 @@
 /**
  * Purpose: Implementation module for sceneRenderer in the react domain.
  */
+import { layerDisplayColor } from '../layers/displayColor';
 import { getMinimumTabWidth, getTabCenterlineSpan } from '../cam/cam-ops.js';
 import { pointAtDistance, polylineLength } from '../geometry/primitives.js';
 import { drawOriginGuides, strokePoints } from './primitives';
@@ -26,6 +27,7 @@ export interface CanvasSceneTheme {
 
 export interface CanvasSceneLoop {
     id: string;
+    layerColor?: string;
     points: Point[];
 }
 
@@ -155,7 +157,7 @@ export function drawCanvasScene(input: CanvasSceneInput): void {
         if (hidden.includes(loop.id)) continue;
         ctx.strokeStyle = selected.includes(loop.id)
             ? theme.selected
-            : theme.vector;
+            : layerDisplayColor(loop.layerColor, theme.bg, theme.vector);
         ctx.lineWidth = selected.includes(loop.id) ? 2.5 : 1.5;
         strokePoints(ctx, loop.points, toScreen);
     }

@@ -58,9 +58,16 @@ export function ToolbarMenu({
                 {!iconOnly && label}
             </button>
             <div
+                onClick={(event) => {
+                    if (
+                        event.target instanceof Element &&
+                        event.target.closest('[role="menuitem"]')
+                    )
+                        setOpen(false);
+                }}
                 className={cx(
                     'absolute left-0 top-8 z-50 min-w-48 rounded-md border border-slate-200 bg-white p-1 shadow-xl dark:border-robin-900 dark:bg-dark',
-                    open ? 'block' : 'hidden group-hover:block',
+                    open ? 'block' : 'hidden',
                 )}
             >
                 {children}

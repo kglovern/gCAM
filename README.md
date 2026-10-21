@@ -4,6 +4,25 @@ gCAM is a exploration of CAM workflows - to become a CAM app at some point
 
 **Live app:** [petervanderwalt.github.io/gCAM](https://petervanderwalt.github.io/gCAM/)
 
+## Drawing layers
+
+Open **View > Object Browser** to manage layers. DXF imports retain layer names
+and table colours; SVG imports retain Inkscape layer labels and named groups.
+Colours are optional, and identically coloured layers stay separate. Files without
+layers start on Default.
+
+Add or rename layers, set the active drawing layer, and use **Move selected** to
+reassign existing shapes. **Select** selects that layer's visible shapes for the
+usual toolpath workflow. Hide/show changes drawing visibility; existing toolpaths
+keep their geometry and export order. Removing a layer keeps its shapes on Default.
+Layers are included in undo/redo, local recovery and exported projects.
+
+The workflow follows [Vectric's named geometry layers](https://docs.vectric.com/docs/Spark/V1.0/ENU/Help/page/layerlist/index.html)
+and [layer-based vector selection](https://docs.vectric.com/docs/V12.5/VCarvePro/ENU/Help/form/vector-selector/index.html).
+[LightBurn](https://docs.lightburnsoftware.com/latest/Reference/CutsLayersWindow/)
+uses colours as operation layers; gCAM keeps optional drawing colours independent
+of toolpath operations so a layer can feed more than one machining operation.
+
 ## Development
 
 Use Node 24, Node 22, or Node 20.19+.

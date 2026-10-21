@@ -3,6 +3,11 @@
  */
 import { useRef, useState } from 'react';
 import {
+    DEFAULT_LAYER_ID,
+    normalizeLayers,
+    type DrawingLayer,
+} from '../layers/model';
+import {
     createHistory,
     pushHistory,
     redoHistory,
@@ -18,6 +23,8 @@ export interface DocumentSnapshot<TLoop, TStack, TBitmap, TGuide> {
     bitmaps: TBitmap[];
     guides: TGuide[];
     stock: JobStock;
+    layers?: DrawingLayer[];
+    activeLayerId?: string;
 }
 
 interface DocumentStateOptions<TLoop, TStack, TBitmap, TGuide> {
@@ -38,6 +45,10 @@ interface DocumentStateOptions<TLoop, TStack, TBitmap, TGuide> {
 export function useDocumentState<TLoop, TStack, TBitmap, TGuide>(
     options: DocumentStateOptions<TLoop, TStack, TBitmap, TGuide>,
 ) {
+    const [layers, setLayers] = useState<DrawingLayer[]>(() =>
+        normalizeLayers([], []),
+    );
+    const [activeLayerId, setActiveLayerId] = useState(DEFAULT_LAYER_ID);
     const [loops, setLoops] = useState<TLoop[]>([]);
     const [selected, setSelected] = useState<string[]>([]);
     const [hidden, setHidden] = useState<string[]>([]);
@@ -49,6 +60,8 @@ export function useDocumentState<TLoop, TStack, TBitmap, TGuide>(
     );
     const [, setVersion] = useState(0);
     const stateRef = useRef<DocumentSnapshot<TLoop, TStack, TBitmap, TGuide>>({
+        layers,
+        activeLayerId,
         loops,
         selected,
         hidden,
@@ -58,6 +71,8 @@ export function useDocumentState<TLoop, TStack, TBitmap, TGuide>(
         stock,
     });
     stateRef.current = {
+        layers,
+        activeLayerId,
         loops,
         selected,
         hidden,
@@ -78,6 +93,16 @@ export function useDocumentState<TLoop, TStack, TBitmap, TGuide>(
     const restore = (
         snapshot: DocumentSnapshot<TLoop, TStack, TBitmap, TGuide>,
     ) => {
+        const restoredLayers = normalizeLayers(
+            snapshot.layers,
+            snapshot.loops as { layerId?: string }[],
+        );
+        setLayers(restoredLayers);
+        setActiveLayerId(
+            restoredLayers.some((layer) => layer.id === snapshot.activeLayerId)
+                ? snapshot.activeLayerId!
+                : DEFAULT_LAYER_ID,
+        );
         setLoops(snapshot.loops);
         setSelected(snapshot.selected);
         setHidden(snapshot.hidden);
@@ -105,7 +130,11 @@ export function useDocumentState<TLoop, TStack, TBitmap, TGuide>(
     };
 
     return {
+        layers,
+        activeLayerId,
         loops,
+        setLayers,
+        setActiveLayerId,
         setLoops,
         selected,
         setSelected,

@@ -1,6 +1,7 @@
 /**
  * Purpose: React hook that owns the DocumentPersistence workflow.
  */
+import { hasLayerContent, type DrawingLayer } from '../layers/model';
 import { useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ViewLoop } from '../canvas/types';
@@ -19,6 +20,8 @@ type AppSnapshot = DocumentSnapshot<
 >;
 
 interface UseDocumentPersistenceOptions {
+    layers?: DrawingLayer[];
+    activeLayerId?: string;
     loops: ViewLoop[];
     selected: string[];
     hidden: string[];
@@ -37,6 +40,8 @@ interface UseDocumentPersistenceOptions {
 
 /** Local recovery, debounced autosave and bitmap image rehydration. */
 export function useDocumentPersistence({
+    layers,
+    activeLayerId,
     loops,
     selected,
     hidden,
@@ -63,11 +68,14 @@ export function useDocumentPersistence({
                 if (cancelled || !recovery) return;
                 if (
                     !recovery.snapshot.loops.length &&
-                    !recovery.snapshot.stack.length
+                    !recovery.snapshot.stack.length &&
+                    !hasLayerContent(recovery.snapshot.layers)
                 ) {
                     return;
                 }
                 restore({
+                    layers: recovery.snapshot.layers,
+                    activeLayerId: recovery.snapshot.activeLayerId,
                     loops: recovery.snapshot.loops as ViewLoop[],
                     selected: recovery.snapshot.selected,
                     hidden: recovery.snapshot.hidden,
@@ -99,6 +107,8 @@ export function useDocumentPersistence({
         const timer = window.setTimeout(() => {
             void autosaveStoreRef.current
                 .save({
+                    layers,
+                    activeLayerId,
                     loops,
                     selected,
                     hidden,
@@ -113,7 +123,18 @@ export function useDocumentPersistence({
                 });
         }, 600);
         return () => window.clearTimeout(timer);
-    }, [bitmaps, fileName, guides, hidden, loops, selected, stack, stock]);
+    }, [
+        layers,
+        activeLayerId,
+        bitmaps,
+        fileName,
+        guides,
+        hidden,
+        loops,
+        selected,
+        stack,
+        stock,
+    ]);
 
     useEffect(() => {
         let cancelled = false;

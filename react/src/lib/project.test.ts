@@ -6,9 +6,11 @@ import {
     serializeProject,
     type ProjectSnapshot,
 } from './project';
+import { DEFAULT_LAYER } from '../layers/model';
 import { DEFAULT_JOB_STOCK } from '../job/stock';
 
 const SNAP: ProjectSnapshot = {
+    layers: [DEFAULT_LAYER],
     loops: [{ points: [{ x: 0, y: 0 }], groupId: 'group-1' }],
     selected: ['a'],
     hidden: [],
@@ -57,6 +59,7 @@ test('v1 projects migrate to the current snapshot shape', () => {
         bitmaps: [],
         guides: [],
         fileName: 'legacy',
+        layers: [DEFAULT_LAYER],
         stock: DEFAULT_JOB_STOCK,
     });
 });
