@@ -67,3 +67,15 @@ test('garbage is rejected with a clear error', () => {
         deserializeProject(JSON.stringify({ kind: 'x', version: 9 })),
     ).toThrow(/valid gCAM/);
 });
+
+test('opaque rotary slice round-trips untouched', () => {
+    const rotary = { name: 'leg', mode: 'profile', custom: [1, 2, 3] };
+    const back = deserializeProject(serializeProject({ ...SNAP, rotary }));
+    expect(back.rotary).toEqual(rotary);
+});
+
+test('files without a rotary slice load as before', () => {
+    const back = deserializeProject(serializeProject(SNAP));
+    expect(back.rotary).toBeUndefined();
+    expect(back).toEqual(SNAP);
+});

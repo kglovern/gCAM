@@ -1,0 +1,96 @@
+.rotary-workspace {
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    overflow: hidden;
+}
+.rotary-body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
+    gap: 0.75rem;
+}
+.rotary-controls {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.25rem;
+}
+.rotary-preview {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.rotary-viewport {
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.rotary-viewport-canvas {
+    flex: 1;
+    min-height: 220px;
+}
+.rotary-workspace input[type="checkbox"] {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    accent-color: #559cbe;
+}
+.rotary-workspace button,
+.rotary-workspace summary {
+    touch-action: manipulation;
+}
+.rotary-workspace :focus-visible {
+    outline: 2px solid #559cbe;
+    outline-offset: 2px;
+}
+@media (max-width: 1099px) {
+    .rotary-body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(180px, 0.8fr) minmax(0, 1.2fr);
+    }
+    .rotary-preview {
+        grid-row: 1;
+    }
+    .rotary-viewport-canvas {
+        min-height: 140px;
+    }
+}
+@media (max-height: 650px) and (min-width: 1100px) {
+    .rotary-workspace {
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+}
+
+.rotary-controls #rotary-step-1:not([hidden]) {
+    height: 100%;
+}
+.rotary-shape {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 400px;
+    overflow: hidden;
+}
+.rotary-shape > div:first-child {
+    flex-shrink: 0;
+}
+.rotary-profile-editor {
+    min-height: 160px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.rotary-profile-editor svg {
+    min-height: 115px;
+    flex: 1;
+}

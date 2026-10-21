@@ -30,6 +30,8 @@ interface UseProjectFileCommandsOptions<
     guides: TGuide[];
     stock: JobStock;
     fileName: string;
+    rotaryProject?: unknown;
+    onLoadRotaryProject?: (slice: unknown) => void;
     setLoops: Dispatch<SetStateAction<TLoop[]>>;
     setSelected: Dispatch<SetStateAction<string[]>>;
     setHidden: Dispatch<SetStateAction<string[]>>;
@@ -52,7 +54,11 @@ export function useProjectFileCommands<
     TGuide extends GuideLike,
 >(options: UseProjectFileCommandsOptions<TLoop, TStack, TBitmap, TGuide>) {
     const handleExportProject = () => {
-        if (!options.loops.length && !options.stack.length) {
+        if (
+            !options.loops.length &&
+            !options.stack.length &&
+            !options.rotaryProject
+        ) {
             options.setStatus(
                 'Nothing to export — import or draw something first.',
             );
@@ -67,6 +73,8 @@ export function useProjectFileCommands<
             guides: options.guides,
             stock: options.stock,
             fileName: options.fileName,
+            // Keep the rotary setup in portable project files.
+            rotary: options.rotaryProject,
         });
         options.setStatus(`Exported ${name}.`);
     };
@@ -93,6 +101,7 @@ export function useProjectFileCommands<
             options.setGuides(snapshot.guides as TGuide[]);
             options.setStock(normalizeJobStock(snapshot.stock));
             options.setFileName(snapshot.fileName);
+            options.onLoadRotaryProject?.(snapshot.rotary);
             options.onLoadedBounds(loops);
             options.setStatus(`Loaded ${file.name}.`);
         } catch (error) {

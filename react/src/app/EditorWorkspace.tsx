@@ -7,6 +7,7 @@ import { EmptyCanvasPrompt } from '../canvas/EmptyCanvasPrompt';
 import { CadInspector } from '../components/CadInspector';
 import { ConfigPanel } from '../components/ConfigPanel';
 import { ObjectTree } from '../components/ObjectTree';
+import { RotaryPanel } from '../rotary/components/RotaryPanel';
 import { Sidebar } from '../components/Sidebar';
 import { OutputWorkspace } from '../toolpaths/OutputWorkspace';
 import { ToolpathRail } from '../toolpaths/ToolpathRail';
@@ -30,6 +31,7 @@ interface EditorWorkspaceProps {
     toolpathRailProps: ComponentProps<typeof ToolpathRail>;
     previewWorkspaceProps: Omit<ComponentProps<typeof OutputWorkspace>, 'mode'>;
     configPanelProps: ComponentProps<typeof ConfigPanel>;
+    rotaryPanelProps: ComponentProps<typeof RotaryPanel>;
 }
 
 /** The editor's tabbed work area, isolated from document and command wiring. */
@@ -50,6 +52,7 @@ export function EditorWorkspace({
     toolpathRailProps,
     previewWorkspaceProps,
     configPanelProps,
+    rotaryPanelProps,
 }: EditorWorkspaceProps) {
     return (
         <div className="flex-1 min-h-0 flex">
@@ -92,6 +95,7 @@ export function EditorWorkspace({
                     <ConfigPanel {...configPanelProps} />
                 </main>
             )}
+            {activeTab === 'rotary' && <RotaryPanel {...rotaryPanelProps} />}
         </div>
     );
 }
