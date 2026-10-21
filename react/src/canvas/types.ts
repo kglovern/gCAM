@@ -20,6 +20,8 @@ export interface ViewLoop {
     points: { x: number; y: number }[];
     bitmapId?: string;
     groupId?: string;
+    layerId?: string;
+    layerColor?: string;
     sourceType?: string;
     radius?: number;
     sides?: number;

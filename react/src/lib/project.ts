@@ -1,6 +1,7 @@
 /**
  * Purpose: Implementation module for project in the lib domain.
  */
+import { normalizeLayers, type DrawingLayer } from '../layers/model';
 import { normalizeJobStock, type JobStock } from '../job/stock';
 import type { StoredSurfaceMesh } from '../engine/surface-model';
 
@@ -9,6 +10,7 @@ export interface ProjectSnapshot {
         id?: string;
         points: { x: number; y: number }[];
         groupId?: string;
+        layerId?: string;
     }[];
     selected: string[];
     hidden: string[];
@@ -22,6 +24,8 @@ export interface ProjectSnapshot {
      * Absent in older files; never required.
      */
     rotary?: unknown;
+    layers?: DrawingLayer[];
+    activeLayerId?: string;
 }
 
 export interface StackEntryLike {
@@ -100,6 +104,8 @@ export function deserializeProject(raw: string): ProjectSnapshot {
         throw new Error('This is not a valid gCAM project file.');
     }
     return {
+        layers: normalizeLayers(snap.layers, snap.loops),
+        activeLayerId: snap.activeLayerId,
         loops: snap.loops,
         selected: Array.isArray(snap.selected) ? snap.selected : [],
         stack: snap.stack,

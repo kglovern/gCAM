@@ -10,6 +10,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
+import { LayerPanel, type LayerPanelProps } from '../layers/LayerPanel';
 import { useState } from 'react';
 import type { ViewLoop } from '../canvas/types';
 import { displayValue, lengthUnit, type UnitSystem } from '../lib/units';
@@ -27,6 +28,7 @@ export interface TreeBitmap {
  * Mirrors the legacy object-tree panel in gSender compact styling.
  */
 export function ObjectTree({
+    layerPanel,
     loops,
     bitmaps,
     selected,
@@ -46,6 +48,7 @@ export function ObjectTree({
     additiveSelection = false,
     onAdditiveChange,
 }: {
+    layerPanel?: LayerPanelProps;
     additiveSelection?: boolean;
     onAdditiveChange?: (value: boolean) => void;
     loops: ViewLoop[];
@@ -166,6 +169,7 @@ export function ObjectTree({
                 </div>
             )}
             <div className="overflow-y-auto no-scrollbar">
+                {layerPanel && <LayerPanel {...layerPanel} />}
                 {!loops.length && (
                     <div className="px-2 py-3 text-slate-500 text-center">
                         No objects

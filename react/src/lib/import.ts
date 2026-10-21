@@ -1,6 +1,12 @@
 /**
  * Purpose: Implementation module for import in the lib domain.
  */
+import {
+    normalizeLayers,
+    DEFAULT_LAYER_ID,
+    type DrawingLayer,
+} from '../layers/model';
+import { dxfLayerMetadata } from '../layers/importMetadata.js';
 import { dxfUnitScaleToMm, parseDxf } from '../engine/dxf.js';
 import { cxfTextStrokes, parseCxf } from '../engine/cxf.js';
 import { parseSvg } from '../engine/svg.js';
@@ -14,7 +20,12 @@ export const IMPORT_START_STATUS =
 export interface ImportResult {
     fileName: string;
     entityCount: number;
-    loops: { id?: string; points: { x: number; y: number }[] }[];
+    layers?: DrawingLayer[];
+    loops: {
+        layerId?: string;
+        id?: string;
+        points: { x: number; y: number }[];
+    }[];
     bounds: {
         minX: number;
         minY: number;
@@ -119,11 +130,38 @@ export async function importVectorFile(file: File): Promise<ImportResult> {
     if (isDxf && entities.some((entity) => entity.type === 'CAD_TEXT')) {
         entities = await convertDxfTextToStrokes(entities);
     }
-    const loops = buildLoops(entities);
+    // Joining is deliberately confined to each source layer. Touching or
+    // coincident geometry on Cuts and Pockets must remain independent.
+    const table = isDxf ? dxfLayerMetadata(text) : new Map();
+    const groups = new Map<string, typeof entities>();
+    for (const source of table.keys()) groups.set(source, []);
+    const importedLayers: DrawingLayer[] = [];
+    for (const entity of entities) {
+        const source = String(entity.layer || '0');
+        const group = groups.get(source);
+        if (group) group.push(entity);
+        else groups.set(source, [entity]);
+    }
+    const loops = [...groups].flatMap(([source, group]) => {
+        const layerId = source === '0' ? DEFAULT_LAYER_ID : `import:${source}`;
+        const metadata = table.get(source);
+        const svgEntity = (group[0] ?? {}) as {
+            layerName?: string;
+            layerColor?: string;
+        };
+        importedLayers.push({
+            id: layerId,
+            name: source === '0' ? 'Default' : svgEntity.layerName || source,
+            color: metadata?.color || svgEntity.layerColor,
+        });
+        return buildLoops(group).map((loop) => ({ ...loop, layerId }));
+    });
+    const layers = normalizeLayers(importedLayers, loops);
     const bounds = mergeBounds(loops.map((l) => l.bounds).filter(Boolean));
     return {
         fileName: file.name,
         entityCount: entities.length,
+        layers,
         loops,
         bounds,
         unitScaleToMm,

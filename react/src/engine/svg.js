@@ -1,6 +1,7 @@
 /**
  * Purpose: Implementation module for svg in the react domain.
  */
+import { svgLayerMetadata } from '../layers/importMetadata.js';
 import { TOOLPATH_SAMPLE_STEP } from './constants.js';
 import {
     createMatrix,
@@ -63,7 +64,7 @@ export function parseSvg(text) {
             );
             entities.push({
                 type: 'LINE',
-                layer: element.getAttribute('id') || '0',
+                ...svgLayerMetadata(element),
                 handle: '',
                 color: 256,
                 x1: start.x,
@@ -193,10 +194,7 @@ function polylineEntityFromPoints(
 ) {
     return {
         type: sourceType,
-        layer:
-            element?.getAttribute?.('id') ||
-            element?.getAttribute?.('class') ||
-            '0',
+        ...svgLayerMetadata(element),
         handle: '',
         color: 256,
         vertices: points.map((point) => ({ x: point.x, y: point.y, bulge: 0 })),

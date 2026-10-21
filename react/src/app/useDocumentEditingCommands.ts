@@ -83,6 +83,10 @@ export function useDocumentEditingCommands({
     } = document;
 
     const projectFiles = useProjectFileCommands({
+        layers: document.layers,
+        activeLayerId: document.activeLayerId,
+        setLayers: document.setLayers,
+        setActiveLayerId: document.setActiveLayerId,
         loops,
         selected,
         hidden,
@@ -160,6 +164,9 @@ export function useDocumentEditingCommands({
         PlacedBitmapRecord,
         Guide
     >({
+        layers: document.layers,
+        setLayers: document.setLayers,
+        setActiveLayerId: document.setActiveLayerId,
         loops,
         stack,
         bitmaps,

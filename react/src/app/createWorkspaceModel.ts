@@ -104,7 +104,12 @@ export function createWorkspaceModel(
             onTabChange: options.onTabChange,
             canvasProps: {
                 activeTool: options.drawing.activeTool,
-                loops: options.document.loops,
+                loops: options.document.loops.map((loop) => ({
+                    ...loop,
+                    layerColor: options.document.layers.find(
+                        (layer) => layer.id === (loop.layerId || 'default'),
+                    )?.color,
+                })),
                 bounds: options.document.bounds,
                 preview: options.preview,
                 inspectorPreview: options.inspectorPreview,
@@ -139,8 +144,14 @@ export function createWorkspaceModel(
                 ...options.canvasActions,
             },
             objectTreeProps: {
+                layerPanel: options.document.layerCommands,
                 units: options.configPanelProps.units,
-                loops: options.document.loops,
+                loops: options.document.loops.map((loop) => ({
+                    ...loop,
+                    layerColor: options.document.layers.find(
+                        (layer) => layer.id === (loop.layerId || 'default'),
+                    )?.color,
+                })),
                 bitmaps: options.document.bitmaps,
                 selected: options.document.selected,
                 hidden: options.document.hidden,
