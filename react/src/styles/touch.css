@@ -1,0 +1,50 @@
+/* Shared touch ergonomics; desktop dimensions and the existing palette stay intact. */
+@media (pointer: coarse) {
+    button,
+    .touch-target {
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(
+        [type="hidden"]
+    ),
+    select,
+    textarea {
+        min-height: 44px;
+        /* Tailwind utilities use important: true in the shared gSender config. */
+        font-size: 16px !important;
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 20px !important;
+        height: 20px !important;
+        flex-shrink: 0;
+    }
+
+    label:has(> input[type="checkbox"]),
+    label:has(> input[type="radio"]) {
+        min-height: 44px;
+    }
+}
+
+/* Visible keyboard focus and scrolling affordances are shared across workspaces. */
+button:focus-visible,
+summary:focus-visible {
+    outline: 2px solid #689ac9;
+    outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+    summary {
+        min-height: 44px;
+        align-content: center;
+        touch-action: manipulation;
+    }
+    input[type="range"] {
+        min-height: 44px;
+        touch-action: pan-y;
+    }
+}

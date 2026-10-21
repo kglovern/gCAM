@@ -2,8 +2,10 @@
  * Purpose: Implementation module for selection in the canvas domain.
  */
 import { nearestPointOnPolyline } from '../../cam/cam-ops.js';
-import { boundsOfPoints } from '../../geometry/bounds.js';
+import { findGuideAtPoint } from '../../lib/guides';
+import { findLoopAtPoint } from '../selectionGeometry';
 import { startsPan } from '../pointerState';
+import { matchesMarquee } from '../marqueeGeometry';
 import type {
     CanvasMouseEvent,
     CanvasPointerControllerProps,
@@ -91,16 +93,7 @@ function selectMarquee(
         )
             return [];
         try {
-            const bounds = boundsOfPoints(loop.points);
-            return bounds &&
-                Number.isFinite(bounds.minX) &&
-                Number.isFinite(bounds.minY) &&
-                Number.isFinite(bounds.maxX) &&
-                Number.isFinite(bounds.maxY) &&
-                bounds.minX <= b.x &&
-                bounds.maxX >= a.x &&
-                bounds.minY <= b.y &&
-                bounds.maxY >= a.y
+            return matchesMarquee(loop.points, a, b, marquee.x1 < marquee.x0)
                 ? [loop.id]
                 : [];
         } catch {
@@ -144,6 +137,24 @@ function selectAt(
         y: (camera.ty - (event.clientY - rect.top)) / camera.scale,
     };
     const { loops, selected, hidden, bitmaps } = deps.viewRef.current;
+    const guide = findGuideAtPoint(
+        world,
+        deps.viewRef.current.guides ?? [],
+        camera.scale,
+    );
+    if (guide) {
+        const additive =
+            deps.additiveSelection ||
+            event.shiftKey ||
+            event.ctrlKey ||
+            event.metaKey;
+        deps.selectedGuideRef.current =
+            additive && deps.selectedGuideRef.current === guide.id
+                ? null
+                : guide.id;
+        deps.onSelect([]);
+        return;
+    }
     const hide = new Set(hidden);
     const bitmap = [...bitmaps].reverse().find((entry) => {
         const linked = loops.find((loop) => loop.bitmapId === entry.id);
@@ -165,8 +176,12 @@ function selectAt(
     if (bitmap) {
         const linkedId = loops.find((loop) => loop.bitmapId === bitmap.id)?.id;
         if (linkedId) {
+            deps.selectedGuideRef.current = null;
             deps.onSelect(
-                (event.shiftKey || event.ctrlKey || event.metaKey) &&
+                (deps.additiveSelection ||
+                    event.shiftKey ||
+                    event.ctrlKey ||
+                    event.metaKey) &&
                     selected.length === 1 &&
                     selected[0] === linkedId
                     ? []
@@ -195,16 +210,71 @@ function selectAt(
             /* ignore malformed imported geometry */
         }
     });
-    if (best !== null && bestDistance <= tolerance)
+    if (best !== null && bestDistance <= tolerance) {
+        deps.selectedGuideRef.current = null;
         deps.onSelect(
-            !(event.shiftKey || event.ctrlKey || event.metaKey)
+            !(
+                deps.additiveSelection ||
+                event.shiftKey ||
+                event.ctrlKey ||
+                event.metaKey
+            )
                 ? [best]
                 : selected.includes(best)
                   ? selected.filter((id) => id !== best)
                   : [...selected, best],
         );
-    else if (!(event.shiftKey || event.ctrlKey || event.metaKey))
+    } else if (
+        !(
+            deps.additiveSelection ||
+            event.shiftKey ||
+            event.ctrlKey ||
+            event.metaKey
+        )
+    ) {
+        deps.selectedGuideRef.current = null;
         deps.onSelect([]);
+    }
+}
+
+export function updateSelectionHover(
+    event: CanvasMouseEvent,
+    deps: CanvasPointerControllerProps,
+): void {
+    const view = deps.viewRef.current;
+    if (
+        deps.activeTool !== 'select' ||
+        view.drawTool ||
+        view.guidePlacement ||
+        view.transformMode ||
+        event.buttons !== 0 ||
+        deps.guideHoverRef.current
+    ) {
+        deps.loopHoverRef.current = null;
+        return;
+    }
+    const canvas = deps.canvasRef.current;
+    if (!canvas) return;
+    const world = {
+        x:
+            (event.clientX -
+                canvas.getBoundingClientRect().left -
+                deps.cameraRef.current.tx) /
+            deps.cameraRef.current.scale,
+        y:
+            (deps.cameraRef.current.ty -
+                (event.clientY - canvas.getBoundingClientRect().top)) /
+            deps.cameraRef.current.scale,
+    };
+    const hit = findLoopAtPoint(
+        view.loops,
+        view.hidden,
+        world,
+        deps.cameraRef.current.scale,
+    );
+    deps.loopHoverRef.current = hit
+        ? { loopId: hit.loopId, segmentIndex: hit.segmentIndex }
+        : null;
 }
 
 export function finishSelection(
@@ -217,7 +287,10 @@ export function finishSelection(
         selectMarquee(
             deps,
             marquee,
-            event.shiftKey || event.ctrlKey || event.metaKey,
+            deps.additiveSelection ||
+                event.shiftKey ||
+                event.ctrlKey ||
+                event.metaKey,
         );
         deps.forceTick();
     } else if (down) selectAt(event, deps, down);

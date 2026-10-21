@@ -127,3 +127,22 @@ test('control-marquee adds to the current selection', () => {
     );
     expect(onSelect).toHaveBeenCalledWith(['vector-1', 'vector-2']);
 });
+
+test('touch multi-select toggles a vector without any keyboard modifier', () => {
+    const onSelect = jest.fn();
+    const deps = selectionDeps(['vector-1'], onSelect);
+    deps.additiveSelection = true;
+    const event = {
+        button: 0,
+        clientX: 55,
+        clientY: 45,
+        shiftKey: false,
+        ctrlKey: false,
+        metaKey: false,
+    } as React.MouseEvent<HTMLCanvasElement>;
+    finishSelection(event, deps, { x: 55, y: 45 }, null);
+    expect(onSelect).toHaveBeenLastCalledWith(['vector-1', 'vector-2']);
+    deps.viewRef.current.selected = ['vector-1', 'vector-2'];
+    finishSelection(event, deps, { x: 55, y: 45 }, null);
+    expect(onSelect).toHaveBeenLastCalledWith(['vector-1']);
+});

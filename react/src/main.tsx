@@ -6,6 +6,9 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import './rotary/components/rotaryWorkspace.css';
+import { startPwa } from './pwa/client';
+
+startPwa(import.meta.env.PROD);
 
 class RootErrorBoundary extends Component<
     { children: ReactNode },

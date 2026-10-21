@@ -324,7 +324,7 @@ function CursorReadout({
     if (!cursor) return null;
     return (
         <div
-            className={`absolute bottom-2 left-2 text-xs px-2 py-1 rounded border tabular-nums ${darkMode ? 'bg-dark/80 border-robin-900 text-slate-300' : 'bg-white/90 border-slate-300 text-slate-600'}`}
+            className={`absolute bottom-2 left-2 text-xs [@media(pointer:coarse)]:hidden [@media(max-width:767px)]:hidden px-2 py-1 rounded border tabular-nums ${darkMode ? 'bg-dark/80 border-robin-900 text-slate-300' : 'bg-white/90 border-slate-300 text-slate-600'}`}
         >
             {guidePlacement
                 ? guideDraft

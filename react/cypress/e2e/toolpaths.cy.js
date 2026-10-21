@@ -87,3 +87,32 @@ describe('Retained mesh operations', () => {
         }
     }
 });
+describe('Send to gSender', () => {
+    beforeEach(() => {
+        cy.freshProject();
+        cy.importDesign('vectors.svg');
+        cy.worldClick(20, 50);
+    });
+    it('posts the exported program to the gSender handoff listener', () => {
+        cy.intercept('POST', 'http://127.0.0.1:47820/gcam/v1/load', {
+            statusCode: 202,
+            body: { accepted: true, name: 'vectors.nc' },
+        }).as('handoff');
+        cy.addOperation('Engrave');
+        cy.contains('button', /^Send to gSender$/).click();
+        cy.wait('@handoff').then(({ request }) => {
+            expect(request.body.name).to.equal('vectors.nc');
+            expect(request.body.gcode).to.match(/G[01]/);
+        });
+        cy.contains('button', 'Sent to gSender');
+    });
+    it('explains when gSender is running a job', () => {
+        cy.intercept('POST', 'http://127.0.0.1:47820/gcam/v1/load', {
+            statusCode: 409,
+            body: { error: 'busy' },
+        });
+        cy.addOperation('Engrave');
+        cy.contains('button', /^Send to gSender$/).click();
+        cy.contains('[role="alert"]', 'gSender is running a job');
+    });
+});

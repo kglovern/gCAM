@@ -2,6 +2,8 @@
  * Purpose: Implementation module for CanvasToolbar in the react domain.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { ToolbarOverflow } from './toolbar/ToolbarOverflow';
 import { applyBoolean, offsetLoops } from '../lib/engine';
 import { ToolbarCommands } from './toolbar/ToolbarCommands';
 import { ToolbarForms } from './toolbar/ToolbarForms';
@@ -12,6 +14,7 @@ export type { CanvasToolbarProps, ToolbarAction } from './toolbar/types';
 
 /** Composition root for independently maintained canvas toolbar groups. */
 export function CanvasToolbar(props: CanvasToolbarProps) {
+    const phone = useMediaQuery('(max-width: 767px)');
     const [open, setOpen] = useState<ToolbarAction>(null);
     const [booleanOperation, setBooleanOperation] =
         useState<Parameters<CanvasToolbarProps['onBoolean']>[0]>('union');
@@ -90,12 +93,38 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
     return (
         <div ref={rootRef} className="shrink-0 flex flex-col">
             <div
-                className="flex flex-wrap items-center gap-0.5 overflow-visible"
+                className="relative flex flex-wrap items-center gap-0.5 overflow-visible"
                 role="toolbar"
                 aria-label="Canvas tools"
             >
-                <ToolbarMenus props={props} openAction={toggle} close={close} />
-                <ToolbarCommands props={props} open={open} close={close} />
+                <ToolbarMenus
+                    props={props}
+                    openAction={toggle}
+                    close={close}
+                    group={phone ? 'file' : 'all'}
+                />
+                <ToolbarCommands
+                    props={props}
+                    open={open}
+                    close={close}
+                    group={phone ? 'primary' : 'all'}
+                />
+                {phone && (
+                    <ToolbarOverflow>
+                        <ToolbarMenus
+                            props={props}
+                            openAction={toggle}
+                            close={close}
+                            group="secondary"
+                        />
+                        <ToolbarCommands
+                            props={props}
+                            open={open}
+                            close={close}
+                            group="secondary"
+                        />
+                    </ToolbarOverflow>
+                )}
             </div>
             <ToolbarForms
                 props={props}
