@@ -6,14 +6,16 @@ gCAM is a exploration of CAM workflows - to become a CAM app at some point
 
 ## Drawing layers
 
-Open **View > Object Browser** to manage layers. DXF imports retain layer names
+Use **Layers** in the toolpath sidebar, below job stock, to manage layers.
+DXF imports retain layer names
 and table colours; SVG imports retain Inkscape layer labels and named groups.
 Colours are optional, and identically coloured layers stay separate. Files without
 layers start on Default.
 
-Add or rename layers, set the active drawing layer, and use **Move selected** to
-reassign existing shapes. **Select** selects that layer's visible shapes for the
-usual toolpath workflow. Hide/show changes drawing visibility; existing toolpaths
+Click a layer row to make it active and select its visible shapes. Use **+** to
+add a layer, the pencil to rename or colour it, and the row icons to move selected
+shapes, hide/show, or remove a layer. Hide/show changes drawing visibility;
+existing toolpaths
 keep their geometry and export order. Removing a layer keeps its shapes on Default.
 Layers are included in undo/redo, local recovery and exported projects.
 
@@ -22,6 +24,12 @@ and [layer-based vector selection](https://docs.vectric.com/docs/V12.5/VCarvePro
 [LightBurn](https://docs.lightburnsoftware.com/latest/Reference/CutsLayersWindow/)
 uses colours as operation layers; gCAM keeps optional drawing colours independent
 of toolpath operations so a layer can feed more than one machining operation.
+
+## Canvas windows
+
+Drag the Object Browser or Shape Properties title bar to move it within the canvas.
+Keyboard users can focus the title bar and use arrow keys (Shift for larger steps).
+Double-click the title bar or press Home to restore its starting position.
 
 ## Install on a tablet
 

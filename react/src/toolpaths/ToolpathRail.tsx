@@ -1,3 +1,4 @@
+import { LayerPanel, type LayerPanelProps } from '../layers/LayerPanel';
 /**
  * Purpose: Implementation module for ToolpathRail in the react domain.
  */
@@ -28,6 +29,7 @@ type Bitmap = {
 };
 
 interface ToolpathRailProps {
+    layerPanel?: LayerPanelProps;
     loops: ViewLoop[];
     selected: string[];
     bitmaps: Bitmap[];
@@ -69,6 +71,7 @@ interface ToolpathRailProps {
 
 /** The toolpath form and committed-stack rail; independent from canvas layout. */
 export function ToolpathRail({
+    layerPanel,
     loops,
     selected,
     bitmaps,
@@ -179,6 +182,7 @@ export function ToolpathRail({
                         }
                     />
                 )}
+                {layerPanel && <LayerPanel {...layerPanel} />}
                 {emptyWorkspace && (
                     <section className="mx-3 mt-1 mb-1 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/40">
                         <h2 className="text-sm font-semibold text-slate-900 dark:text-white">

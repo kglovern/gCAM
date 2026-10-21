@@ -4,9 +4,16 @@ describe('Drawing layers', () => {
         cy.importDesign('layers.svg');
     });
     const openLayers = () => {
-        cy.get('button[aria-label="File"]').parent().trigger('mouseleave');
-        cy.menu('View', /Object Browser/);
-        cy.get('button[aria-label="View"]').parent().trigger('mouseleave');
+        cy.get('body').then(($body) => {
+            const toggle = $body.find('[aria-label="Toolpath settings"]');
+            if (toggle.length && toggle.is(':visible')) cy.wrap(toggle).click();
+        });
+        cy.get('[aria-label="Drawing layers"]').should('be.visible');
+    };
+    const addLayer = (name) => {
+        cy.get('[aria-label="Add layer"]').click();
+        cy.get('[aria-label="New layer name"]').type(name);
+        cy.get('[aria-label="Create layer"]').click();
     };
     it('imports names and same-colour layers, moves shapes and undoes layer removal', () => {
         cy.snapshot().then((p) => {
@@ -16,20 +23,9 @@ describe('Drawing layers', () => {
             ).to.have.length(2);
         });
         openLayers();
-        cy.get('[aria-label="Drawing layers"]').within(() => {
-            cy.get('[aria-label="New layer name"]').type('Drilling');
-            cy.contains('button', /^Add$/).click();
-            cy.get('[aria-label="Rename layer Cuts"]')
-                .parent()
-                .parent()
-                .contains('button', /^Select$/)
-                .click();
-            cy.get('[aria-label="Rename layer Drilling"]')
-                .parent()
-                .parent()
-                .contains('button', 'Move selected')
-                .click();
-        });
+        addLayer('Drilling');
+        cy.get('[aria-label="Select layer Cuts"]').click();
+        cy.get('[aria-label="Move selected to Drilling"]').click();
         cy.snapshot().then((p) => {
             const layer = p.layers.find((l) => l.name === 'Drilling');
             expect(
@@ -54,10 +50,10 @@ describe('Drawing layers', () => {
         cy.get('[aria-label="Hide layer Cuts"]').click();
         cy.snapshot().then((p) => expect(p.hidden).to.have.length(1));
         cy.get('[aria-label="Show layer Cuts"]').click();
-        cy.get('[aria-label="Rename layer Pockets"]')
-            .clear()
-            .type('Shallow pockets')
-            .blur();
+        cy.get('[aria-label="Select layer Pockets"]').click();
+        cy.get('[aria-label="Edit active layer"]').click();
+        cy.get('[aria-label="Layer name"]').clear().type('Shallow pockets');
+        cy.get('[aria-label="Save layer"]').click();
         cy.wait(900);
         cy.reload();
         cy.contains('Recovered the last local project.');
@@ -71,23 +67,18 @@ describe('Drawing layers', () => {
     it('keeps layer controls reachable on a tablet sized workspace', () => {
         cy.viewport(1280, 800);
         openLayers();
-        cy.get('[aria-label="New layer name"]')
-            .should('be.visible')
-            .type('Engrave');
-        cy.get('[aria-label="Drawing layers"]')
-            .contains('button', /^Add$/)
-            .click();
-        cy.get('[aria-label="Draw on Engrave"]').should('be.checked');
+        addLayer('Engrave');
+        cy.get('[aria-label="Select layer Engrave"]').should(
+            'have.attr',
+            'aria-pressed',
+            'true',
+        );
         cy.screenshot('layers-tablet', { capture: 'viewport' });
     });
     it('saves a layer-only project and draws onto its recovered active layer', () => {
         cy.freshProject();
         openLayers();
-        cy.get('[aria-label="New layer name"]').type('Pockets');
-        cy.get('[aria-label="Drawing layers"]')
-            .contains('button', /^Add$/)
-            .click();
-        cy.get('[aria-label="Close object browser"]').click();
+        addLayer('Pockets');
         cy.snapshot().then((p) => {
             expect(p.loops).to.have.length(0);
             expect(p.layers.some((layer) => layer.name === 'Pockets')).to.equal(

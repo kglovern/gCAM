@@ -56,6 +56,7 @@ export function useLayerCommands(options: Options) {
             options.setLayers([...layers, { id, name: name.trim() }]);
             options.setActiveLayerId(id);
         },
+        onUpdate: updateLayer,
         onRename: (id: string, name: string) => updateLayer(id, { name }),
         onColor: (id: string, color?: string) => updateLayer(id, { color }),
         onMove(id: string) {
