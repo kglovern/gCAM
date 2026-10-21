@@ -1,0 +1,75 @@
+name: Desktop installers
+
+on:
+  pull_request:
+    paths: ['react/**', 'packaging/**', '.github/workflows/native-desktop.yml']
+  push:
+    branches: [main]
+    paths: ['react/**', 'packaging/**', '.github/workflows/native-desktop.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            arch: x64
+          - os: ubuntu-24.04
+            target: linux
+            arch: x64
+          - os: macos-15
+            target: mac
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packaging/desktop/package-lock.json
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+        working-directory: react
+      - run: yarn build --base ./
+        working-directory: react
+      - run: node packaging/scripts/stage.mjs desktop
+      - run: npm ci
+        working-directory: packaging/desktop
+      - run: npm test
+        working-directory: packaging/desktop
+      - name: Smoke test desktop renderer and CAM worker
+        if: runner.os != 'Linux'
+        run: npm run smoke
+        working-directory: packaging/desktop
+      - name: Smoke test under Xvfb
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node_modules/.bin/electron --no-sandbox smoke.cjs
+        working-directory: packaging/desktop
+      - name: Build installer
+        run: npm run package -- --${{ matrix.target }} --${{ matrix.arch }}
+        working-directory: packaging/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gCAM-${{ matrix.target }}-${{ matrix.arch }}
+          path: |
+            packaging/desktop/dist/*.exe
+            packaging/desktop/dist/*.dmg
+            packaging/desktop/dist/*.zip
+            packaging/desktop/dist/*.AppImage
+            packaging/desktop/dist/*.deb
+          if-no-files-found: error
+          retention-days: 14

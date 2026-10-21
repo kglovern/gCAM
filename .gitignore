@@ -25,3 +25,14 @@ AGENTS.md
 
 # Internal project notes
 **/[Pp]orting.md
+
+# Native packaging output
+packaging/desktop/www/
+packaging/mobile/www/
+packaging/mobile/platforms/
+packaging/mobile/plugins/
+packaging/mobile/build.json
+packaging/mobile/*.p12
+packaging/mobile/*.mobileprovision
+packaging/mobile/*.zip
+gcam-android.keystore

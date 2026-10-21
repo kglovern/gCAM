@@ -1,3 +1,4 @@
+import { saveTextFile } from '../platform/saveTextFile';
 /**
  * Purpose: Document state, import, file, or persistence module for projectFile.
  */
@@ -10,14 +11,7 @@ import {
 export function downloadProject(snapshot: ProjectSnapshot): string {
     const raw = serializeProject(snapshot);
     const base = (snapshot.fileName || 'project').replace(/\.[^.]+$/, '');
-    const url = URL.createObjectURL(
-        new Blob([raw], { type: 'application/json' }),
-    );
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${base}.gcam.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    saveTextFile(raw, `${base}.gcam.json`, 'application/json');
     return `${base}.gcam.json`;
 }
 

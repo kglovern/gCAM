@@ -1,0 +1,62 @@
+{
+  "name": "gcam-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "gCAM desktop CNC toolpath editor",
+  "author": "gCAM contributors",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test *.test.cjs",
+    "smoke": "electron smoke.cjs",
+    "package": "electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.petervanderwalt.gcam",
+    "productName": "gCAM",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "*.cjs",
+      "!*.test.cjs",
+      "!smoke.cjs",
+      "www/**/*",
+      "package.json"
+    ],
+    "icon": "../resources/icon.png",
+    "artifactName": "gCAM-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Graphics",
+      "maintainer": "gCAM contributors"
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  }
+}

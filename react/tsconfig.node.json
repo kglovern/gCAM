@@ -7,5 +7,5 @@
     "allowSyntheticDefaultImports": true,
     "target": "ES2020"
   },
-  "include": ["vite.config.ts", "build/pwa.ts"]
+  "include": ["vite.config.ts"]
 }

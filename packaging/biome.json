@@ -1,0 +1,16 @@
+{
+  "extends": ["../react/biome.json"],
+  "vcs": { "enabled": false },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/node_modules/**",
+      "!**/www/**",
+      "!**/dist/**",
+      "!**/platforms/**",
+      "!mobile/plugins/**",
+      "!**/package-lock.json"
+    ]
+  }
+}

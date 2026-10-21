@@ -1,0 +1,30 @@
+name: Prepare tablet application
+description: Build and stage the shared renderer, restore pinned Cordova platform and local export plugin
+inputs:
+  platform:
+    description: android or ios
+    required: true
+runs:
+  using: composite
+  steps:
+    - run: corepack enable
+      shell: bash
+    - run: yarn install --frozen-lockfile
+      working-directory: react
+      shell: bash
+    - run: yarn build --base ./
+      working-directory: react
+      shell: bash
+    - run: node packaging/scripts/stage.mjs mobile
+      shell: bash
+    - run: npm ci
+      working-directory: packaging/mobile
+      shell: bash
+    - run: node packaging/scripts/mobile-platform.mjs ${{ inputs.platform }}
+      shell: bash
+    - run: npx cordova plugin add ../plugins/gcam-files --nosave
+      working-directory: packaging/mobile
+      shell: bash
+    - run: npx cordova prepare ${{ inputs.platform }}
+      working-directory: packaging/mobile
+      shell: bash
