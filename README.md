@@ -4,48 +4,6 @@ gCAM is a exploration of CAM workflows - to become a CAM app at some point
 
 **Live app:** [petervanderwalt.github.io/gCAM](https://petervanderwalt.github.io/gCAM/)
 
-## Drawing layers
-
-Use **Layers** in the toolpath sidebar, below job stock, to manage layers.
-DXF imports retain layer names
-and table colours; SVG imports retain Inkscape layer labels and named groups.
-Colours are optional, and identically coloured layers stay separate. Files without
-layers start on Default.
-
-Click a layer row to make it active and select its visible shapes. Use **+** to
-add a layer, the pencil to rename or colour it, and the row icons to move selected
-shapes, hide/show, or remove a layer. Hide/show changes drawing visibility;
-existing toolpaths
-keep their geometry and export order. Removing a layer keeps its shapes on Default.
-Layers are included in undo/redo, local recovery and exported projects.
-
-The workflow follows [Vectric's named geometry layers](https://docs.vectric.com/docs/Spark/V1.0/ENU/Help/page/layerlist/index.html)
-and [layer-based vector selection](https://docs.vectric.com/docs/V12.5/VCarvePro/ENU/Help/form/vector-selector/index.html).
-[LightBurn](https://docs.lightburnsoftware.com/latest/Reference/CutsLayersWindow/)
-uses colours as operation layers; gCAM keeps optional drawing colours independent
-of toolpath operations so a layer can feed more than one machining operation.
-
-## Canvas windows
-
-Drag the Object Browser or Shape Properties title bar to move it within the canvas.
-Keyboard users can focus the title bar and use arrow keys (Shift for larger steps).
-Double-click the title bar or press Home to restore its starting position.
-
-## Install on a tablet
-
-Open the published app, then use **Config → Tablet app** for installation instructions.
-On Android, choose **Install app** or **Add to Home screen** in the browser menu.
-On iPad, open gCAM in Safari and choose **Share → Add to Home Screen**.
-Launch it from the Home Screen icon for the app layout without browser toolbars.
-Both portrait and landscape are supported; tablet is the minimum design target.
-
-Wait for **Ready for offline use** before disconnecting. The application, machining
-workers, tool catalogue and sample drawing are cached. Optional font styles and
-cutter photos download when used, so open those online first. Projects are stored
-locally: use **Export Project** for backups or to transfer designs between the
-browser, installed app and other devices. App updates wait for **Restart to update**
-and do not restart an active editing session automatically.
-
 ## Development
 
 Use Node 24, Node 22, or Node 20.19+.
