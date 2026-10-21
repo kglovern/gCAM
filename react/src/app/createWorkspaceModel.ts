@@ -144,7 +144,6 @@ export function createWorkspaceModel(
                 ...options.canvasActions,
             },
             objectTreeProps: {
-                layerPanel: options.document.layerCommands,
                 units: options.configPanelProps.units,
                 loops: options.document.loops.map((loop) => ({
                     ...loop,
@@ -169,7 +168,10 @@ export function createWorkspaceModel(
             inspector: options.inspector,
             canShowProperties: options.canShowProperties,
             onShowProperties: options.onShowProperties,
-            toolpathRailProps: options.toolpathRailProps,
+            toolpathRailProps: {
+                ...options.toolpathRailProps,
+                layerPanel: options.document.layerCommands,
+            },
             previewWorkspaceProps: options.previewWorkspaceProps,
             configPanelProps: options.configPanelProps,
             rotaryPanelProps: options.rotaryPanelProps,

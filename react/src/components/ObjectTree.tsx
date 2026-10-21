@@ -8,9 +8,8 @@ import {
     EyeOff,
     ListChecks,
     Trash2,
-    X,
 } from 'lucide-react';
-import { LayerPanel, type LayerPanelProps } from '../layers/LayerPanel';
+import { FloatingPanel } from './floating/FloatingPanel';
 import { useState } from 'react';
 import type { ViewLoop } from '../canvas/types';
 import { displayValue, lengthUnit, type UnitSystem } from '../lib/units';
@@ -28,7 +27,6 @@ export interface TreeBitmap {
  * Mirrors the legacy object-tree panel in gSender compact styling.
  */
 export function ObjectTree({
-    layerPanel,
     loops,
     bitmaps,
     selected,
@@ -48,7 +46,6 @@ export function ObjectTree({
     additiveSelection = false,
     onAdditiveChange,
 }: {
-    layerPanel?: LayerPanelProps;
     additiveSelection?: boolean;
     onAdditiveChange?: (value: boolean) => void;
     loops: ViewLoop[];
@@ -88,22 +85,13 @@ export function ObjectTree({
         return `Vector ${index + 1} (${loop.points.length} pts)`;
     };
     return (
-        <aside
-            aria-label="Object browser"
-            className="absolute top-2 left-2 right-2 md:right-auto z-20 md:w-80 max-h-[85%] flex flex-col rounded border border-slate-300 bg-white/95 text-xs text-slate-700 shadow-lg dark:border-robin-900 dark:bg-dark/95 dark:text-slate-200"
+        <FloatingPanel
+            title="Objects"
+            label="Object browser"
+            onClose={onClose}
+            closeLabel="Close object browser"
+            className="w-80 max-w-[calc(100%-1rem)] max-h-[85%] text-xs text-slate-700 dark:text-slate-200"
         >
-            <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-200 dark:border-robin-900">
-                <span className="font-medium text-slate-900 dark:text-white">
-                    Objects
-                </span>
-                <button
-                    onClick={onClose}
-                    aria-label="Close object browser"
-                    className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-dark-lighter dark:hover:text-white"
-                >
-                    <X size={18} />
-                </button>
-            </div>
             {onAdditiveChange && (
                 <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-2 dark:border-robin-900">
                     <span>{selected.length} selected</span>
@@ -169,7 +157,6 @@ export function ObjectTree({
                 </div>
             )}
             <div className="overflow-y-auto no-scrollbar">
-                {layerPanel && <LayerPanel {...layerPanel} />}
                 {!loops.length && (
                     <div className="px-2 py-3 text-slate-500 text-center">
                         No objects
@@ -308,6 +295,6 @@ export function ObjectTree({
                     </button>
                 </div>
             )}
-        </aside>
+        </FloatingPanel>
     );
 }

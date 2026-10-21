@@ -2,7 +2,7 @@
  * Purpose: Implementation module for CadInspector in the components domain.
  */
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { FloatingPanel } from './floating/FloatingPanel';
 import cx from 'classnames';
 import type { ViewLoop } from '../canvas/types';
 import { FONT_OPTIONS } from '../draw/textGeometry';
@@ -106,22 +106,14 @@ export function CadInspector({
         'w-full rounded-lg bg-white dark:bg-dark-lighter border border-slate-300 dark:border-robin-900 px-2 py-1.5 text-slate-900 dark:text-white text-sm';
 
     return (
-        <aside
-            aria-label="Selected shape properties"
-            className="absolute top-2 right-2 z-20 w-[calc(100%-1rem)] sm:w-72 lg:w-56 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] overflow-y-auto rounded-xl border border-slate-200 dark:border-robin-900 bg-white/95 dark:bg-dark/95 shadow-xl"
+        <FloatingPanel
+            placement="right"
+            title="Shape"
+            label="Selected shape properties"
+            onClose={onClose}
+            closeLabel="Close shape properties"
+            className="w-[calc(100%-1rem)] sm:w-72 lg:w-56 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)]"
         >
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-white dark:bg-dark px-3 py-2 border-b border-slate-200 dark:border-robin-900">
-                <span className="text-sm font-medium text-slate-900 dark:text-white">
-                    Shape
-                </span>
-                <button
-                    onClick={onClose}
-                    aria-label="Close shape properties"
-                    className="text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                >
-                    <X size={16} />
-                </button>
-            </div>
             <div className="p-3 grid grid-cols-2 gap-2">
                 <label className="space-y-1">
                     <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -318,6 +310,6 @@ export function CadInspector({
                     Apply
                 </button>
             </div>
-        </aside>
+        </FloatingPanel>
     );
 }
