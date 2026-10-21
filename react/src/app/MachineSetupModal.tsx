@@ -65,7 +65,7 @@ export function MachineSetupModal({
             <section
                 aria-labelledby="machine-setup-title"
                 aria-modal="true"
-                className="w-full max-w-lg rounded-xl border border-slate-300 bg-white p-6 shadow-2xl dark:border-robin-900 dark:bg-slate-900"
+                className="w-full max-w-lg max-h-[calc(var(--app-height,100dvh)-32px)] overflow-y-auto overscroll-contain rounded-xl border border-slate-300 bg-white p-6 shadow-2xl dark:border-robin-900 dark:bg-slate-900"
                 role="dialog"
             >
                 <div className="flex items-center gap-3">

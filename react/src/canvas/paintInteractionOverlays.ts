@@ -13,8 +13,8 @@ import type { TransformMode } from '../lib/transform';
 import type { Guide } from '../lib/guides';
 import {
     applyDragPreview,
+    findDrawSnapTarget,
     selectionFrame,
-    snapDrawPoint,
     type CornerHover,
     type TransformDragState,
 } from './selectionGeometry';
@@ -44,6 +44,10 @@ interface PaintInteractionOverlaysOptions {
     draft?: Draft | null;
     drawSides?: number;
     polygonMode?: 'inscribed' | 'circumscribed';
+    angleSnap?: number | null;
+    selectedGuideId?: string | null;
+    guideHoverId?: string | null;
+    loopHoverId?: string | null;
     grid: {
         visible: boolean;
         spacingMm: number;
@@ -58,8 +62,10 @@ export function paintInteractionOverlays(
     options: PaintInteractionOverlaysOptions,
 ) {
     paintTrimHover(options);
+    paintLoopHover(options);
     paintCornerHover(options);
     paintTransformHandles(options);
+    paintSelectedGuide(options);
     paintClickChain(options);
     paintBezierPreview(options);
     paintSnapMarker(options);
@@ -70,8 +76,10 @@ export function paintSelectionFeedback(
     options: PaintInteractionOverlaysOptions,
 ) {
     paintTrimHover(options);
+    paintLoopHover(options);
     paintCornerHover(options);
     paintTransformHandles(options);
+    paintSelectedGuide(options);
 }
 
 /** Draft draw chain, bezier construction and endpoint snap feedback. */
@@ -336,9 +344,30 @@ function paintSnapMarker({
     drawTool,
     grid,
     guides,
+    angleSnap,
 }: PaintInteractionOverlaysOptions) {
     if (!drawTool || !cursor) return;
-    const snapped = snapDrawPoint(
+    if (angleSnap != null) {
+        const point = toScreen(camera, cursor);
+        ctx.save();
+        ctx.font = '11px system-ui, sans-serif';
+        const label = `Angle ${angleSnap}°`;
+        const width = ctx.measureText(label).width + 12;
+        ctx.fillStyle = darkMode
+            ? 'rgba(15,23,42,0.94)'
+            : 'rgba(255,255,255,0.96)';
+        ctx.strokeStyle = darkMode ? '#475569' : '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.rect(point.x + 12, point.y - 22, width, 18);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = darkMode ? '#e2e8f0' : '#334155';
+        ctx.fillText(label, point.x + 18, point.y - 9.5);
+        ctx.restore();
+        return;
+    }
+    const target = findDrawSnapTarget(
         loops,
         hidden,
         cursor,
@@ -346,8 +375,8 @@ function paintSnapMarker({
         grid,
         guides,
     );
-    if (snapped.x === cursor.x && snapped.y === cursor.y) return;
-    const point = toScreen(camera, snapped);
+    if (!target || (target.distancePx < 1.5 && target.kind === 'grid')) return;
+    const point = toScreen(camera, target.point);
     ctx.save();
     ctx.strokeStyle = darkMode ? '#60a5fa' : '#2563eb';
     ctx.lineWidth = 2;
@@ -359,6 +388,83 @@ function paintSnapMarker({
     ctx.lineTo(point.x + 9, point.y);
     ctx.moveTo(point.x, point.y - 9);
     ctx.lineTo(point.x, point.y + 9);
+    ctx.stroke();
+    const label = target.label;
+    ctx.font = '11px system-ui, sans-serif';
+    const width = ctx.measureText(label).width + 12;
+    const left = point.x + 12;
+    const top = point.y - 22;
+    ctx.fillStyle = darkMode ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.96)';
+    ctx.strokeStyle = darkMode ? '#475569' : '#cbd5e1';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.rect(left, top, width, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = darkMode ? '#e2e8f0' : '#334155';
+    ctx.fillText(label, left + 6, top + 12.5);
+    ctx.restore();
+}
+
+function paintLoopHover({
+    ctx,
+    loops,
+    loopHoverId,
+    darkMode,
+    camera,
+}: PaintInteractionOverlaysOptions) {
+    if (!loopHoverId) return;
+    const loop = loops.find((item) => item.id === loopHoverId);
+    if (!loop || loop.points.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = darkMode ? '#38bdf8' : '#0284c7';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    strokePoints(ctx, loop.points, (x, y) => toScreen(camera, { x, y }));
+    ctx.restore();
+}
+
+function paintSelectedGuide({
+    ctx,
+    guides,
+    selectedGuideId,
+    guideHoverId,
+    camera,
+}: PaintInteractionOverlaysOptions) {
+    const selected = selectedGuideId
+        ? guides.find((item) => item.id === selectedGuideId)
+        : null;
+    const guide = selected ?? guides.find((item) => item.id === guideHoverId);
+    if (
+        !guide ||
+        !Number.isFinite(guide.direction.x) ||
+        !Number.isFinite(guide.direction.y)
+    )
+        return;
+    const length = Math.hypot(guide.direction.x, guide.direction.y) || 1;
+    const direction = {
+        x: guide.direction.x / length,
+        y: guide.direction.y / length,
+    };
+    const width = ctx.canvas.clientWidth || ctx.canvas.width;
+    const height = ctx.canvas.clientHeight || ctx.canvas.height;
+    const span = Math.hypot(width, height) / camera.scale;
+    const start = toScreen(camera, {
+        x: guide.point.x - direction.x * span,
+        y: guide.point.y - direction.y * span,
+    });
+    const end = toScreen(camera, {
+        x: guide.point.x + direction.x * span,
+        y: guide.point.y + direction.y * span,
+    });
+    ctx.save();
+    ctx.strokeStyle = selected ? '#f59e0b' : '#22d3ee';
+    ctx.lineWidth = selected ? 3 : 2;
+    ctx.setLineDash(selected ? [8, 5] : [5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
     ctx.stroke();
     ctx.restore();
 }

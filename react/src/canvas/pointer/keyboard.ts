@@ -22,10 +22,12 @@ export function handleCanvasKeyDown(
         cursorRef: { current: Point | null };
         draftRef: { current: unknown };
         pendingAnchorRef: { current: Point | null };
+        selectedGuideRef: { current: string | null };
         selectedTabRef: { current: TabMarker | null };
         transformDragRef: { current: unknown };
         onDeleteTab: (entryId: string, tabIndex: number) => void;
         onCancelGuide: () => void;
+        onDeleteGuide: (id: string) => void;
         onGuideDraftChange: (
             draft: import('../../lib/guides').GuideDraft | null,
         ) => void;
@@ -40,10 +42,12 @@ export function handleCanvasKeyDown(
         cursorRef,
         draftRef,
         pendingAnchorRef,
+        selectedGuideRef,
         selectedTabRef,
         transformDragRef,
         onDeleteTab,
         onCancelGuide,
+        onDeleteGuide,
         onGuideDraftChange,
         onTransformCommit,
         onCommitLoop,
@@ -60,6 +64,17 @@ export function handleCanvasKeyDown(
         forceTick();
         return;
     }
+    if (
+        (event.key === 'Delete' || event.key === 'Backspace') &&
+        selectedGuideRef.current
+    ) {
+        const guideId = selectedGuideRef.current;
+        selectedGuideRef.current = null;
+        onDeleteGuide(guideId);
+        event.preventDefault();
+        forceTick();
+        return;
+    }
     if (event.key === 'Escape') {
         if (viewRef.current.guidePlacement) {
             onCancelGuide();
@@ -68,6 +83,7 @@ export function handleCanvasKeyDown(
         clicksRef.current = [];
         cursorRef.current = null;
         pendingAnchorRef.current = null;
+        selectedGuideRef.current = null;
         draftRef.current = null;
         if (transformDragRef.current || viewRef.current.transformMode) {
             transformDragRef.current = null;

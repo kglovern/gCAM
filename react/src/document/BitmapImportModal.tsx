@@ -69,7 +69,7 @@ export function BitmapImportModal({
             aria-modal="true"
             aria-labelledby="bitmap-import-title"
         >
-            <div className="w-full max-w-lg rounded-lg border border-slate-300 bg-white p-5 shadow-xl dark:border-robin-900 dark:bg-dark">
+            <div className="w-full max-w-lg max-h-[calc(var(--app-height,100dvh)-32px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-300 bg-white p-5 shadow-xl dark:border-robin-900 dark:bg-dark">
                 <h2
                     id="bitmap-import-title"
                     className="text-lg font-semibold text-slate-900 dark:text-white"

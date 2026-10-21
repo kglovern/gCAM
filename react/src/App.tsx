@@ -1,3 +1,5 @@
+import { useVisualViewportHeight } from './hooks/useVisualViewportHeight';
+import { PwaUpdateNotice } from './pwa/PwaUpdateNotice';
 /**
  * Purpose: Implementation module for App in the react domain.
  */
@@ -52,6 +54,7 @@ type PlacedBitmap = PlacedBitmapRecord;
  * stack → combined export for gSender.
  */
 export default function App() {
+    useVisualViewportHeight();
     const drawing = useDrawingWorkspaceState();
     const transforms = useTransformWorkspaceState();
     const arrange = useArrangeWorkspaceState();
@@ -221,6 +224,7 @@ export default function App() {
     const { confirm, dialog: confirmDialog } = useConfirmation();
     const { expandedSelectedIds, selectedLoops, offsetSource, booleanLoops } =
         useVisibleSelection(loops, selected, hidden);
+
     const undo = () => {
         if (!undoDocument()) return;
         setStatus('Undone.');
@@ -271,7 +275,8 @@ export default function App() {
     const {
         inspectorPreview,
         inspector: buildInspector,
-        dismiss: dismissInspector,
+        show: showInspector,
+        canShowProperties,
     } = useCadInspector({
         selected,
         selectedLoops,
@@ -659,6 +664,7 @@ export default function App() {
                 setGuidePlacement(null);
                 drawing.setGuideDraft(null);
             },
+            onDeleteGuide: handleDeleteGuide,
             onCommitLoop: handleCommitLoop,
             onPolygonSidesChange: drawing.setDrawSides,
             onPolygonModeChange: drawing.setDrawPolygonMode,
@@ -688,7 +694,7 @@ export default function App() {
             onUngroup: toolbarProps.onUngroup,
             canGroup: toolbarProps.canGroup,
             canUngroup: toolbarProps.canUngroup,
-            onEdit: dismissInspector,
+            onEdit: showInspector,
             onMove: () => setTransformMode('move'),
             onResize: () => setTransformMode('scale'),
             onClose: () => setTreeOpen(false),
@@ -705,6 +711,8 @@ export default function App() {
         status,
         onDropFiles: (files) => void handleFiles(files),
         inspector,
+        canShowProperties,
+        onShowProperties: showInspector,
         toolpathRailProps,
         previewWorkspaceProps,
         configPanelProps,
@@ -712,7 +720,7 @@ export default function App() {
 
     return (
         <ErrorBoundary>
-            <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-100 text-slate-900 dark:bg-dark-darker dark:text-slate-200">
+            <div className="h-screen [height:var(--app-height,100dvh)] w-full overflow-hidden [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)] flex flex-col bg-slate-100 text-slate-900 dark:bg-dark-darker dark:text-slate-200">
                 <AppHeader
                     activeTab={sideTab}
                     toolbarProps={toolbarProps}
@@ -744,6 +752,7 @@ export default function App() {
                 />
 
                 <AppWorkspace model={workspaceModel} />
+                <PwaUpdateNotice />
                 <AppModalLayer
                     units={units}
                     machineSetupOpen={machineSetupOpen}

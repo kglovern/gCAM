@@ -1,7 +1,8 @@
 /**
  * Purpose: React hook that owns the CadInspector workflow.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useInspectorVisibility } from './useInspectorVisibility';
 import type {
     ComponentProps,
     Dispatch,
@@ -49,20 +50,21 @@ export function useCadInspector({
     setDraftPreview,
     setStatus,
 }: CadInspectorOptions) {
-    const [dismissedId, setDismissedId] = useState<string | null>(null);
     const [preview, setPreview] = useState<{
         id: string;
         points: { x: number; y: number }[];
     } | null>(null);
     const inspectorLoop =
         selected.length === 1 ? (selectedLoops()[0] ?? null) : null;
-    const visible =
+    const eligible =
         inspectorLoop !== null &&
         Array.isArray(inspectorLoop.points) &&
         inspectorLoop.points.length > 0 &&
         !inspectorLoop.bitmapId &&
-        inspectorLoop.id !== dismissedId &&
         transformMode === null;
+    const visibility = useInspectorVisibility(
+        eligible ? inspectorLoop.id : null,
+    );
     const { buildInspectorPreview, handleInspectorApply } =
         useInspectorCommands({
             inspectorLoop,
@@ -77,10 +79,9 @@ export function useCadInspector({
             setInspectorPreview: setPreview,
             setStatus,
         });
-    useEffect(() => setDismissedId(null), [selected]);
 
     const inspector: ComponentProps<typeof CadInspector> | null =
-        visible && inspectorLoop
+        visibility.visible && inspectorLoop
             ? {
                   loop: inspectorLoop,
                   angle: Math.round(orientRef.current.angle * 10) / 10,
@@ -90,7 +91,7 @@ export function useCadInspector({
                   units: 'mm' as UnitSystem,
                   onClose: () => {
                       setPreview(null);
-                      setDismissedId(inspectorLoop.id);
+                      visibility.close();
                   },
               }
             : null;
@@ -99,7 +100,8 @@ export function useCadInspector({
         inspectorPreview: preview,
         inspector: (units: ComponentProps<typeof CadInspector>['units']) =>
             inspector ? { ...inspector, units } : null,
-        dismiss: () => setDismissedId(null),
+        canShowProperties: eligible && !visibility.visible,
+        show: visibility.open,
     };
 }
 

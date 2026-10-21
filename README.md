@@ -23,6 +23,21 @@ and [layer-based vector selection](https://docs.vectric.com/docs/V12.5/VCarvePro
 uses colours as operation layers; gCAM keeps optional drawing colours independent
 of toolpath operations so a layer can feed more than one machining operation.
 
+## Install on a tablet
+
+Open the published app, then use **Config → Tablet app** for installation instructions.
+On Android, choose **Install app** or **Add to Home screen** in the browser menu.
+On iPad, open gCAM in Safari and choose **Share → Add to Home Screen**.
+Launch it from the Home Screen icon for the app layout without browser toolbars.
+Both portrait and landscape are supported; tablet is the minimum design target.
+
+Wait for **Ready for offline use** before disconnecting. The application, machining
+workers, tool catalogue and sample drawing are cached. Optional font styles and
+cutter photos download when used, so open those online first. Projects are stored
+locally: use **Export Project** for backups or to transfer designs between the
+browser, installed app and other devices. App updates wait for **Restart to update**
+and do not restart an active editing session automatically.
+
 ## Development
 
 Use Node 24, Node 22, or Node 20.19+.

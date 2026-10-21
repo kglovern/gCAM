@@ -19,6 +19,7 @@ export type Point = { x: number; y: number };
 
 export type CanvasStageProps = {
     activeTool: Tool;
+    additiveSelection?: boolean;
     loops: ViewLoop[];
     bounds: ViewBounds | null;
     preview: PreviewLoop[];
@@ -53,6 +54,7 @@ export type CanvasStageProps = {
     onPlaceGuide?: (guide: GuidePlacement) => void;
     onGuideDraftChange?: (draft: GuideDraft | null) => void;
     onCancelGuide?: () => void;
+    onDeleteGuide?: (id: string) => void;
     bitmaps: {
         id: string;
         x: number;

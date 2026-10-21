@@ -17,11 +17,11 @@ export function EmptyCanvasPrompt({
 }: EmptyCanvasPromptProps) {
     return (
         <div className="absolute inset-0 z-10 grid place-items-center pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-sm rounded-lg border border-slate-300 bg-white/95 px-6 py-5 text-center shadow-lg dark:border-robin-900 dark:bg-dark/95">
+            <div className="pointer-events-auto w-full max-w-sm max-h-full overflow-y-auto overscroll-contain rounded-lg border border-slate-300 bg-white/95 px-6 py-5 text-center shadow-lg dark:border-robin-900 dark:bg-dark/95">
                 <div className="font-medium text-slate-900 dark:text-white">
                     How would you like to begin?
                 </div>
-                <div className="mt-3 flex items-center justify-center gap-2">
+                <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
                     <button
                         onClick={onNewCanvas}
                         className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 dark:border-robin-900 dark:text-slate-200 dark:hover:bg-dark-lighter"

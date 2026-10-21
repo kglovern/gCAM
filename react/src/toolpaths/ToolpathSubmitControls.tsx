@@ -26,7 +26,7 @@ export function ToolpathSubmitControls({
     onCancelEdit,
 }: ToolpathSubmitControlsProps) {
     return (
-        <>
+        <div className="sticky bottom-0 z-10 space-y-2 border-t border-slate-200 bg-white py-3 dark:border-robin-900 dark:bg-dark">
             <button
                 onClick={onGenerate}
                 disabled={!hasActiveGeometry || busy}
@@ -57,6 +57,6 @@ export function ToolpathSubmitControls({
             <p className="text-xs text-slate-500 dark:text-slate-400">
                 {status}
             </p>
-        </>
+        </div>
     );
 }

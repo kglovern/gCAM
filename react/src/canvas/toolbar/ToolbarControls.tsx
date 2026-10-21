@@ -1,17 +1,25 @@
 /**
  * Purpose: Implementation module for ToolbarControls in the canvas domain.
  */
-import { useState, type ReactNode } from 'react';
+import {
+    useEffect,
+    useLayoutEffect,
+    useId,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import cx from 'classnames';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { useInlineToolbar } from './ToolbarOverflow';
 
-const buttonClass =
-    'inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-dark-lighter dark:hover:text-white touch-manipulation disabled:opacity-30';
+import { toolbarButtonBase } from './styles';
 
 export function ToolbarSeparator() {
     return (
         <span
             aria-hidden="true"
-            className="mx-1 h-6 w-px bg-slate-200 dark:bg-robin-900"
+            className="mx-0 xl:mx-1 h-6 w-px bg-slate-200 dark:bg-robin-900"
         />
     );
 }
@@ -38,35 +46,110 @@ export function ToolbarMenu({
     iconOnly?: boolean;
     wide?: boolean;
 }) {
+    const inline = useInlineToolbar();
+    const [position, setPosition] = useState({
+        left: 8,
+        top: 64,
+        maxHeight: 400,
+    });
     const [open, setOpen] = useState(false);
+    const root = useRef<HTMLDivElement>(null);
+    const toggle = useRef<HTMLButtonElement>(null);
+    useLayoutEffect(() => {
+        if (!open || inline) return;
+        const place = () => {
+            const rect = toggle.current?.getBoundingClientRect();
+            if (!rect) return;
+            setPosition({
+                left: Math.max(
+                    8,
+                    Math.min(
+                        rect.left,
+                        window.innerWidth -
+                            Math.min(256, window.innerWidth - 16) -
+                            8,
+                    ),
+                ),
+                top: rect.bottom + 4,
+                maxHeight: Math.max(100, window.innerHeight - rect.bottom - 12),
+            });
+        };
+        place();
+        window.addEventListener('resize', place);
+        return () => window.removeEventListener('resize', place);
+    }, [open, inline]);
+    useEffect(() => {
+        if (!open) return;
+        const outside = (event: PointerEvent) => {
+            if (
+                event.target instanceof Node &&
+                !root.current?.contains(event.target)
+            )
+                setOpen(false);
+        };
+        const escape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+                toggle.current?.focus();
+            }
+        };
+        window.addEventListener('pointerdown', outside);
+        window.addEventListener('keydown', escape);
+        return () => {
+            window.removeEventListener('pointerdown', outside);
+            window.removeEventListener('keydown', escape);
+        };
+    }, [open]);
     return (
-        <div className="relative group" onMouseLeave={() => setOpen(false)}>
+        <div
+            ref={root}
+            className="relative"
+            onClick={(event) => {
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('[role="menuitem"]')
+                ) {
+                    setOpen(false);
+                    toggle.current?.focus();
+                }
+            }}
+        >
             <button
                 type="button"
+                ref={toggle}
                 aria-label={label}
                 title={label}
                 aria-expanded={open}
                 onClick={() => setOpen((value) => !value)}
                 className={cx(
-                    buttonClass,
-                    'gap-1.5 px-2.5 text-sm',
-                    wide && 'w-auto',
-                    iconOnly ? 'w-10 px-0' : 'w-auto',
+                    toolbarButtonBase,
+                    inline
+                        ? 'h-11 w-full justify-start gap-2 px-3 text-sm'
+                        : [
+                              'h-10 justify-center gap-0 px-0 text-sm xl:gap-1.5 xl:px-2.5',
+                              wide && 'xl:w-auto',
+                              iconOnly ? 'w-10 xl:px-0' : 'w-10 xl:w-auto',
+                          ],
                 )}
             >
                 {icon}
-                {!iconOnly && label}
+                {inline ? (
+                    <span>{label}</span>
+                ) : (
+                    !iconOnly && (
+                        <span className="hidden xl:inline">{label}</span>
+                    )
+                )}
             </button>
             <div
-                onClick={(event) => {
-                    if (
-                        event.target instanceof Element &&
-                        event.target.closest('[role="menuitem"]')
-                    )
-                        setOpen(false);
-                }}
+                role="menu"
+                style={inline ? undefined : position}
+                aria-label={label}
                 className={cx(
-                    'absolute left-0 top-8 z-50 min-w-48 rounded-md border border-slate-200 bg-white p-1 shadow-xl dark:border-robin-900 dark:bg-dark',
+                    'z-50 rounded-md border border-slate-200 bg-white p-1 dark:border-robin-900 dark:bg-dark',
+                    inline
+                        ? 'ml-2 border-l-2'
+                        : 'fixed w-64 max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain shadow-xl',
                     open ? 'block' : 'hidden',
                 )}
             >
@@ -136,13 +219,21 @@ export function ToolbarMiniForm({
     title?: string;
     canApply?: boolean;
 }) {
+    const dialogRef = useRef<HTMLFormElement>(null);
+    const titleId = useId();
+    useDialogFocus(dialogRef, true);
     return (
         <div
             className="fixed inset-0 z-[9998] grid place-items-center bg-black/80 p-4"
             onMouseDown={onCancel}
         >
             <form
-                className="relative grid w-full max-w-lg gap-4 rounded-lg border border-gray-300 bg-gray-100 p-4 text-sm shadow-lg dark:border-gray-700 dark:bg-dark dark:text-white"
+                ref={dialogRef}
+                tabIndex={-1}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="relative grid w-full max-w-lg max-h-[calc(var(--app-height,100dvh)-32px)] overflow-y-auto overscroll-contain gap-4 rounded-lg border border-gray-300 bg-gray-100 p-4 text-sm shadow-lg dark:border-gray-700 dark:bg-dark dark:text-white"
                 onMouseDown={(event) => event.stopPropagation()}
                 onSubmit={(event) => {
                     event.preventDefault();
@@ -150,7 +241,10 @@ export function ToolbarMiniForm({
                 }}
             >
                 <div className="flex flex-col text-center sm:text-left">
-                    <h2 className="mb-2 text-lg font-semibold leading-none tracking-tight text-blue-500 dark:text-white">
+                    <h2
+                        id={titleId}
+                        className="mb-2 text-lg font-semibold leading-none tracking-tight text-slate-900 dark:text-white0 dark:text-white"
+                    >
                         {title}
                     </h2>
                 </div>

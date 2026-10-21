@@ -19,7 +19,7 @@ test('orders file actions with separators around project actions and G-code expo
     fireEvent.click(screen.getByRole('button', { name: 'File' }));
 
     const fileButton = screen.getByRole('button', { name: 'File' });
-    const menu = fileButton.parentElement?.querySelector('div.absolute');
+    const menu = fileButton.parentElement?.querySelector('[role="menu"]');
     expect(menu).not.toBeNull();
     const fileMenu = within(menu as HTMLElement);
     const items = fileMenu.getAllByRole('menuitem');

@@ -2,6 +2,8 @@
  * Purpose: Implementation module for CanvasStage in the react domain.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { CanvasNavigationControls } from './CanvasNavigationControls';
 import {
     getMinimumTabWidth,
     getTabCenterlineSpan,
@@ -75,6 +77,7 @@ export type { DrawTool } from './types';
 
 export function CanvasStage({
     activeTool,
+    additiveSelection = false,
     loops,
     bounds,
     preview,
@@ -104,6 +107,7 @@ export function CanvasStage({
     onPlaceGuide = () => {},
     onGuideDraftChange = () => {},
     onCancelGuide = () => {},
+    onDeleteGuide = () => {},
     bitmaps,
     onCommitLoop,
     onTrimAt,
@@ -117,6 +121,12 @@ export function CanvasStage({
     viewportCommand,
     units = 'metric',
 }: CanvasStageProps) {
+    const touchLayout = useMediaQuery('(pointer: coarse), (max-width: 767px)');
+    const [panMode, setPanMode] = useState(false);
+    useEffect(
+        () => setPanMode(false),
+        [drawTool, transformMode, activeTool, tabMode, guidePlacement],
+    );
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const topRulerRef = useRef<HTMLCanvasElement>(null);
     const leftRulerRef = useRef<HTMLCanvasElement>(null);
@@ -168,6 +178,13 @@ export function CanvasStage({
     const tabHoverRef = useRef<TabHoverCandidate | null>(null);
     // Click-click drawing anchor (first click for line/rect/polygon/circle).
     const pendingAnchorRef = useRef<{ x: number; y: number } | null>(null);
+    const angleSnapRef = useRef<number | null>(null);
+    const selectedGuideRef = useRef<string | null>(null);
+    const guideHoverRef = useRef<string | null>(null);
+    const loopHoverRef = useRef<{
+        loopId: string;
+        segmentIndex: number;
+    } | null>(null);
     // Live direct-manipulation transform drag (move/scale/rotate).
     const transformDragRef = useRef<TransformDragState | null>(null);
     const cornerHoverRef = useRef<CornerHover | null>(null);
@@ -433,6 +450,9 @@ export function CanvasStage({
                 drawTool: null,
                 grid: viewRef.current.grid,
                 guides: viewRef.current.guides,
+                selectedGuideId: selectedGuideRef.current,
+                guideHoverId: guideHoverRef.current,
+                loopHoverId: loopHoverRef.current?.loopId ?? null,
             });
             paintDrawingFeedback({
                 ctx,
@@ -455,6 +475,7 @@ export function CanvasStage({
                 polygonMode: viewRef.current.polygonMode,
                 grid: viewRef.current.grid,
                 guides: viewRef.current.guides,
+                angleSnap: angleSnapRef.current,
             });
         };
         render();
@@ -856,6 +877,8 @@ export function CanvasStage({
         draftRef.current = null;
         cursorRef.current = null;
         trimHoverRef.current = null;
+        guideHoverRef.current = null;
+        loopHoverRef.current = null;
         transformDragRef.current = null;
         const canvas = canvasRef.current;
         if (canvas) canvas.style.cursor = '';
@@ -911,6 +934,8 @@ export function CanvasStage({
                         onViewportLeave={clearViewportInteraction}
                         onCommitLoop={onCommitLoop}
                         activeTool={activeTool}
+                        additiveSelection={additiveSelection}
+                        panMode={panMode}
                         onCommitText={onCommitText}
                         onSelect={onSelect}
                         onPlaceTab={onPlaceTab}
@@ -921,6 +946,11 @@ export function CanvasStage({
                         tabHoverRef={tabHoverRef}
                         progressPointerRef={progressPointerRef}
                         pendingAnchorRef={pendingAnchorRef}
+                        angleSnapRef={angleSnapRef}
+                        selectedGuideRef={selectedGuideRef}
+                        guideHoverRef={guideHoverRef}
+                        loopHoverRef={loopHoverRef}
+                        onDeleteGuide={onDeleteGuide}
                         transformDragRef={transformDragRef}
                         onTransformCommit={onTransformCommit}
                         onFilletCorner={onFilletCorner}
@@ -936,6 +966,12 @@ export function CanvasStage({
                         onGuideDraftChange={onGuideDraftChange}
                         onCancelGuide={onCancelGuide}
                     />
+                    {touchLayout && (
+                        <CanvasNavigationControls
+                            pan={panMode}
+                            onPanChange={setPanMode}
+                        />
+                    )}
                     <CanvasHud
                         loopCount={loops.length}
                         darkMode={darkMode}

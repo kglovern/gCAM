@@ -1,7 +1,10 @@
 /**
  * Purpose: Application composition module for EditorWorkspace.
  */
-import type { ComponentProps } from 'react';
+import { useState, type ComponentProps } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { CanvasSelectionActions } from '../canvas/CanvasSelectionActions';
+import { ToolpathWorkspace } from './ToolpathWorkspace';
 import { CanvasStage } from '../canvas/CanvasStage';
 import { EmptyCanvasPrompt } from '../canvas/EmptyCanvasPrompt';
 import { CadInspector } from '../components/CadInspector';
@@ -27,6 +30,8 @@ interface EditorWorkspaceProps {
     status: string;
     onDropFiles: (files: FileList) => void;
     inspector: ComponentProps<typeof CadInspector> | null;
+    canShowProperties?: boolean;
+    onShowProperties?: () => void;
     toolpathRailProps: ComponentProps<typeof ToolpathRail>;
     previewWorkspaceProps: Omit<ComponentProps<typeof OutputWorkspace>, 'mode'>;
     configPanelProps: ComponentProps<typeof ConfigPanel>;
@@ -47,17 +52,39 @@ export function EditorWorkspace({
     status,
     onDropFiles,
     inspector,
+    canShowProperties,
+    onShowProperties,
     toolpathRailProps,
     previewWorkspaceProps,
     configPanelProps,
 }: EditorWorkspaceProps) {
+    const [additiveSelection, setAdditiveSelection] = useState(false);
+    const touchLayout = useMediaQuery('(pointer: coarse), (max-width: 1099px)');
     return (
-        <div className="flex-1 min-h-0 flex">
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col md:flex-row">
             <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
             {activeTab === 'toolpaths' && (
-                <>
+                <ToolpathWorkspace
+                    selectedCount={canvasProps.selected.length}
+                    rail={<ToolpathRail {...toolpathRailProps} />}
+                    actions={
+                        touchLayout && (
+                            <CanvasSelectionActions
+                                count={canvasProps.selected.length}
+                                additive={additiveSelection}
+                                onAdditiveChange={setAdditiveSelection}
+                                onClear={() => canvasProps.onSelect([])}
+                                onProperties={
+                                    canShowProperties
+                                        ? onShowProperties
+                                        : undefined
+                                }
+                            />
+                        )
+                    }
+                >
                     <main
-                        className="relative flex-1 min-w-0 bg-slate-100 dark:bg-slate-800 p-3 flex flex-col gap-2 min-h-0"
+                        className="relative flex-1 min-w-0 bg-slate-100 dark:bg-slate-800 p-2 md:p-3 flex flex-col gap-2 min-h-0"
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={(event) => {
                             event.preventDefault();
@@ -65,8 +92,21 @@ export function EditorWorkspace({
                         }}
                     >
                         <div className="relative flex-1 min-h-0">
-                            <CanvasStage {...canvasProps} />
-                            {treeOpen && <ObjectTree {...objectTreeProps} />}
+                            <CanvasStage
+                                {...canvasProps}
+                                additiveSelection={additiveSelection}
+                            />
+                            {treeOpen && (
+                                <ObjectTree
+                                    {...objectTreeProps}
+                                    onEdit={() => {
+                                        objectTreeProps.onClose();
+                                        objectTreeProps.onEdit?.();
+                                    }}
+                                    additiveSelection={additiveSelection}
+                                    onAdditiveChange={setAdditiveSelection}
+                                />
+                            )}
                             {showEmptyState && (
                                 <EmptyCanvasPrompt
                                     onNewCanvas={onNewCanvas}
@@ -75,14 +115,15 @@ export function EditorWorkspace({
                                     loadingSample={loadingSample}
                                 />
                             )}
-                            {inspector && <CadInspector {...inspector} />}
+                            {inspector && !treeOpen && (
+                                <CadInspector {...inspector} />
+                            )}
                         </div>
                         <div className="shrink-0 text-xs text-slate-500 dark:text-slate-400 truncate">
                             {status}
                         </div>
                     </main>
-                    <ToolpathRail {...toolpathRailProps} />
-                </>
+                </ToolpathWorkspace>
             )}
             {activeTab === 'preview' && (
                 <OutputWorkspace mode="preview" {...previewWorkspaceProps} />
