@@ -1,6 +1,6 @@
 import { layerDisplayColor } from './displayColor';
 import { act, renderHook } from '@testing-library/react';
-import { normalizeLayers, DEFAULT_LAYER } from './model';
+import { normalizeLayers, DEFAULT_LAYER, layersInUse } from './model';
 import { useDocumentState } from '../document/useDocumentState';
 import { useLayerCommands } from './useLayerCommands';
 import type { ViewLoop } from '../canvas/types';
@@ -35,7 +35,7 @@ test('create, assign, rename and remove a layer share document undo and redo', (
     act(() => result.current.document.setSelected(['a']));
     act(() => result.current.commands.onAdd('Pockets'));
     const id = result.current.document.activeLayerId;
-    act(() => result.current.commands.onMove(id));
+    act(() => result.current.commands.onAssign('a', id));
     expect(result.current.document.loops[0].layerId).toBe(id);
     act(() => result.current.commands.onRename(id, 'Shallow pockets'));
     act(() => result.current.commands.onDelete(id));
@@ -90,4 +90,42 @@ test('layer colours remain visible on light and dark canvas backgrounds', () => 
     expect(layerDisplayColor('#ffffff', '#f8fafc', '#111827')).toBe('#111827');
     expect(layerDisplayColor('#000000', '#0b1220', '#f8fafc')).toBe('#f8fafc');
     expect(layerDisplayColor('#ff0000', '#0b1220', '#f8fafc')).toBe('#ff0000');
+});
+
+test('assigning an object only changes its layer, preserves selection and supports undo', () => {
+    const { result } = renderHook(useLayers);
+    const loops = [
+        { id: 'a', points: [{ x: 1, y: 2 }] },
+        { id: 'b', points: [{ x: 3, y: 4 }] },
+    ];
+    act(() => {
+        result.current.document.setLoops(loops);
+        result.current.document.setSelected(['a', 'b']);
+    });
+    act(() => result.current.commands.onAdd('Engrave'));
+    const id = result.current.document.activeLayerId;
+    act(() => result.current.commands.onAssign('a', id));
+    expect(result.current.document.loops).toEqual([
+        { ...loops[0], layerId: id },
+        loops[1],
+    ]);
+    expect(result.current.document.selected).toEqual(['a', 'b']);
+    act(() => result.current.document.undo());
+    expect(result.current.document.loops).toEqual(loops);
+    act(() => result.current.commands.onAssign('a', 'missing'));
+    expect(result.current.document.loops).toEqual(loops);
+});
+
+test('the layer list follows occupied layers after reassignment and deletion', () => {
+    const layers = [
+        DEFAULT_LAYER,
+        { id: 'cuts', name: 'Cuts' },
+        { id: 'pockets', name: 'Pockets' },
+    ];
+    expect(
+        layersInUse(layers, [{ layerId: 'cuts' }, { layerId: 'cuts' }]),
+    ).toEqual([layers[1]]);
+    expect(layersInUse(layers, [{ layerId: 'pockets' }])).toEqual([layers[2]]);
+    expect(layersInUse(layers, [{}])).toEqual([DEFAULT_LAYER]);
+    expect(layersInUse(layers, [])).toEqual([]);
 });

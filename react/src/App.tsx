@@ -4,7 +4,6 @@ import { PwaUpdateNotice } from './pwa/PwaUpdateNotice';
  * Purpose: Implementation module for App in the react domain.
  */
 import { useState } from 'react';
-import { hasLayerContent } from './layers/model';
 import { fitSurfaceToStock } from './engine/surface-model';
 import type { ViewLoop } from './canvas/types';
 import { useConfirmation } from './components/ConfirmDialog';
@@ -721,10 +720,7 @@ export default function App() {
             onClose: () => setTreeOpen(false),
         },
         showEmptyState:
-            !loops.length &&
-            !emptyStateDismissed &&
-            !hasLayerContent(document.layers) &&
-            activeTool !== 'draw',
+            !loops.length && !emptyStateDismissed && activeTool !== 'draw',
         onNewCanvas: handleNewCanvas,
         onImport: () => fileRef.current?.click(),
         onLoadSample: () => void handleLoadSample(),

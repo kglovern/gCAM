@@ -33,6 +33,7 @@ interface UseSelectionCommandsOptions<TLoop extends SelectableLoop, TStack> {
     expandedSelectedIds(): string[];
     confirm(request: ConfirmRequest): Promise<boolean>;
     pushHistory(): void;
+    onEmpty?(): void;
     refreshBounds(loops: TLoop[]): void;
     moveAfterCloneRef: MutableRefObject<boolean>;
     setLoops: Dispatch<SetStateAction<TLoop[]>>;
@@ -67,6 +68,7 @@ export function useSelectionCommands<TLoop extends SelectableLoop, TStack>(
             );
             options.setStack([]);
             options.refreshBounds(next);
+            if (!next.length) options.onEmpty?.();
             return next;
         });
         options.setStatus('Vector deleted.');
@@ -90,6 +92,7 @@ export function useSelectionCommands<TLoop extends SelectableLoop, TStack>(
         options.setStack([]);
         options.setDraftPreview([]);
         options.refreshBounds(next);
+        if (!next.length) options.onEmpty?.();
         options.setStatus('Selection deleted.');
     };
 

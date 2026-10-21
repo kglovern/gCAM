@@ -60,3 +60,12 @@ export function hasLayerContent(layers?: DrawingLayer[]): boolean {
         ) ?? false
     );
 }
+
+/** The sidebar lists occupied layers; empty definitions remain available for assignment and drawing. */
+export function layersInUse(
+    layers: DrawingLayer[],
+    objects: LayeredObject[],
+): DrawingLayer[] {
+    const used = new Set(objects.map(objectLayerId));
+    return layers.filter((layer) => used.has(layer.id));
+}

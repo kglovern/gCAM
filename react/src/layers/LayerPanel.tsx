@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react';
 import type { useLayerCommands } from './useLayerCommands';
 import { LayerRow } from './LayerRow';
 import { LayerEditor } from './LayerEditor';
+import { layersInUse } from './model';
 
 export type LayerPanelProps = ReturnType<typeof useLayerCommands>;
 const iconButton =
@@ -16,6 +17,8 @@ export function LayerPanel(props: LayerPanelProps) {
         (layer) => layer.id === props.activeLayerId,
     );
     const target = props.layers.find((layer) => layer.id === editing);
+    const visibleLayers = layersInUse(props.layers, props.loops);
+    if (!visibleLayers.length) return null;
     return (
         <section
             aria-label="Drawing layers"
@@ -35,7 +38,7 @@ export function LayerPanel(props: LayerPanelProps) {
                     )}{' '}
                     Layers{' '}
                     <span className="font-normal text-slate-400">
-                        {props.layers.length}
+                        {visibleLayers.length}
                     </span>
                 </button>
                 <button
@@ -84,7 +87,7 @@ export function LayerPanel(props: LayerPanelProps) {
                         />
                     )}
                     <div className="max-h-56 overflow-y-auto overscroll-contain border-t border-slate-200 dark:border-robin-900">
-                        {props.layers.map((layer) => (
+                        {visibleLayers.map((layer) => (
                             <LayerRow
                                 key={layer.id}
                                 layer={layer}

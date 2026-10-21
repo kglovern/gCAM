@@ -98,6 +98,7 @@ export interface WorkspaceModelOptions {
 export function createWorkspaceModel(
     options: WorkspaceModelOptions,
 ): AppWorkspaceModel {
+    const inspector = options.inspector;
     return {
         editor: {
             activeTab: options.activeTab,
@@ -165,7 +166,17 @@ export function createWorkspaceModel(
             loadingSample: options.loadingSample,
             status: options.status,
             onDropFiles: options.onDropFiles,
-            inspector: options.inspector,
+            inspector: inspector
+                ? {
+                      ...inspector,
+                      layers: options.document.layers,
+                      onLayerChange: (layerId: string) =>
+                          options.document.layerCommands.onAssign(
+                              inspector.loop.id,
+                              layerId,
+                          ),
+                  }
+                : null,
             canShowProperties: options.canShowProperties,
             onShowProperties: options.onShowProperties,
             toolpathRailProps: {
