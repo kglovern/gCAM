@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "gCAM desktop CNC toolpath editor",
+  "homepage": "https://petervanderwalt.github.io/gCAM/",
   "author": "gCAM contributors",
   "main": "main.cjs",
   "scripts": {
