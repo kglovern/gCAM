@@ -143,6 +143,7 @@ export function useDocumentEditingCommands({
     });
 
     const selection = useSelectionCommands<ViewLoop, ToolpathStackEntry>({
+        onEmpty: () => setEmptyStateDismissed(false),
         loops,
         selected,
         expandedSelectedIds,

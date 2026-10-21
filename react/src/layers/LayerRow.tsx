@@ -1,4 +1,4 @@
-import { ArrowRightToLine, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { DEFAULT_LAYER_ID, objectLayerId, type DrawingLayer } from './model';
 import type { LayerPanelProps } from './LayerPanel';
 
@@ -58,16 +58,6 @@ export function LayerRow({
                 onClick={() => commands.onToggleVisibility(layer.id)}
             >
                 {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-            <button
-                type="button"
-                className={iconButton}
-                aria-label={`Move selected to ${layer.name}`}
-                title="Move selected shapes to this layer"
-                disabled={!commands.selected.length}
-                onClick={() => commands.onMove(layer.id)}
-            >
-                <ArrowRightToLine size={14} />
             </button>
             <button
                 type="button"

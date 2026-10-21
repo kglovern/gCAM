@@ -59,24 +59,14 @@ export function useLayerCommands(options: Options) {
         onUpdate: updateLayer,
         onRename: (id: string, name: string) => updateLayer(id, { name }),
         onColor: (id: string, color?: string) => updateLayer(id, { color }),
-        onMove(id: string) {
-            if (
-                !layers.some((layer) => layer.id === id) ||
-                !options.selected.length
-            )
-                return;
-            const selected = new Set(options.selected);
-            if (
-                !options.loops.some(
-                    (loop) =>
-                        selected.has(loop.id) && objectLayerId(loop) !== id,
-                )
-            )
-                return;
+        onAssign(objectId: string, id: string) {
+            if (!layers.some((layer) => layer.id === id)) return;
+            const object = options.loops.find((loop) => loop.id === objectId);
+            if (!object || objectLayerId(object) === id) return;
             options.pushHistory();
-            options.setLoops(
-                options.loops.map((loop) =>
-                    selected.has(loop.id) ? { ...loop, layerId: id } : loop,
+            options.setLoops((current) =>
+                current.map((loop) =>
+                    loop.id === objectId ? { ...loop, layerId: id } : loop,
                 ),
             );
         },

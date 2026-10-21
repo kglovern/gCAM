@@ -7,6 +7,7 @@ import cx from 'classnames';
 import type { ViewLoop } from '../canvas/types';
 import { FONT_OPTIONS } from '../draw/textGeometry';
 import { lengthUnit, type UnitSystem } from '../lib/units';
+import { objectLayerId, type DrawingLayer } from '../layers/model';
 import { UnitInput } from './UnitInput';
 
 export interface InspectorPatch {
@@ -29,6 +30,8 @@ export interface InspectorPatch {
  */
 export function CadInspector({
     loop,
+    layers,
+    onLayerChange,
     angle,
     onApply,
     onPreview,
@@ -36,6 +39,8 @@ export function CadInspector({
     units,
 }: {
     loop: ViewLoop;
+    layers?: DrawingLayer[];
+    onLayerChange?: (layerId: string) => void;
     angle: number;
     onApply: (patch: InspectorPatch) => void;
     onPreview?: (patch: InspectorPatch | null) => void;
@@ -115,6 +120,27 @@ export function CadInspector({
             className="w-[calc(100%-1rem)] sm:w-72 lg:w-56 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)]"
         >
             <div className="p-3 grid grid-cols-2 gap-2">
+                {layers && onLayerChange && (
+                    <label className="col-span-2 space-y-1">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                            Layer
+                        </span>
+                        <select
+                            aria-label="Shape layer"
+                            value={objectLayerId(loop)}
+                            onChange={(event) =>
+                                onLayerChange(event.target.value)
+                            }
+                            className={numCls}
+                        >
+                            {layers.map((layer) => (
+                                <option key={layer.id} value={layer.id}>
+                                    {layer.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                )}
                 <label className="space-y-1">
                     <span className="text-xs text-slate-500 dark:text-slate-400">
                         X ({lengthUnit(units)})
