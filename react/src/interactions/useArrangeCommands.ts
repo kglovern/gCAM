@@ -87,6 +87,7 @@ export function useArrangeCommands<TLoop extends ArrangeLoop, TStack>(
             unit.loops.map(
                 (loop) =>
                     ({
+                        ...loop,
                         id: options.withIds([{ points: loop.points }])[0].id,
                         ...(unit.groupId ? { groupId: unit.groupId } : {}),
                         points: loop.points.map((point) => ({

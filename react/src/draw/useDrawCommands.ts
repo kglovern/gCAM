@@ -42,8 +42,7 @@ export function useDrawCommands<TLoop extends DrawLoop, TStack>(
             snapToGuides(point, options.guides),
         );
         const loop = {
-            id: options.newLoopId(),
-            points: snapped,
+            ...options.withIds([{ points: snapped }])[0],
             ...meta,
         } as TLoop;
         options.setLoops((current) => {

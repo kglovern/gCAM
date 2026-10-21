@@ -1,6 +1,7 @@
 /**
  * Purpose: React hook that owns the DocumentWorkspace workflow.
  */
+import { useLayerCommands } from '../layers/useLayerCommands';
 import { useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ViewBounds, ViewLoop } from '../canvas/types';
@@ -68,6 +69,10 @@ export function useDocumentWorkspace({
         onRestore: (snapshot) => setBounds(loopBounds(snapshot.loops)),
     });
     const {
+        layers,
+        setLayers,
+        activeLayerId,
+        setActiveLayerId,
         loops,
         setLoops,
         selected,
@@ -89,13 +94,33 @@ export function useDocumentWorkspace({
         canUndo,
         canRedo,
     } = document;
+    const layerCommands = useLayerCommands({
+        loops,
+        layers,
+        activeLayerId,
+        selected,
+        hidden,
+        setLoops,
+        setLayers,
+        setActiveLayerId,
+        setSelected,
+        setHidden,
+        pushHistory,
+    });
     const newLoopId = () => createDocumentId('loop');
     const withIds = (
         items: { points: { x: number; y: number }[] }[],
-    ): ViewLoop[] => items.map((item) => ({ id: newLoopId(), ...item }));
+    ): ViewLoop[] =>
+        items.map((item) => ({
+            id: newLoopId(),
+            layerId: activeLayerId,
+            ...item,
+        }));
     const refreshBounds = (next: ViewLoop[]) => setBounds(loopBounds(next));
 
     useDocumentPersistence({
+        layers,
+        activeLayerId,
         loops,
         selected,
         hidden,
@@ -139,6 +164,8 @@ export function useDocumentWorkspace({
         cancelUnitImport,
     } = useVectorImport<ViewLoop, ToolpathStackEntry>({
         setLoops,
+        setLayers,
+        setActiveLayerId,
         setSelected,
         setStack,
         setFileName,
@@ -150,12 +177,17 @@ export function useDocumentWorkspace({
     });
 
     return {
+        layerCommands,
         bounds,
         setBounds,
         fileName,
         setFileName,
         fileRef,
         projectRef,
+        layers,
+        setLayers,
+        activeLayerId,
+        setActiveLayerId,
         loops,
         setLoops,
         selected,

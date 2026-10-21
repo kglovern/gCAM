@@ -1,6 +1,12 @@
 /**
  * Purpose: React hook that owns the ProjectFileCommands workflow.
  */
+import {
+    hasLayerContent,
+    normalizeLayers,
+    DEFAULT_LAYER_ID,
+    type DrawingLayer,
+} from '../layers/model';
 import type { Dispatch, SetStateAction } from 'react';
 import type { BitmapLike, GuideLike, StackEntryLike } from '../lib/project';
 import { downloadProject, readProjectFile } from './projectFile';
@@ -22,6 +28,10 @@ interface UseProjectFileCommandsOptions<
     TBitmap extends ProjectBitmap,
     TGuide extends GuideLike,
 > {
+    layers?: DrawingLayer[];
+    activeLayerId?: string;
+    setLayers?: Dispatch<SetStateAction<DrawingLayer[]>>;
+    setActiveLayerId?: Dispatch<SetStateAction<string>>;
     loops: TLoop[];
     selected: string[];
     hidden: string[];
@@ -52,13 +62,19 @@ export function useProjectFileCommands<
     TGuide extends GuideLike,
 >(options: UseProjectFileCommandsOptions<TLoop, TStack, TBitmap, TGuide>) {
     const handleExportProject = () => {
-        if (!options.loops.length && !options.stack.length) {
+        if (
+            !options.loops.length &&
+            !options.stack.length &&
+            !hasLayerContent(options.layers)
+        ) {
             options.setStatus(
                 'Nothing to export — import or draw something first.',
             );
             return;
         }
         const name = downloadProject({
+            layers: options.layers,
+            activeLayerId: options.activeLayerId,
             loops: options.loops,
             selected: options.selected,
             hidden: options.hidden,
@@ -80,6 +96,13 @@ export function useProjectFileCommands<
             const loops = snapshot.loops.map(
                 (loop) =>
                     ({ ...loop, id: loop.id ?? options.newLoopId() }) as TLoop,
+            );
+            const layers = normalizeLayers(snapshot.layers, snapshot.loops);
+            options.setLayers?.(layers);
+            options.setActiveLayerId?.(
+                layers.some((layer) => layer.id === snapshot.activeLayerId)
+                    ? snapshot.activeLayerId!
+                    : DEFAULT_LAYER_ID,
             );
             options.setLoops(loops);
             options.setSelected(
