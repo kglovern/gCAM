@@ -2,6 +2,9 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 /**
  * Purpose: Implementation module for GcodePreview in the components domain.
  */
+import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
+import { downloadGcode } from '../toolpaths/exportGcode';
+
 export function GcodePreview({
     gcode,
     fileName,
@@ -10,19 +13,6 @@ export function GcodePreview({
     fileName: string;
 }) {
     const compact = useMediaQuery('(max-width: 767px), (max-height: 600px)');
-    const download = () => {
-        if (!gcode) return;
-        const blob = new Blob([gcode], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const base = (fileName || 'gcam').replace(/\.[^.]+$/, '');
-        // camcanvas always exported GRBL as fixed .nc
-        a.download = `${base}.nc`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
     return (
         <div className="space-y-2">
             <details open={!compact}>
@@ -38,7 +28,7 @@ export function GcodePreview({
                 </pre>
             </details>
             <button
-                onClick={download}
+                onClick={() => downloadGcode(gcode, fileName)}
                 disabled={!gcode}
                 className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     gcode
@@ -48,6 +38,7 @@ export function GcodePreview({
             >
                 Save GCODE
             </button>
+            <SendToGsenderButton gcode={gcode} fileName={fileName} />
         </div>
     );
 }

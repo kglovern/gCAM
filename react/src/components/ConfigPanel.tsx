@@ -2,7 +2,15 @@
  * Purpose: Implementation module for ConfigPanel in the components domain.
  */
 import { useEffect, useId, useRef, useState } from 'react';
-import { Box, Grid, Layers, Lightbulb, Ruler, Settings } from 'lucide-react';
+import {
+    Box,
+    Grid,
+    Layers,
+    Lightbulb,
+    Ruler,
+    Send,
+    Settings,
+} from 'lucide-react';
 import cx from 'classnames';
 import { displayValue, lengthUnit, toMm, type UnitSystem } from '../lib/units';
 import { UnitInput } from './UnitInput';
@@ -17,6 +25,13 @@ import {
     normalizeMachineTravelLimits,
     type MachineTravelLimits,
 } from '../cutting-parameters/types';
+import { pingGsender } from '../integrations/gsender/gsenderClient';
+import {
+    DEFAULT_GSENDER_PORT,
+    isValidGsenderPort,
+    loadGsenderPort,
+    saveGsenderPort,
+} from '../integrations/gsender/settings';
 
 export type GridStyle = 'lines' | 'dots';
 
@@ -133,10 +148,33 @@ export function ConfigPanel({
         );
     });
     const [status, setStatus] = useState('');
+    const [gsenderPort, setGsenderPort] = useState(loadGsenderPort);
+    const [gsenderPortDraft, setGsenderPortDraft] = useState(
+        String(gsenderPort),
+    );
+    const [gsenderCheck, setGsenderCheck] = useState('');
 
     useEffect(() => {
         localStorage.setItem('gcam.toastTimeout', String(toastTimeout));
     }, [toastTimeout]);
+    useEffect(() => {
+        saveGsenderPort(gsenderPort);
+        setGsenderPortDraft(String(gsenderPort));
+    }, [gsenderPort]);
+
+    const testGsenderConnection = async () => {
+        setGsenderCheck('Checking…');
+        const result = await pingGsender(gsenderPort);
+        setGsenderCheck(
+            result.state === 'unreachable'
+                ? 'Not reachable — is gSender open on this computer?'
+                : result.state === 'disabled'
+                  ? `gSender ${result.version} is refusing files from gCAM (see its settings)`
+                  : result.state === 'busy'
+                    ? `Connected to gSender ${result.version} (job running)`
+                    : `Connected to gSender ${result.version}`,
+        );
+    };
 
     const flash = (msg: string) => {
         setStatus(msg);
@@ -152,6 +190,7 @@ export function ConfigPanel({
             machineProfileId,
             machineTravelLimits,
             toastTimeout,
+            gsenderPort,
         };
         const blob = new Blob([JSON.stringify(config, null, 2)], {
             type: 'application/json',
@@ -204,6 +243,8 @@ export function ConfigPanel({
                 }
                 if (typeof config.toastTimeout === 'number')
                     setToastTimeout(config.toastTimeout);
+                if (isValidGsenderPort(config.gsenderPort))
+                    setGsenderPort(config.gsenderPort);
                 flash('Configuration imported');
             } catch {
                 flash('Failed to import configuration');
@@ -228,6 +269,7 @@ export function ConfigPanel({
             machineTravelLimitsForProfile('longmill-router'),
         );
         setToastTimeout(3000);
+        setGsenderPort(DEFAULT_GSENDER_PORT);
         flash('Configuration reset to defaults');
     };
 
@@ -247,6 +289,7 @@ export function ConfigPanel({
         onMachineProfileChange,
         onMachineTravelLimitsChange,
         toastTimeout,
+        gsenderPort,
         units,
     ]);
 
@@ -386,6 +429,54 @@ export function ConfigPanel({
                             {lengthUnit(units)}
                         </p>
                     )}
+                </div>
+            </section>
+
+            <section className="space-y-4">
+                <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                    <Send size={16} className="text-robin-400" />
+                    gSender
+                </h3>
+                <div className="space-y-3 bg-white dark:bg-slate-800/80 rounded-lg border border-slate-300 dark:border-robin-900/70 p-4 shadow-sm dark:shadow-[0_4px_16px_rgba(2,6,23,0.18)]">
+                    <SettingRow
+                        label="Handoff Port"
+                        description={`Local port gSender listens on for "Send to gSender" (default ${DEFAULT_GSENDER_PORT})`}
+                    >
+                        <input
+                            type="number"
+                            min={1024}
+                            max={65535}
+                            value={gsenderPortDraft}
+                            onChange={(e) => {
+                                setGsenderPortDraft(e.target.value);
+                                const port = Number(e.target.value);
+                                if (isValidGsenderPort(port))
+                                    setGsenderPort(port);
+                            }}
+                            onBlur={() =>
+                                setGsenderPortDraft(String(gsenderPort))
+                            }
+                            className={cx(inputCls, 'w-24')}
+                            aria-label="gSender handoff port"
+                        />
+                    </SettingRow>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={testGsenderConnection}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 dark:border-robin-900 dark:text-slate-200 dark:hover:bg-dark-lighter"
+                        >
+                            Test connection
+                        </button>
+                        {gsenderCheck && (
+                            <span
+                                role="status"
+                                className="text-xs text-slate-500 dark:text-slate-400"
+                            >
+                                {gsenderCheck}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </section>
 

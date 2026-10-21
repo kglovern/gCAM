@@ -15,6 +15,7 @@ import type { JobStock } from '../job/stock';
 import type { MachineTravelLimits } from '../cutting-parameters/types';
 import { JobStockSetup } from '../job/JobStockSetup';
 import { machineProfileById } from '../cutting-parameters/machines';
+import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
 import { GcodeExportButton } from './GcodeExportButton';
 
 type Bitmap = {
@@ -236,7 +237,7 @@ export function ToolpathRail({
                 )}
             </div>
             {!showEditor && (
-                <div className="shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
+                <div className="space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
                     <GcodeExportButton
                         gcode={gcode}
                         fileName={fileName}
@@ -244,6 +245,7 @@ export function ToolpathRail({
                         units={units}
                         emitArcs={emitArcs}
                     />
+                    <SendToGsenderButton gcode={gcode} fileName={fileName} />
                 </div>
             )}
         </aside>
