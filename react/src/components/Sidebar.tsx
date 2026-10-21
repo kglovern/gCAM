@@ -35,7 +35,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             aria-label="Main Navigation"
         >
             <nav
-                className="flex min-h-0 flex-row md:flex-col flex-1 justify-start lg:justify-end [@media(max-height:700px)]:justify-start overflow-y-auto overflow-x-hidden"
+                className="flex min-h-0 md:-mr-[2px] flex-row md:flex-col flex-1 justify-start md:[&>button:first-child]:mt-auto overflow-y-auto overflow-x-hidden"
                 role="navigation"
                 aria-label="Main tabs"
             >
