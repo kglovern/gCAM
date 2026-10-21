@@ -17,7 +17,11 @@ npm run smoke
 npm run package
 ```
 
-`Desktop installers` builds Windows x64 NSIS, Linux x64 AppImage/deb and macOS
+The `Build and test` workflow groups quality checks, browser tests, desktop
+installers and tablet builds into one run, with separate logs and artifacts. On
+main, the website publishes after all checks pass.
+
+The `Desktop installers` job builds Windows x64 NSIS, Linux x64 AppImage/deb and macOS
 Apple Silicon DMG/zip artifacts. Each platform smoke-tests its actual renderer,
 local catalogue and CAM worker before packaging. The default artifacts are
 unsigned; no certificates or release publishing tokens are needed for CI builds.
@@ -37,7 +41,7 @@ npx cordova build android --debug -- --packageType=apk
 npx cordova build ios --debug --emulator -- --buildFlag=CODE_SIGNING_ALLOWED=NO
 ```
 
-`Tablet builds` produces an installable Android debug APK and an iPad simulator
+The `Tablet builds` job produces an installable Android debug APK and an iPad simulator
 application on pull requests and pushes to main. Download the artifacts from the
 workflow run. Android uses Java 17, Android SDK/build tools 36 and Gradle 8.14.2;
 iOS requires macOS and Xcode. iPad is the smallest Apple target.
@@ -53,7 +57,7 @@ progress percentage or minimum display time.
 
 ## Signed tablet releases
 
-Run `Tablet builds` manually and enable the relevant signing input. Signing
+Run `Build and test` manually and enable the relevant signing input. Signing
 credentials are read only by that explicitly requested job, never PR builds.
 
 For `signed_android`, configure these repository secrets:

@@ -1,28 +1,17 @@
 name: Tablet builds
 
 on:
-  pull_request:
-    paths: ['react/**', 'packaging/**', '.github/workflows/native-mobile.yml', '.github/actions/mobile-prepare/**']
-  push:
-    branches: [main]
-    paths: ['react/**', 'packaging/**', '.github/workflows/native-mobile.yml', '.github/actions/mobile-prepare/**']
-  workflow_dispatch:
+  workflow_call:
     inputs:
       signed_android:
-        description: Build signed Android release APK and AAB using repository secrets
         type: boolean
         default: false
       signed_ios:
-        description: Build a signed iPad device IPA using Apple signing secrets
         type: boolean
         default: false
 
 permissions:
   contents: read
-
-concurrency:
-  group: tablet-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   android:
