@@ -24,7 +24,7 @@ export function AppHeader({
     configActions,
 }: AppHeaderProps) {
     return (
-        <header className="h-16 shrink-0 flex items-center gap-2 px-4 min-w-0 bg-white border-b border-slate-200 dark:bg-dark dark:border-robin-900">
+        <header className="min-h-16 py-2 pt-[max(8px,env(safe-area-inset-top))] shrink-0 flex items-center gap-2 px-2 md:px-4 min-w-0 bg-white border-b border-slate-200 dark:bg-dark dark:border-robin-900">
             <div className="flex items-center gap-2 font-semibold tracking-tight text-slate-900 dark:text-white shrink-0">
                 <img
                     src={logoUrl}

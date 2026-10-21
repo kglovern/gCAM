@@ -1,7 +1,15 @@
 /**
  * Purpose: Implementation module for AppToolbars in the components domain.
  */
-import { Box, Camera, Download, Play, Upload } from 'lucide-react';
+import {
+    Box,
+    Camera,
+    Download,
+    Play,
+    RotateCcw,
+    Square,
+    Upload,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ConfigActions } from './ConfigPanel';
 import type { PreviewControls } from './CutPreview3DView';
@@ -51,8 +59,12 @@ export function PreviewToolbar({ controls }: { controls: PreviewControls }) {
                 disabled={controls.empty}
                 className={buttonClass(controls.running)}
             >
-                <Play size={14} fill="currentColor" />
-                {controls.running ? 'Simulating…' : 'Simulate'}
+                {controls.running ? (
+                    <Square size={14} fill="currentColor" />
+                ) : (
+                    <Play size={14} fill="currentColor" />
+                )}
+                {controls.running ? 'Stop simulation' : 'Simulate'}
             </button>
             <button
                 onClick={controls.iso}
@@ -84,17 +96,32 @@ export function ConfigToolbar({ actions }: { actions: ConfigActions }) {
             role="toolbar"
             aria-label="Configuration actions"
         >
-            <button onClick={actions.exportConfig} className={buttonClass}>
-                <Download size={16} /> Export Config
-            </button>
-            <button onClick={actions.importConfig} className={buttonClass}>
-                <Upload size={16} /> Import Config
+            <button
+                aria-label="Export Config"
+                title="Export Config"
+                onClick={actions.exportConfig}
+                className={buttonClass}
+            >
+                <Download size={16} />
+                <span className="hidden sm:inline">Export Config</span>
             </button>
             <button
+                aria-label="Import Config"
+                title="Import Config"
+                onClick={actions.importConfig}
+                className={buttonClass}
+            >
+                <Upload size={16} />
+                <span className="hidden sm:inline">Import Config</span>
+            </button>
+            <button
+                aria-label="Reset All"
+                title="Reset All"
                 onClick={actions.resetConfig}
                 className={`${buttonClass} text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300`}
             >
-                Reset All
+                <RotateCcw size={16} />
+                <span className="hidden sm:inline">Reset All</span>
             </button>
         </div>
     );

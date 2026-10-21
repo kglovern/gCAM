@@ -20,7 +20,7 @@ export function SurfaceUnitsModal({
             aria-modal="true"
             aria-labelledby="surface-units-title"
         >
-            <section className="w-full max-w-md rounded-lg border border-slate-300 bg-white p-5 shadow-xl dark:border-robin-900 dark:bg-dark">
+            <section className="w-full max-w-md max-h-[calc(var(--app-height,100dvh)-32px)] overflow-y-auto overscroll-contain rounded-lg border border-slate-300 bg-white p-5 shadow-xl dark:border-robin-900 dark:bg-dark">
                 <h2
                     id="surface-units-title"
                     className="text-lg font-semibold text-slate-900 dark:text-white"

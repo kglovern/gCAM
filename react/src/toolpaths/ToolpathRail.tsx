@@ -1,7 +1,7 @@
 /**
  * Purpose: Implementation module for ToolpathRail in the react domain.
  */
-import { Download, FileUp, Pencil, Trash2 } from 'lucide-react';
+import { FileUp, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useStableCallback } from '../lib/useStableCallback';
 import type { Dispatch, SetStateAction } from 'react';
@@ -16,7 +16,7 @@ import type { MachineTravelLimits } from '../cutting-parameters/types';
 import { JobStockSetup } from '../job/JobStockSetup';
 import { machineProfileById } from '../cutting-parameters/machines';
 import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
-import { downloadGcode } from './exportGcode';
+import { GcodeExportButton } from './GcodeExportButton';
 
 type Bitmap = {
     id: string;
@@ -164,8 +164,8 @@ export function ToolpathRail({
     }, [editing, selected.length, setDraftPreview, setDraftProgress]);
 
     return (
-        <aside className="w-[340px] shrink-0 border-l border-slate-200 bg-white dark:border-robin-900 dark:bg-dark flex flex-col min-h-0">
-            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+        <aside className="w-[340px] max-w-full shrink-0 border-l border-slate-200 bg-white dark:border-robin-900 dark:bg-dark flex flex-col min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 {showJobStock && (
                     <JobStockSetup
                         stock={stock}
@@ -237,16 +237,14 @@ export function ToolpathRail({
                 )}
             </div>
             {!showEditor && (
-                <div className="shrink-0 space-y-2 border-t border-slate-200 p-3 dark:border-robin-900">
-                    <button
-                        type="button"
-                        disabled={!gcode.trim()}
-                        onClick={() => downloadGcode(gcode, fileName)}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <Download size={16} />
-                        Export G-code
-                    </button>
+                <div className="space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
+                    <GcodeExportButton
+                        gcode={gcode}
+                        fileName={fileName}
+                        stack={stack}
+                        units={units}
+                        emitArcs={emitArcs}
+                    />
                     <SendToGsenderButton gcode={gcode} fileName={fileName} />
                 </div>
             )}
@@ -328,7 +326,7 @@ function CommittedToolpaths({
                                             `Editing ${entry.label} — Save or Cancel.`,
                                         );
                                     }}
-                                    className="text-slate-400 hover:text-robin-400"
+                                    className="touch-target inline-flex items-center justify-center rounded text-slate-400 hover:text-robin-400"
                                 >
                                     <Pencil size={14} />
                                 </button>
@@ -344,7 +342,7 @@ function CommittedToolpaths({
                                             showToast,
                                         )
                                     }
-                                    className="text-slate-400 hover:text-red-400"
+                                    className="touch-target inline-flex items-center justify-center rounded text-slate-400 hover:text-red-400"
                                 >
                                     <Trash2 size={14} />
                                 </button>
@@ -370,10 +368,23 @@ function CommittedToolpaths({
                                         }
                                         className="rounded border border-slate-300 dark:border-robin-900 px-1.5 py-0.5 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-dark"
                                     >
-                                        Auto
+                                        Auto Tabs
                                     </button>
-                                    {tabs.length > 0 && (
+                                    <span
+                                        className="inline-flex"
+                                        title={
+                                            tabs.length
+                                                ? undefined
+                                                : 'There are no tabs to remove from this toolpath.'
+                                        }
+                                    >
                                         <button
+                                            disabled={tabs.length === 0}
+                                            aria-describedby={
+                                                tabs.length === 0
+                                                    ? `clear-tabs-hint-${entry.id}`
+                                                    : undefined
+                                            }
                                             onClick={() =>
                                                 void clearTabs(
                                                     entry,
@@ -382,11 +393,20 @@ function CommittedToolpaths({
                                                     confirm,
                                                 )
                                             }
-                                            className="rounded border border-slate-300 dark:border-robin-900 px-1.5 py-0.5 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-dark"
+                                            className="rounded border border-slate-300 px-1.5 py-0.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:border-robin-900 dark:text-slate-300 dark:disabled:hover:bg-transparent"
                                         >
-                                            Clear
+                                            Clear Tabs
                                         </button>
-                                    )}
+                                        {tabs.length === 0 && (
+                                            <span
+                                                id={`clear-tabs-hint-${entry.id}`}
+                                                className="sr-only"
+                                            >
+                                                There are no tabs to remove from
+                                                this toolpath.
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
                             )}
                         </div>

@@ -52,6 +52,7 @@ export interface WorkspaceModelOptions {
         | 'onPlaceGuide'
         | 'onGuideDraftChange'
         | 'onCancelGuide'
+        | 'onDeleteGuide'
         | 'onCommitLoop'
         | 'onTrimAt'
         | 'onTrimStroke'
@@ -84,6 +85,8 @@ export interface WorkspaceModelOptions {
     status: string;
     onDropFiles: (files: FileList) => void;
     inspector: ComponentProps<typeof CadInspector> | null;
+    canShowProperties?: boolean;
+    onShowProperties?: () => void;
     toolpathRailProps: RailProps;
     previewWorkspaceProps: OutputProps;
     configPanelProps: ConfigProps;
@@ -150,6 +153,8 @@ export function createWorkspaceModel(
             status: options.status,
             onDropFiles: options.onDropFiles,
             inspector: options.inspector,
+            canShowProperties: options.canShowProperties,
+            onShowProperties: options.onShowProperties,
             toolpathRailProps: options.toolpathRailProps,
             previewWorkspaceProps: options.previewWorkspaceProps,
             configPanelProps: options.configPanelProps,

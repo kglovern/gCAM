@@ -162,10 +162,10 @@ export function TraceModal({
             aria-labelledby="trace-title"
         >
             <div
-                className="w-full max-w-3xl max-h-[90vh] overflow-auto rounded-lg border border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-dark"
+                className="w-full max-w-3xl max-h-[calc(var(--app-height,100dvh)-16px)] flex flex-col overflow-hidden rounded-lg border border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-dark"
                 onClick={(e) => e.stopPropagation()}
             >
-                <header className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-robin-900">
+                <header className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-robin-900">
                     <div>
                         <h2
                             id="trace-title"
@@ -186,7 +186,7 @@ export function TraceModal({
                         <X size={20} />
                     </button>
                 </header>
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                             Vector preview
@@ -246,7 +246,7 @@ export function TraceModal({
                         </label>
                     </div>
                 </div>
-                <footer className="px-4 py-3 border-t border-slate-200 dark:border-robin-900 flex justify-end gap-2">
+                <footer className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-robin-900 flex justify-end gap-2">
                     <button
                         onClick={onClose}
                         className="rounded-lg border border-slate-300 dark:border-robin-900 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-dark-lighter touch-manipulation"
@@ -285,13 +285,27 @@ function Slider({
     onChange: (v: number) => void;
 }) {
     return (
-        <label className="block space-y-1">
-            <span className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="block space-y-1">
+            <span className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span>{label}</span>
-                <span className="tabular-nums">{value}</span>
+                <input
+                    type="number"
+                    aria-label={`${label} value`}
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={value}
+                    onChange={(event) => {
+                        const numeric = Number(event.currentTarget.value);
+                        if (Number.isFinite(numeric))
+                            onChange(Math.max(min, Math.min(max, numeric)));
+                    }}
+                    className="w-20 rounded border border-slate-300 bg-white px-2 py-1 text-right tabular-nums text-slate-900 dark:border-robin-900 dark:bg-dark-lighter dark:text-white"
+                />
             </span>
             <input
                 type="range"
+                aria-label={label}
                 min={min}
                 max={max}
                 step={step}
@@ -299,6 +313,6 @@ function Slider({
                 onChange={(e) => onChange(Number(e.target.value))}
                 className="w-full accent-robin-500"
             />
-        </label>
+        </div>
     );
 }

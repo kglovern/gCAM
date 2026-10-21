@@ -41,3 +41,6 @@ cypress/downloads/
 cypress/screenshots/
 cypress/videos/
 cypress/results/
+
+# TypeScript incremental build metadata
+*.tsbuildinfo
