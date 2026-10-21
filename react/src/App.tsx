@@ -1,5 +1,4 @@
 import { useVisualViewportHeight } from './hooks/useVisualViewportHeight';
-import { PwaUpdateNotice } from './pwa/PwaUpdateNotice';
 /**
  * Purpose: Implementation module for App in the react domain.
  */
@@ -770,7 +769,6 @@ export default function App() {
                 />
 
                 <AppWorkspace model={workspaceModel} />
-                <PwaUpdateNotice />
                 <AppModalLayer
                     units={units}
                     machineSetupOpen={machineSetupOpen}

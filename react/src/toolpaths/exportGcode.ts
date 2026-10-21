@@ -1,3 +1,4 @@
+import { saveTextFile } from '../platform/saveTextFile';
 /**
  * Purpose: Shared G-code export helpers (file naming and browser download).
  */
@@ -10,11 +11,5 @@ export function gcodeFileName(fileName: string): string {
 
 export function downloadGcode(gcode: string, fileName: string): void {
     if (!gcode.trim()) return;
-    const blob = new Blob([gcode], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = gcodeFileName(fileName);
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveTextFile(gcode, gcodeFileName(fileName));
 }

@@ -1,0 +1,87 @@
+#gcam-startup {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: grid;
+    place-items: center;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: system-ui, sans-serif;
+    transition: opacity 180ms ease;
+}
+#gcam-startup[hidden] {
+    display: none;
+}
+.gcam-startup-card {
+    text-align: center;
+    padding: 24px;
+}
+.gcam-startup-card h1 {
+    margin: 4px 0 8px;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+}
+.gcam-startup-card p {
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 0;
+}
+.gcam-startup-art {
+    width: 240px;
+    max-width: 60vw;
+    height: 200px;
+}
+.gcam-startup-cut {
+    stroke-dasharray: 440;
+    stroke-dashoffset: 440;
+    animation: gcam-cut 2.6s linear infinite;
+}
+.gcam-startup-tool {
+    offset-path: path(
+        "M60 150V60Q60 45 75 45H165Q180 45 180 60V140Q180 155 165 155H75Q60 155 60 140"
+    );
+    offset-rotate: 0deg;
+    animation: gcam-travel 2.6s linear infinite;
+}
+#gcam-startup.gcam-ready {
+    opacity: 0;
+    pointer-events: none;
+}
+#gcam-startup.gcam-failed .gcam-startup-cut,
+#gcam-startup.gcam-failed .gcam-startup-tool {
+    animation-play-state: paused;
+}
+#gcam-startup-retry {
+    margin-top: 20px;
+    min-width: 100px;
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid #689ac9;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #e2e8f0;
+    cursor: pointer;
+}
+@keyframes gcam-cut {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+@keyframes gcam-travel {
+    to {
+        offset-distance: 100%;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    #gcam-startup {
+        transition: none;
+    }
+    .gcam-startup-cut,
+    .gcam-startup-tool {
+        animation: none;
+    }
+    .gcam-startup-cut {
+        stroke-dashoffset: 0;
+    }
+}

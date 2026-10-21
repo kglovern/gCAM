@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="gcam-files" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>gCAM file export</name>
+    <js-module src="www/files.js" name="files"><clobbers target="gcamFiles" /></js-module>
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*"><feature name="GcamFiles"><param name="android-package" value="com.petervanderwalt.gcam.GcamFiles" /></feature></config-file>
+        <source-file src="src/android/GcamFiles.java" target-dir="src/com/petervanderwalt/gcam" />
+    </platform>
+    <platform name="ios">
+        <config-file target="config.xml" parent="/*"><feature name="GcamFiles"><param name="ios-package" value="GcamFiles" /></feature></config-file>
+        <header-file src="src/ios/GcamFiles.h" />
+        <source-file src="src/ios/GcamFiles.m" />
+    </platform>
+</plugin>

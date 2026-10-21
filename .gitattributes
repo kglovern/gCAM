@@ -1,2 +1,6 @@
 # Keep the React app compatible with Biome's LF formatting on Windows.
 react/** text=auto eol=lf
+
+# Native source and build scripts use the same formatter on every platform.
+packaging/** text=auto eol=lf
+.github/** text=auto eol=lf

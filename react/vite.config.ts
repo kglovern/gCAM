@@ -1,12 +1,11 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { pwa } from './build/pwa';
 
-// gCAM React shell — mirrors gSender src/app Vite setup (web-first; Electron later).
+// Shared renderer: Pages uses /gCAM/; native packaging passes --base ./ explicitly.
 export default defineConfig({
     base: process.env.GITHUB_ACTIONS ? '/gCAM/' : '/',
-    plugins: [react(), tsconfigPaths(), pwa()],
+    plugins: [react(), tsconfigPaths()],
     server: {
         port: 5174,
         host: true,

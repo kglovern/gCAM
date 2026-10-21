@@ -1,0 +1,12 @@
+{
+  "name": "gcam-files",
+  "version": "1.0.0",
+  "private": true,
+  "cordova": {
+    "id": "gcam-files",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  }
+}

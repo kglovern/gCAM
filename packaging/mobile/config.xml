@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget id="com.petervanderwalt.gcam" version="0.1.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>gCAM</name>
+    <description>CNC toolpaths and G-code on your tablet.</description>
+    <author>gCAM contributors</author>
+    <content src="index.html" />
+    <access origin="https://*/*" />
+    <allow-intent href="https://*/*" />
+    <preference name="Fullscreen" value="true" />
+    <preference name="Orientation" value="default" />
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="AndroidWindowSplashScreenBackground" value="#0f172a" />
+    <preference name="AndroidWindowSplashScreenAnimatedIcon" value="../resources/icon.png" />
+    <icon src="../resources/icon.png" />
+    <platform name="android">
+        <preference name="android-minSdkVersion" value="24" />
+        <preference name="android-targetSdkVersion" value="36" />
+        <preference name="scheme" value="https" />
+        <preference name="hostname" value="localhost" />
+    </platform>
+    <platform name="ios">
+        <icon src="../resources/icon-ipad.png" width="1024" height="1024" />
+        <preference name="deployment-target" value="15.0" />
+        <preference name="target-device" value="tablet" />
+        <preference name="scheme" value="app" />
+        <preference name="hostname" value="localhost" />
+    </platform>
+</widget>

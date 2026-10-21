@@ -1,3 +1,4 @@
+import { saveTextFile } from '../../platform/saveTextFile';
 import { useState } from 'react';
 import type { UseRotaryState } from '../useRotaryState';
 
@@ -17,14 +18,10 @@ export function useRotaryExport(rotary: UseRotaryState) {
     };
     const download = () => {
         if (!ready) return;
-        const url = URL.createObjectURL(
-            new Blob([rotary.gcode], { type: 'text/plain' }),
+        saveTextFile(
+            rotary.gcode,
+            `${rotary.name.trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '-') || 'rotary'}.gcode`,
         );
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `${rotary.name.trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '-') || 'rotary'}.gcode`;
-        anchor.click();
-        URL.revokeObjectURL(url);
     };
     return { ready, generate, download, errors, needsModel };
 }

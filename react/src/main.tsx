@@ -4,11 +4,9 @@
 import React, { Component, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { NativeReady } from './platform/NativeReady';
 import './index.css';
 import './rotary/components/rotaryWorkspace.css';
-import { startPwa } from './pwa/client';
-
-startPwa(import.meta.env.PROD);
 
 class RootErrorBoundary extends Component<
     { children: ReactNode },
@@ -25,6 +23,7 @@ class RootErrorBoundary extends Component<
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         console.error('Root error boundary caught:', error, errorInfo);
+        document.dispatchEvent(new Event('gcam-startup-error'));
     }
 
     render() {
@@ -73,6 +72,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
         <RootErrorBoundary>
             <App />
+            <NativeReady />
         </RootErrorBoundary>
     </React.StrictMode>,
 );

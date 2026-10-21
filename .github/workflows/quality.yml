@@ -1,9 +1,7 @@
 name: Quality
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -28,3 +26,9 @@ jobs:
       - run: yarn lint
       - run: yarn format:check
       - run: yarn build
+      - name: Native shell and startup tests
+        working-directory: .
+        run: node --test packaging/desktop/*.test.cjs packaging/scripts/*.test.mjs
+      - name: Native source formatting and lint
+        working-directory: packaging
+        run: node ../react/node_modules/@biomejs/biome/bin/biome check .

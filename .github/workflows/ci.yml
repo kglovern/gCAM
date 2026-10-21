@@ -1,0 +1,50 @@
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      signed_android:
+        description: Build signed Android release APK and AAB using repository secrets
+        type: boolean
+        default: false
+      signed_ios:
+        description: Build a signed iPad device IPA using Apple signing secrets
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  quality:
+    name: Quality
+    uses: ./.github/workflows/quality.yml
+  browser:
+    name: Browser tests
+    uses: ./.github/workflows/browser-tests.yml
+  desktop:
+    name: Desktop installers
+    uses: ./.github/workflows/native-desktop.yml
+  tablet:
+    name: Tablet builds
+    uses: ./.github/workflows/native-mobile.yml
+    with:
+      signed_android: ${{ inputs.signed_android == true }}
+      signed_ios: ${{ inputs.signed_ios == true }}
+    secrets: inherit
+  pages:
+    name: Publish website
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [quality, browser, desktop, tablet]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml

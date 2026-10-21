@@ -1,0 +1,131 @@
+name: Tablet builds
+
+on:
+  workflow_call:
+    inputs:
+      signed_android:
+        type: boolean
+        default: false
+      signed_ios:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packaging/mobile/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.2'
+      - uses: ./.github/actions/mobile-prepare
+        with:
+          platform: android
+      - name: Build installable debug APK
+        if: inputs.signed_android != true
+        run: npx cordova build android --debug -- --packageType=apk
+        working-directory: packaging/mobile
+      - name: Configure Android release signing
+        if: inputs.signed_android == true
+        run: node packaging/scripts/android-signing.mjs
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Build signed APK and store bundle
+        if: inputs.signed_android == true
+        working-directory: packaging/mobile
+        run: |
+          npx cordova build android --release --buildConfig=build.json -- --packageType=apk
+          npx cordova build android --release --buildConfig=build.json -- --packageType=bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gCAM-android
+          path: |
+            packaging/mobile/platforms/android/app/build/outputs/apk/**/*.apk
+            packaging/mobile/platforms/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove temporary signing files
+        if: always()
+        run: node packaging/scripts/android-signing.mjs --clean
+
+  ios-simulator:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packaging/mobile/package-lock.json
+      - uses: ./.github/actions/mobile-prepare
+        with:
+          platform: ios
+      - name: Build iPad simulator application
+        run: npx cordova build ios --debug --emulator -- --buildFlag=CODE_SIGNING_ALLOWED=NO
+        working-directory: packaging/mobile
+      - name: Archive simulator application with permissions intact
+        working-directory: packaging/mobile
+        run: ditto -c -k --sequesterRsrc --keepParent platforms/ios/build/Debug-iphonesimulator/gCAM.app gCAM-ipad-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gCAM-ipad-simulator
+          path: packaging/mobile/gCAM-ipad-simulator.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-device:
+    if: github.event_name == 'workflow_dispatch' && inputs.signed_ios
+    runs-on: macos-15
+    timeout-minutes: 30
+    environment: ios-signing
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packaging/mobile/package-lock.json
+      - uses: ./.github/actions/mobile-prepare
+        with:
+          platform: ios
+      - name: Install Apple signing identity
+        run: bash packaging/scripts/ios-signing.sh
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+      - name: Build signed iPad device package
+        run: npx cordova build ios --release --device --buildConfig=build.json
+        working-directory: packaging/mobile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gCAM-ipad-device
+          path: packaging/mobile/platforms/ios/build/**/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove temporary signing identity
+        if: always()
+        run: bash packaging/scripts/ios-signing.sh --clean

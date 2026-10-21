@@ -1,0 +1,26 @@
+{
+  "name": "gcam-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "gCAM tablet application",
+  "devDependencies": {
+    "cordova": "13.0.0",
+    "cordova-android": "15.1.0",
+    "cordova-ios": "8.1.1",
+    "gcam-files": "file:../plugins/gcam-files"
+  },
+  "cordova": {
+    "platforms": [],
+    "plugins": {
+      "gcam-files": {}
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "11.1.1"
+    }
+  }
+}

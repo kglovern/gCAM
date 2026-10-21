@@ -1,3 +1,4 @@
+import { saveTextFile } from '../platform/saveTextFile';
 /**
  * Purpose: Implementation module for ConfigPanel in the components domain.
  */
@@ -14,7 +15,6 @@ import {
 import cx from 'classnames';
 import { displayValue, lengthUnit, toMm, type UnitSystem } from '../lib/units';
 import { UnitInput } from './UnitInput';
-import { PwaSettings } from '../pwa/PwaSettings';
 import {
     CUSTOM_MACHINE_PROFILE_ID,
     MACHINE_PROFILES,
@@ -192,15 +192,11 @@ export function ConfigPanel({
             toastTimeout,
             gsenderPort,
         };
-        const blob = new Blob([JSON.stringify(config, null, 2)], {
-            type: 'application/json',
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'gcam-config.json';
-        a.click();
-        URL.revokeObjectURL(url);
+        saveTextFile(
+            JSON.stringify(config, null, 2),
+            'gcam-config.json',
+            'application/json',
+        );
         flash('Configuration exported');
     };
 
@@ -305,7 +301,6 @@ export function ConfigPanel({
                 </p>
             </header>
 
-            <PwaSettings />
             <section className="space-y-4">
                 <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">
                     <Box size={16} className="text-robin-400" />

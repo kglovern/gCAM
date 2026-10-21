@@ -1,3 +1,4 @@
+import { saveTextFile } from '../platform/saveTextFile';
 import { ChevronDown, Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { combineToolpaths } from '../lib/engine';
@@ -6,12 +7,7 @@ import type { ToolpathStackEntry } from './useToolpathStack';
 
 export function downloadGcode(gcode: string, fileName: string) {
     if (!gcode.trim()) return;
-    const url = URL.createObjectURL(new Blob([gcode], { type: 'text/plain' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${fileName}.nc`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveTextFile(gcode, `${fileName}.nc`);
 }
 
 export function GcodeExportButton({
