@@ -599,6 +599,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                       ? cutDepth
                       : effectivePassDepth,
             libraryToolId: activeSlot?.libraryToolId ?? undefined,
+            libraryToolName: activeSlot?.name || undefined,
             surfaceBitmapId: selectedSurfaceBitmap?.id,
             surfaceResolutionMm: surfaceResolution,
             surfaceStepoverMm: surfaceStepover,
@@ -762,6 +763,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                         toolDiameter: activeSlot.cuttingDiameterMm!,
                         cutterType: cutter,
                         libraryToolId: activeSlot.libraryToolId ?? undefined,
+                        libraryToolName: activeSlot.name || undefined,
                         toolNumber: activeSlot.slot,
                         feedRate: effectiveFeedRate,
                         plungeRate: effectivePlungeRate,

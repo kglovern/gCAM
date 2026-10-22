@@ -51,6 +51,7 @@ export type ToolpathRequest = {
     tabWidth?: number;
     tabHeight?: number;
     toolNumber?: number;
+    libraryToolName?: string;
 };
 
 export function assertToolpathRequest(
@@ -113,6 +114,7 @@ export function makeToolpathConfig(request: ToolpathRequest) {
         tabWidth = 9,
         tabHeight = Math.min(9, cutDepth / 2),
         toolNumber = 1,
+        libraryToolName = '',
     } = request;
     return {
         operation,
@@ -139,6 +141,7 @@ export function makeToolpathConfig(request: ToolpathRequest) {
         plungeRate,
         spindle,
         toolNumber: Math.max(1, Math.round(toolNumber)),
+        libraryToolName,
         laserFeed,
         laserPower,
         laserSpot,

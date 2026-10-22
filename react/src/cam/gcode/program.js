@@ -91,9 +91,12 @@ export function buildGcode({
                 lines.push('M5');
                 spindleRunning = false;
             }
-            lines.push(`(${buildToolChangeComment(toolpath, toolNumber)})`);
-            lines.push(`T${toolNumber}`);
-            lines.push('M6');
+            const toolLabel = buildToolLabel(toolpath);
+            lines.push(
+                toolLabel
+                    ? `T${toolNumber} M6 (${toolLabel})`
+                    : `T${toolNumber} M6`,
+            );
             currentToolNumber = toolNumber;
         }
 
@@ -573,18 +576,23 @@ export async function buildGcodeAsync({
     });
 }
 
-function buildToolChangeComment(toolpath, toolNumber) {
-    const parts = [`Change to tool T${toolNumber}`];
+// Comment text for the T# M6 line. Parens are stripped because GRBL
+// comments cannot nest.
+function buildToolLabel(toolpath) {
+    const hasDiameter = Number.isFinite(toolpath.toolDiameter);
     const namedTool = (toolpath.libraryToolName || '').trim();
+    let label = '';
     if (namedTool) {
-        parts.push(namedTool);
+        label = hasDiameter
+            ? `${namedTool} - ${formatNumber(toolpath.toolDiameter)}mm`
+            : namedTool;
     } else if (
         (toolpath.operation === 'vcarve' || toolpath.operation === 'chamfer') &&
         Number.isFinite(toolpath.cutterAngle)
     ) {
-        parts.push(`${formatNumber(toolpath.cutterAngle)}deg V-bit`);
-    } else if (Number.isFinite(toolpath.toolDiameter)) {
-        parts.push(`${formatNumber(toolpath.toolDiameter)}mm tool`);
+        label = `${formatNumber(toolpath.cutterAngle)}deg V-bit`;
+    } else if (hasDiameter) {
+        label = `${formatNumber(toolpath.toolDiameter)}mm tool`;
     }
-    return parts.join(' - ');
+    return label.replace(/[()]/g, '').trim();
 }
