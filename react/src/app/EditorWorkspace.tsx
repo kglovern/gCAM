@@ -68,7 +68,6 @@ export function EditorWorkspace({
             <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
             {activeTab === 'toolpaths' && (
                 <ToolpathWorkspace
-                    selectedCount={canvasProps.selected.length}
                     rail={<ToolpathRail {...toolpathRailProps} />}
                     actions={
                         touchLayout && (

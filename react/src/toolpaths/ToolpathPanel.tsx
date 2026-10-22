@@ -1029,8 +1029,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     }
 
     return (
-        <div className="p-3 space-y-3 text-sm">
-            <section className="space-y-2">
+        <div className="toolpath-form p-3 space-y-3 text-sm">
+            <section className="toolpath-form-operation space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Operation
                 </h3>
@@ -1045,7 +1045,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                 vbitMismatch={vbitMismatch}
                 draftError={draftError}
             />
-            <section className="space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
+            <section className="toolpath-form-tool space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Tool selection
                 </h3>
@@ -1087,7 +1087,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     onConfiguredSlot={applySlot}
                 />
             </section>
-            <section className="space-y-3 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
+            <section className="toolpath-form-settings space-y-3 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Toolpath settings
                 </h3>

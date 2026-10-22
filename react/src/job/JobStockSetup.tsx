@@ -28,7 +28,7 @@ export function JobStockSetup({
         Math.abs(stock.widthMm - maxXTravelMm) < 0.05 &&
         Math.abs(stock.heightMm - maxYTravelMm) < 0.05;
     return (
-        <section className="mx-3 mt-3 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
+        <section className="job-stock-setup mx-3 mt-3 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Job stock
             </h3>

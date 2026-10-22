@@ -11,7 +11,7 @@ describe('Tablet workspace', () => {
             }),
         ),
     );
-    it('keeps portrait selection quiet and opens properties and toolpaths explicitly', () => {
+    it('keeps portrait properties explicit and toolpaths permanently visible', () => {
         cy.viewport(800, 1280);
         cy.get('[data-testid="gcam-canvas"]').should(($el) =>
             expect($el[0].getBoundingClientRect().width).to.be.greaterThan(650),
@@ -22,22 +22,71 @@ describe('Tablet workspace', () => {
         cy.get('[aria-label="Selected shape properties"]').should('be.visible');
         cy.get('[aria-label="Close shape properties"]').click();
         cy.contains('button', /^Properties$/).should('be.visible');
-        cy.get('[aria-label="Toolpath settings"]').click();
         cy.get('[aria-label="Toolpath settings panel"]').should('be.visible');
         cy.contains('button', /^Outside$/).should('be.visible');
         cy.field('Cut depth', 3);
-        cy.get('[aria-label="Close toolpath settings"]').click();
-        cy.get('[aria-label="Toolpath settings panel"]').should(
-            'not.be.visible',
-        );
-        cy.get('[aria-label="Toolpath settings"]').click();
+        cy.viewport(1280, 800);
         cy.contains('label', 'Cut depth')
             .find('input')
             .should('have.value', '3');
-        cy.get('[aria-label="Close toolpath settings"]').click();
+        cy.viewport(800, 1280);
+        cy.contains('label', 'Cut depth')
+            .find('input')
+            .should('have.value', '3');
         cy.screenshot('tablet-portrait-selection');
         cy.snapshot().then((p) => expect(p.selected).to.have.length(1));
     });
+    for (const [width, height] of [
+        [800, 1280],
+        [768, 1024],
+        [1024, 768],
+        [1280, 800],
+    ]) {
+        it(`keeps canvas and full settings separate at ${width}x${height}`, () => {
+            cy.viewport(width, height);
+            cy.get('[aria-label="Toolpath settings panel"]').should(
+                'be.visible',
+            );
+            cy.get('.toolpath-workspace-split').should(($split) => {
+                const canvas = $split[0]
+                    .querySelector('main')
+                    .getBoundingClientRect();
+                const panel = $split[0]
+                    .querySelector('.toolpath-workspace-panel')
+                    .getBoundingClientRect();
+                if (height > width) {
+                    expect(panel.top).to.be.at.least(canvas.bottom - 1);
+                    expect(
+                        canvas.height / (canvas.height + panel.height),
+                    ).to.be.within(0.5, 0.65);
+                } else {
+                    expect(panel.left).to.be.at.least(canvas.right - 1);
+                    expect(canvas.width).to.be.greaterThan(500);
+                }
+                expect(panel.bottom).to.be.at.most(height);
+                expect(
+                    $split[0].ownerDocument.documentElement.scrollWidth,
+                ).to.be.at.most(width);
+            });
+            cy.worldClick(20, 50);
+            cy.get('.toolpath-form').should(($form) => {
+                const operation = $form[0]
+                    .querySelector('.toolpath-form-operation')
+                    .getBoundingClientRect();
+                const settings = $form[0]
+                    .querySelector('.toolpath-form-settings')
+                    .getBoundingClientRect();
+                if (height > width) {
+                    expect(settings.left).to.be.greaterThan(operation.right);
+                    expect(settings.top).to.be.closeTo(operation.top, 1);
+                }
+            });
+            cy.contains('button', /^Add Toolpath/)
+                .scrollIntoView()
+                .should('be.visible');
+            cy.screenshot(`workspace-${width}x${height}`);
+        });
+    }
     for (const [width, height] of [
         [1024, 600],
         [800, 1280],

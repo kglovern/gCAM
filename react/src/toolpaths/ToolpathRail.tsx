@@ -167,8 +167,8 @@ export function ToolpathRail({
     }, [editing, selected.length, setDraftPreview, setDraftProgress]);
 
     return (
-        <aside className="w-[340px] max-w-full shrink-0 border-l border-slate-200 bg-white dark:border-robin-900 dark:bg-dark flex flex-col min-h-0">
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <aside className="toolpath-rail w-[340px] max-w-full shrink-0 border-l border-slate-200 bg-white dark:border-robin-900 dark:bg-dark flex flex-col min-h-0">
+            <div className="toolpath-rail-content flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 {showJobStock && (
                     <JobStockSetup
                         stock={stock}
@@ -241,7 +241,7 @@ export function ToolpathRail({
                 )}
             </div>
             {!showEditor && (
-                <div className="space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
+                <div className="toolpath-rail-export space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
                     <GcodeExportButton
                         gcode={gcode}
                         fileName={fileName}
