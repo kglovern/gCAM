@@ -70,10 +70,12 @@ export async function checkUpdates() {
     }
     if (!mobileInfo || checking) return;
     checking = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     set({ ...state, phase: 'checking', message: '' });
     try {
         const response = await fetch(RELEASE_API, {
-            signal: AbortSignal.timeout(15000),
+            signal: controller.signal,
         });
         if (response.status === 404) {
             set({ ...state, phase: 'current' });
@@ -105,6 +107,7 @@ export async function checkUpdates() {
     } catch {
         failure();
     } finally {
+        clearTimeout(timeout);
         checking = false;
     }
 }
