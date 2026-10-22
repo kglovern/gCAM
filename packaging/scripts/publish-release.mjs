@@ -14,7 +14,7 @@ const files = (await readdir(directory))
     .sort();
 for (const required of [
     `gCAM-${version}-win-x64.exe`,
-    `gCAM-${version}-linux-x64.AppImage`,
+    `gCAM-${version}-linux-x86_64.AppImage`,
     `gCAM-${version}-android.apk`,
     'latest.yml',
     'latest-linux.yml',
