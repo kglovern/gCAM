@@ -77,7 +77,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: gCAM-android
-          path: ${{ inputs.release_tag != '' && 'packaging/mobile/dist/*' || 'packaging/mobile/platforms/android/app/build/outputs/apk/**/*.apk' }}
+          path: |
+            ${{ inputs.release_tag != '' && 'packaging/mobile/dist/*' || 'packaging/mobile/platforms/android/app/build/outputs/apk/**/*.apk' }}
+            ${{ inputs.release_tag == '' && 'packaging/mobile/platforms/android/app/build/outputs/bundle/**/*.aab' || '' }}
           if-no-files-found: error
           retention-days: 14
       - name: Remove temporary signing files
