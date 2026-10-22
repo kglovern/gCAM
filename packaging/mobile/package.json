@@ -7,12 +7,14 @@
     "cordova": "13.0.0",
     "cordova-android": "15.1.0",
     "cordova-ios": "8.1.1",
-    "gcam-files": "file:../plugins/gcam-files"
+    "gcam-files": "file:../plugins/gcam-files",
+    "gcam-updates": "file:../plugins/gcam-updates"
   },
   "cordova": {
     "platforms": [],
     "plugins": {
-      "gcam-files": {}
+      "gcam-files": {},
+      "gcam-updates": {}
     }
   },
   "engines": {

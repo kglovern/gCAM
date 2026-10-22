@@ -1,4 +1,5 @@
 import { saveTextFile } from '../platform/saveTextFile';
+import { UpdateControls } from '../platform/updates/UpdateControls';
 /**
  * Purpose: Implementation module for ConfigPanel in the components domain.
  */
@@ -300,6 +301,8 @@ export function ConfigPanel({
                     Application preferences and defaults
                 </p>
             </header>
+
+            <UpdateControls />
 
             <section className="space-y-4">
                 <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">

@@ -3,6 +3,12 @@ name: Tablet builds
 on:
   workflow_call:
     inputs:
+      release_tag:
+        type: string
+        default: ''
+      store_ios:
+        type: boolean
+        default: false
       signed_android:
         type: boolean
         default: false
@@ -17,6 +23,8 @@ jobs:
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      IOS_UPDATE_URL: ${{ vars.IOS_UPDATE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
@@ -38,12 +46,13 @@ jobs:
       - uses: ./.github/actions/mobile-prepare
         with:
           platform: android
+          release_tag: ${{ inputs.release_tag }}
       - name: Build installable debug APK
-        if: inputs.signed_android != true
+        if: inputs.signed_android != true && inputs.release_tag == ''
         run: npx cordova build android --debug -- --packageType=apk
         working-directory: packaging/mobile
       - name: Configure Android release signing
-        if: inputs.signed_android == true
+        if: inputs.signed_android == true || inputs.release_tag != ''
         run: node packaging/scripts/android-signing.mjs
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -51,17 +60,24 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - name: Build signed APK and store bundle
-        if: inputs.signed_android == true
+        if: inputs.signed_android == true || inputs.release_tag != ''
         working-directory: packaging/mobile
         run: |
           npx cordova build android --release --buildConfig=build.json -- --packageType=apk
           npx cordova build android --release --buildConfig=build.json -- --packageType=bundle
+      - name: Name release downloads
+        if: inputs.release_tag != ''
+        working-directory: packaging/mobile
+        shell: bash
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          mkdir -p dist
+          cp platforms/android/app/build/outputs/apk/release/app-release.apk "dist/gCAM-$version-android.apk"
+          cp platforms/android/app/build/outputs/bundle/release/app-release.aab "dist/gCAM-$version-android.aab"
       - uses: actions/upload-artifact@v4
         with:
           name: gCAM-android
-          path: |
-            packaging/mobile/platforms/android/app/build/outputs/apk/**/*.apk
-            packaging/mobile/platforms/android/app/build/outputs/bundle/**/*.aab
+          path: ${{ inputs.release_tag != '' && 'packaging/mobile/dist/*' || 'packaging/mobile/platforms/android/app/build/outputs/apk/**/*.apk' }}
           if-no-files-found: error
           retention-days: 14
       - name: Remove temporary signing files
@@ -71,6 +87,8 @@ jobs:
   ios-simulator:
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      IOS_UPDATE_URL: ${{ vars.IOS_UPDATE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
@@ -81,6 +99,7 @@ jobs:
       - uses: ./.github/actions/mobile-prepare
         with:
           platform: ios
+          release_tag: ${{ inputs.release_tag }}
       - name: Build iPad simulator application
         run: npx cordova build ios --debug --emulator -- --buildFlag=CODE_SIGNING_ALLOWED=NO
         working-directory: packaging/mobile
@@ -95,10 +114,13 @@ jobs:
           retention-days: 14
 
   ios-device:
-    if: github.event_name == 'workflow_dispatch' && inputs.signed_ios
+    if: (github.event_name == 'workflow_dispatch' && inputs.signed_ios) || (inputs.release_tag != '' && inputs.store_ios)
     runs-on: macos-15
     timeout-minutes: 30
     environment: ios-signing
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      IOS_UPDATE_URL: ${{ vars.IOS_UPDATE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
@@ -109,6 +131,7 @@ jobs:
       - uses: ./.github/actions/mobile-prepare
         with:
           platform: ios
+          release_tag: ${{ inputs.release_tag }}
       - name: Install Apple signing identity
         run: bash packaging/scripts/ios-signing.sh
         env:
@@ -117,9 +140,17 @@ jobs:
           IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
           IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+          IOS_PACKAGE_TYPE: ${{ inputs.store_ios && 'app-store' || 'ad-hoc' }}
       - name: Build signed iPad device package
         run: npx cordova build ios --release --device --buildConfig=build.json
         working-directory: packaging/mobile
+      - name: Upload to App Store Connect for TestFlight
+        if: inputs.store_ios
+        run: bash packaging/scripts/ios-upload.sh
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
       - uses: actions/upload-artifact@v4
         with:
           name: gCAM-ipad-device

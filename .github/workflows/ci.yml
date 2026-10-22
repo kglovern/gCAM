@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       signed_android:
@@ -23,19 +24,45 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  policy:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Validate stable tag and main ancestry
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node packaging/scripts/release-version.mjs
+          git merge-base --is-ancestor HEAD origin/main
   quality:
+    needs: policy
     name: Quality
     uses: ./.github/workflows/quality.yml
   browser:
+    needs: policy
     name: Browser tests
     uses: ./.github/workflows/browser-tests.yml
   desktop:
+    needs: policy
     name: Desktop installers
     uses: ./.github/workflows/native-desktop.yml
+    with:
+      release_tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+    secrets: inherit
   tablet:
+    needs: [policy, quality, browser]
     name: Tablet builds
     uses: ./.github/workflows/native-mobile.yml
     with:
+      release_tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+      store_ios: ${{ github.ref_type == 'tag' && vars.IOS_RELEASE_ENABLED == 'true' }}
       signed_android: ${{ inputs.signed_android == true }}
       signed_ios: ${{ inputs.signed_ios == true }}
     secrets: inherit
@@ -48,3 +75,26 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/deploy-pages.yml
+
+  release:
+    name: Prepare GitHub release
+    if: github.ref_type == 'tag'
+    needs: [quality, browser, desktop, tablet]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gCAM-*
+          path: release-assets
+          merge-multiple: true
+      - name: Assemble draft release
+        run: node packaging/scripts/publish-release.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}

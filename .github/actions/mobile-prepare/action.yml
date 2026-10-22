@@ -4,9 +4,16 @@ inputs:
   platform:
     description: android or ios
     required: true
+  release_tag:
+    description: Stable release tag, empty for development builds
+    default: ''
 runs:
   using: composite
   steps:
+    - run: node packaging/scripts/release-version.mjs
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ inputs.release_tag }}
     - run: corepack enable
       shell: bash
     - run: yarn install --frozen-lockfile
@@ -17,12 +24,14 @@ runs:
       shell: bash
     - run: node packaging/scripts/stage.mjs mobile
       shell: bash
+      env:
+        IOS_UPDATE_URL: ${{ env.IOS_UPDATE_URL }}
     - run: npm ci
       working-directory: packaging/mobile
       shell: bash
     - run: node packaging/scripts/mobile-platform.mjs ${{ inputs.platform }}
       shell: bash
-    - run: npx cordova plugin add ../plugins/gcam-files --nosave
+    - run: npx cordova plugin add ../plugins/gcam-files ../plugins/gcam-updates --nosave
       working-directory: packaging/mobile
       shell: bash
     - run: npx cordova prepare ${{ inputs.platform }}

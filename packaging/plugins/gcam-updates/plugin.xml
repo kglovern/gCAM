@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="gcam-updates" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0">
+    <name>gCAM update downloads</name>
+    <js-module src="www/updates.js" name="updates"><clobbers target="gcamMobileUpdates" /></js-module>
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*"><feature name="GcamUpdates"><param name="android-package" value="com.petervanderwalt.gcam.GcamUpdates" /></feature></config-file>
+        <source-file src="src/android/GcamUpdates.java" target-dir="src/com/petervanderwalt/gcam" />
+    </platform>
+    <platform name="ios">
+        <config-file target="config.xml" parent="/*"><feature name="GcamUpdates"><param name="ios-package" value="GcamUpdates" /></feature></config-file>
+        <header-file src="src/ios/GcamUpdates.h" />
+        <source-file src="src/ios/GcamUpdates.m" />
+    </platform>
+</plugin>

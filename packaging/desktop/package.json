@@ -46,7 +46,8 @@
         "dmg",
         "zip"
       ],
-      "category": "public.app-category.graphics-design"
+      "category": "public.app-category.graphics-design",
+      "hardenedRuntime": true
     },
     "linux": {
       "target": [
@@ -55,9 +56,18 @@
       ],
       "category": "Graphics",
       "maintainer": "gCAM contributors"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "petervanderwalt",
+      "repo": "gCAM",
+      "releaseType": "draft"
     }
   },
   "engines": {
     "node": "^24.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
   }
 }
