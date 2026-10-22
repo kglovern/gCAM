@@ -73,7 +73,6 @@ describe('Directional and touch selection', () => {
     it('exports an individual toolpath from the split button at tablet width', () => {
         cy.viewport(1024, 768);
         cy.worldClick(20, 50);
-        cy.get('[aria-label="Toolpath settings"]').click();
         cy.addOperation('Outside');
         cy.get('[aria-label="Export individual toolpaths"]').click();
         cy.contains('button', /^1\. /).should('be.visible');

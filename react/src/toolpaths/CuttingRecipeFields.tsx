@@ -110,7 +110,7 @@ export function CuttingRecipeFields({
             )}
             {recommendation ? (
                 <div className="text-xs text-slate-600 dark:text-slate-300">
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 tabular-nums">
+                    <div className="cutting-recipe-values grid grid-cols-2 gap-x-3 gap-y-1 tabular-nums">
                         <span>Feed ({feedUnit(units)})</span>
                         {editing ? (
                             <UnitInput
