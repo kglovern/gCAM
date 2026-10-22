@@ -1,5 +1,7 @@
 # Native builds
 
+For version tags, GitHub Releases and installed-app updates, see [RELEASING.md](RELEASING.md).
+
 The React renderer is shared by the website, Electron desktop application and
 Cordova tablet application. Use Node 24. Native builds use `--base ./`; the
 website retains its GitHub Pages base. No runtime web server is required.

@@ -1,3 +1,4 @@
+import packageInfo from '../../package.json';
 /**
  * Purpose: Implementation module for Sidebar in the components domain.
  */
@@ -94,7 +95,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             </nav>
             <div className="hidden md:block shrink-0 p-2 border-t border-slate-200 dark:border-slate-700">
                 <div className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
-                    gCAM v0.1.0
+                    gCAM v{packageInfo.version}
                 </div>
             </div>
         </div>

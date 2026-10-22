@@ -45,4 +45,21 @@ for (const name of ['startup.css', 'startup.js'])
         resolve(root, 'packaging/resources', name),
         resolve(destination, name),
     );
+const manifest = JSON.parse(
+    await readFile(resolve(root, 'packaging', target, 'package.json'), 'utf8'),
+);
+const iosUpdateUrl = process.env.IOS_UPDATE_URL || '';
+if (
+    iosUpdateUrl &&
+    !/^https:\/\/(?:testflight\.apple\.com\/join\/[A-Za-z0-9]+|apps\.apple\.com\/(?:[A-Za-z]{2}\/)?app\/(?:[^/]+\/)?id\d+)$/.test(
+        iosUpdateUrl,
+    )
+)
+    throw new Error(
+        'IOS_UPDATE_URL must be an Apple TestFlight invitation or App Store app URL.',
+    );
+await writeFile(
+    resolve(destination, 'native-info.json'),
+    JSON.stringify({ version: manifest.version, iosUpdateUrl }),
+);
 console.log(`Staged ${target} renderer`);

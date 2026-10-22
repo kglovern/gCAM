@@ -22,6 +22,9 @@ app.on('browser-window-created', (_event, window) => {
                 for (let attempt = 0; attempt < 100 && (!document.querySelector('[aria-label="Main tabs"]') || document.getElementById('gcam-startup')); attempt++) await new Promise(resolve => setTimeout(resolve, 100));
                 if (!document.querySelector('[aria-label="Main tabs"]')) throw new Error('App did not render');
                 if (document.getElementById('gcam-startup')) throw new Error('Startup screen did not clear');
+                if (!window.gcamUpdates || typeof window.gcamUpdates.subscribe !== 'function') throw new Error('Update preload unavailable');
+                const update = await window.gcamUpdates.status();
+                if (!update.currentVersion || update.phase !== 'idle') throw new Error('Update bridge unavailable or smoke test contacted update server');
                 if (document.body.textContent.includes('Add gCAM to your Home Screen')) throw new Error('PWA controls remain');
                 const catalogue = await fetch('library/tools/sienci/tools.json');
                 if (!catalogue.ok || !(await catalogue.text()).includes('tool')) throw new Error('Local tool catalogue unavailable');
@@ -66,7 +69,9 @@ app.on('browser-window-created', (_event, window) => {
                 true,
             );
             await saved;
-            console.log(`${result}; file export and startup passed`);
+            console.log(
+                `${result}; file export, startup and update bridge passed`,
+            );
             clearTimeout(timeout);
             app.exit(0);
         } catch (error) {

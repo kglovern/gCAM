@@ -33,4 +33,4 @@ mkdir -p "$profile_dir"
 cp "$profile" "$profile_dir/$uuid.mobileprovision"
 printf '%s' "$uuid" > "$RUNNER_TEMP/gcam-profile-uuid"
 export GCAM_PROFILE_UUID="$uuid" GCAM_BUILD_CONFIG="$root/packaging/mobile/build.json"
-node -e 'require("node:fs").writeFileSync(process.env.GCAM_BUILD_CONFIG, JSON.stringify({ios:{release:{codeSignIdentity:"Apple Distribution",developmentTeam:process.env.IOS_TEAM_ID,provisioningProfile:process.env.GCAM_PROFILE_UUID,packageType:"ad-hoc",automaticProvisioning:false}}}), {mode:0o600})'
+node -e 'require("node:fs").writeFileSync(process.env.GCAM_BUILD_CONFIG, JSON.stringify({ios:{release:{codeSignIdentity:"Apple Distribution",developmentTeam:process.env.IOS_TEAM_ID,provisioningProfile:process.env.GCAM_PROFILE_UUID,packageType:process.env.IOS_PACKAGE_TYPE || "ad-hoc",automaticProvisioning:false}}}), {mode:0o600})'

@@ -28,6 +28,7 @@ import { useSelectionFrame } from './interactions/useSelectionFrame';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { AppWorkspace } from './app/AppWorkspace';
 import { AppHeader } from './app/AppHeader';
+import { UpdateControls } from './platform/updates/UpdateControls';
 import { AppModalLayer } from './app/AppModalLayer';
 import { useAppPreferences } from './app/useAppPreferences';
 import { useDrawingWorkspaceState } from './app/useDrawingWorkspaceState';
@@ -738,6 +739,7 @@ export default function App() {
     return (
         <ErrorBoundary>
             <div className="h-screen [height:var(--app-height,100dvh)] w-full overflow-hidden [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)] flex flex-col bg-slate-100 text-slate-900 dark:bg-dark-darker dark:text-slate-200">
+                <UpdateControls notice />
                 <AppHeader
                     activeTab={sideTab}
                     toolbarProps={toolbarProps}
