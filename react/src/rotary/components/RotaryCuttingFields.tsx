@@ -1,3 +1,4 @@
+import { profileMachiningSettings } from '../engine/profilePaths';
 import {
     defaultMeshSettings,
     meshSettingsForTool,
@@ -41,7 +42,8 @@ export function RotaryCuttingFields({
         if (!activeSlot) return;
         const type = mapSlotType(
             activeSlot.toolType,
-            R.mode === 'stl' ? activeSlot.name : '',
+            activeSlot.name,
+            activeSlot.libraryToolId ?? '',
         );
         if (type !== R.tool.type) R.setTool((tool) => ({ ...tool, type }));
     }, [activeSlot, R.mode, R.tool.type, R.setTool]);
@@ -92,16 +94,26 @@ export function RotaryCuttingFields({
         R.setTool((tool) => ({
             ...tool,
             slotNum: slot.slot,
-            type: mapSlotType(slot.toolType, R.mode === 'stl' ? slot.name : ''),
+            type: mapSlotType(
+                slot.toolType,
+                slot.name,
+                slot.libraryToolId ?? '',
+            ),
             dia: slot.cuttingDiameterMm ?? tool.dia,
             manualCuttingParams: false,
         }));
-        if (R.mode === 'stl')
+        if (R.operation === 'rough' || R.operation === 'finish')
             R.setOpsBase((ops) => ({
                 ...ops,
                 mesh: {
                     ...meshSettingsForTool(
-                        ops.mesh ?? defaultMeshSettings,
+                        R.mode === 'profile'
+                            ? profileMachiningSettings(
+                                  ops,
+                                  R.tool,
+                                  R.operation === 'rough',
+                              )
+                            : (ops.mesh ?? defaultMeshSettings),
                         slot.cuttingDiameterMm ?? R.tool.dia,
                         R.operation === 'rough',
                     ),
@@ -121,16 +133,20 @@ export function RotaryCuttingFields({
                 <ToolSelectionFields
                     slots={compatible}
                     slotIssue={
-                        R.mode === 'stl'
+                        R.mode === 'stl' ||
+                        R.operation === 'rough' ||
+                        R.operation === 'finish'
                             ? (slot) => {
                                   if (!isConfigured(slot)) return null;
                                   const type = mapSlotType(
                                       slot.toolType,
                                       slot.name,
+                                      slot.libraryToolId ?? '',
                                   );
                                   if (type === 'taper')
-                                      return 'Tapered cutters are not supported for STL machining.';
+                                      return 'Choose a straight ball or flat endmill; taper geometry is not supported.';
                                   if (
+                                      R.mode === 'stl' &&
                                       R.operation === 'rough' &&
                                       (R.opsBase.mesh?.strategy === 'indexed' ||
                                           R.opsBase.mesh?.strategy ===

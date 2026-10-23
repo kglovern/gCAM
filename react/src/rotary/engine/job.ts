@@ -146,12 +146,33 @@ export function planRotaryEntry(
     }
     const compR = 0;
     const ops = { ...operationOps(entry.operation, entry.ops), compR, pommels };
-    return {
-        entry,
-        compR,
-        moves: planToolpath(samples, stock, entry.tool, ops),
-        flags: runChecks(samples, stock, entry.tool, ops),
-    };
+    const flags = runChecks(samples, stock, entry.tool, ops);
+    try {
+        return {
+            entry,
+            compR,
+            moves: flags.some((flag) => flag.level === 'e')
+                ? []
+                : planToolpath(samples, stock, entry.tool, ops, onProgress),
+            flags,
+        };
+    } catch (error) {
+        return {
+            entry,
+            compR,
+            moves: [],
+            flags: [
+                ...flags,
+                {
+                    level: 'e' as const,
+                    msg:
+                        error instanceof Error
+                            ? error.message
+                            : 'Profile planning failed.',
+                },
+            ],
+        };
+    }
 }
 export function planRotaryJob(
     entries: RotaryToolpathEntry[],
@@ -175,11 +196,30 @@ export function planRotaryJob(
         onProgress((index + 1) / entries.length);
         return path;
     });
-    return combineRotaryPaths(paths);
+    const job = combineRotaryPaths(paths);
+    if (mode === 'stl' && !mesh)
+        job.flags.push({
+            level: 'e',
+            msg: 'Import an STL before generating this job.',
+        });
+    return job;
 }
 export function combineRotaryPaths(
     paths: ReturnType<typeof planRotaryEntry>[],
 ) {
+    let lastA = 0;
+    paths = paths.map((path) => {
+        const firstA = path.moves.find((move) => move.a !== undefined)?.a;
+        const offset =
+            firstA === undefined ? 0 : 360 * Math.round((lastA - firstA) / 360);
+        const moves = offset
+            ? path.moves.map((move) =>
+                  move.a === undefined ? move : { ...move, a: move.a + offset },
+              )
+            : path.moves;
+        for (const move of moves) if (move.a !== undefined) lastA = move.a;
+        return offset ? { ...path, moves } : path;
+    });
     const flags: RotaryCheck[] = paths.flatMap((path) =>
         path.flags
             .filter((flag) => flag.level !== 'o')
@@ -227,6 +267,7 @@ export function rotaryJobGcode(
             mode,
             compR: path.compR,
             toolChange,
+            clearance: path.entry.ops.mesh?.clearance,
         })
             .trim()
             .split(/\r?\n/)

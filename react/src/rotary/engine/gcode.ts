@@ -13,6 +13,7 @@ export interface GcodeContext {
     mode: 'profile' | 'stl';
     compR: number;
     toolChange?: boolean;
+    clearance?: number;
 }
 
 export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
@@ -33,13 +34,13 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
             'Invalid XYZA block coordinates or inverse-time duration.',
         );
     const stockR = stock.diameter / 2;
-    const zSafe = stockR + 5;
-    const zPark = stockR + 20;
+    const zSafe = stockR + Math.max(5, ctx.clearance ?? 5);
+    const zPark = Math.max(zSafe, stockR + 20);
     const L: string[] = [];
     const commentName = (name || 'untitled').replace(/[()\r\n]/g, ' ');
     L.push(`(gCAM rotary - ${commentName})`);
     L.push(
-        `(Mode ${mode === 'stl' ? 'STL mesh XYZA (tip coordinates)' : 'Profile conversational (envelope, no comp)'})`,
+        `(Mode ${mode === 'stl' ? 'STL mesh XYZA (tip coordinates)' : 'Profile rotary (cutter-compensated tip coordinates)'})`,
     );
     if (mode === 'stl')
         L.push(
@@ -61,7 +62,6 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
     if (xyza) L.push('G94');
     L.push(`G0Z${f3(zPark)}`);
     if (ctx.toolChange) L.push(`(Change to T${tool.slotNum ?? 1})`, 'M6');
-    if (!xyza) L.push('G0X0.000A0.000');
     L.push(`S${tool.spindle}M3`);
     let lastOp = '';
     let aMin = Infinity;
@@ -104,15 +104,12 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
         L.push(w);
     }
     if (aMax > -Infinity) {
-        L.push(
-            `(A range ${aMin.toFixed(1)}..${aMax.toFixed(1)} deg)`,
-        );
+        L.push(`(A range ${aMin.toFixed(1)}..${aMax.toFixed(1)} deg)`);
     }
     if (xyza) L.push('G94');
     L.push(`G0Z${f3(zSafe)}`);
     L.push('M5');
     L.push(`G0Z${f3(zPark)}`);
-    if (!xyza) L.push('G0X0.000A0.000');
     L.push('M2');
     return `${L.join('\r\n')}\r\n`;
 }

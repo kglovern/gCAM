@@ -182,6 +182,7 @@ test.each([
             }),
         );
         let changed = { ...request };
+        if (field === 'mode') changed.mode = 'profile';
         if (field === 'mesh') changed.mesh = { ...request.mesh! };
         if (field === 'stock')
             changed.stock = { ...request.stock, diameter: 40 };
@@ -206,3 +207,18 @@ test.each([
         unmount();
     },
 );
+
+test('worker geometry errors remain visible and cannot expose a stale result', () => {
+    const request = requestFixture();
+    const { result, unmount } = renderHook(() => useMeshPlan(request));
+    act(() => jest.advanceTimersByTime(400));
+    act(() =>
+        workers[0].onmessage({
+            data: { error: 'Profile curve is too complex.' },
+        }),
+    );
+    expect(result.current?.error).toBe('Profile curve is too complex.');
+    expect(result.current?.result).toBeUndefined();
+    expect(workers[0].terminate).toHaveBeenCalled();
+    unmount();
+});

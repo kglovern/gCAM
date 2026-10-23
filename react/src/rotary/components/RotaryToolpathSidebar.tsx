@@ -1,3 +1,4 @@
+import { profileMachiningSettings } from '../engine/profilePaths';
 import { MeshSettingsFields } from './MeshSettingsFields';
 import {
     defaultMeshSettings,
@@ -180,11 +181,21 @@ export function RotaryToolpathSidebar({
                             }
                             onChange={(operation) => {
                                 R.setOperation(operation);
-                                if (R.mode === 'stl')
+                                if (
+                                    operation === 'rough' ||
+                                    operation === 'finish'
+                                )
                                     R.setOpsBase((ops) => ({
                                         ...ops,
                                         mesh: meshSettingsForTool(
-                                            ops.mesh ?? defaultMeshSettings,
+                                            R.mode === 'profile'
+                                                ? profileMachiningSettings(
+                                                      ops,
+                                                      R.tool,
+                                                      operation === 'rough',
+                                                  )
+                                                : (ops.mesh ??
+                                                      defaultMeshSettings),
                                             R.tool.dia,
                                             operation === 'rough',
                                         ),
@@ -200,10 +211,10 @@ export function RotaryToolpathSidebar({
                         material={material}
                         machineProfileId={machineProfileId}
                     >
+                        <MeshSettingsFields rotary={R} units={units} />
                         {configured && (
                             <RotaryToolpathsPane rotary={R} units={units} />
                         )}
-                        <MeshSettingsFields rotary={R} units={units} />
                         <ToolpathSubmitControls
                             busy={R.planning}
                             progress={R.planningProgress}
@@ -218,7 +229,7 @@ export function RotaryToolpathSidebar({
                             status={
                                 !configured
                                     ? 'Choose a tool from the library.'
-                                    : draftError
+                                    : draftError && !R.planning
                                       ? 'Resolve the checks before adding this toolpath.'
                                       : ''
                             }

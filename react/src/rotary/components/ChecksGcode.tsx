@@ -37,9 +37,8 @@ export function ChecksList({
                 {flags
                     .filter((f) => f.level !== 'o')
                     .map((f, i) => {
-                        const pending = f.msg.includes(
-                            'Planning mesh toolpaths',
-                        );
+                        const pending =
+                            /Planning (?:mesh|rotary) toolpaths/.test(f.msg);
                         const help = checkHelp(f.msg);
                         return (
                             <li
@@ -55,7 +54,7 @@ export function ChecksList({
                             >
                                 {pending
                                     ? f.msg.replace(
-                                          'Planning mesh toolpaths',
+                                          /Planning (?:mesh|rotary) toolpaths/,
                                           'Calculating toolpath',
                                       )
                                     : (help ?? f.msg)}

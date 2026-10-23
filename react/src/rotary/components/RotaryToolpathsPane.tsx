@@ -19,7 +19,6 @@ export function RotaryToolpathsPane({
                     units={units}
                     operation={R.operation}
                     ops={{ ...R.opsBase, pommels: R.pommels, compR: R.compR }}
-                    meshMode={R.mode === 'stl'}
                     compR={R.compR}
                     onPatch={(patch) =>
                         R.setOpsBase((ops) => ({

@@ -10,7 +10,7 @@ const tools = ['flat', 'ball', 'v-bit'].map((toolType, index) => ({
     cutterMaterial: 'carbide',
     libraryToolId: [
         'sienci-1-8-flat-downcut_end-mill_3-10pc_pack',
-        'sienci-1-4_1-1-2_r1-32-tapered-ballnose-endmill',
+        'sienci-1-8-ballnose-upcut_endmill_3pc_or_10pc',
         'sienci-15mm_60-degree-v-bit',
     ][index],
     vendor: '',

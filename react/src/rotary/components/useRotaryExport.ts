@@ -4,7 +4,14 @@ import type { UseRotaryState } from '../useRotaryState';
 /** Export is tied to the exact setup used to generate it, with automatic generation after editing settles. */
 export function useRotaryExport(rotary: UseRotaryState) {
     const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-    const { tool: _tool, ops: _ops, ...job } = rotary.snapshotProject();
+    const {
+        tool: _tool,
+        ops: _ops,
+        operation: _operation,
+        toolpathEditorOpen: _editorOpen,
+        editingToolpathId: _editingId,
+        ...job
+    } = rotary.snapshotProject();
     const key = JSON.stringify(job);
     const needsModel = rotary.mode === 'stl' && !rotary.stlMesh;
     const errors =

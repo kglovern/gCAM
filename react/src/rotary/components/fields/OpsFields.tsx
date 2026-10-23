@@ -17,13 +17,11 @@ export function OpsFields({
     operation,
     ops,
     onPatch,
-    meshMode = false,
 }: {
     units: UnitSystem;
     operation: RotaryOperation;
     ops: RotaryOps;
     compR: number;
-    meshMode?: boolean;
     onPatch(patch: OpsPatch): void;
 }): ReactElement {
     const unit = lengthUnit(units);
@@ -43,26 +41,6 @@ export function OpsFields({
                             className={rotaryInput}
                             aria-label="Roughing allowance"
                         />
-                    </label>
-                </>
-            )}
-            {operation === 'finish' && !meshMode && (
-                <>
-                    <label className={label}>
-                        Finish direction
-                        <select
-                            value={ops.raster}
-                            onChange={(e) =>
-                                onPatch({ raster: Number(e.target.value) })
-                            }
-                            className={rotaryInput}
-                            aria-label="Finish raster angle"
-                        >
-                            <option value={270}>
-                                270° (along A, across grain)
-                            </option>
-                            <option value={0}>0° (along X)</option>
-                        </select>
                     </label>
                 </>
             )}

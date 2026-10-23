@@ -26,7 +26,6 @@ export const defaultMeshSettings: RotaryMeshSettings = {
     angleStep: 45,
     fluteLength: 0,
     stickout: 0,
-    tailClearance: 6,
     rotaryRate: 720,
     independentAxis: false,
 };

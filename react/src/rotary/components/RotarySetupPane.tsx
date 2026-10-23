@@ -19,7 +19,11 @@ export function RotarySetupPane({
         R.setTool((tool) => ({
             ...tool,
             slotNum: slot.slot,
-            type: mapSlotType(slot.toolType),
+            type: mapSlotType(
+                slot.toolType,
+                slot.name,
+                slot.libraryToolId ?? '',
+            ),
             dia: slot.cuttingDiameterMm ?? tool.dia,
         }));
     return (

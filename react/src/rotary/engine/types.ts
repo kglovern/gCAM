@@ -146,6 +146,9 @@ export interface StlMesh {
  * (same rule as undo snapshots); a missing STL blocks output until reimport.
  */
 export interface RotaryProjectSlice {
+    operation?: RotaryOperation;
+    toolpathEditorOpen?: boolean;
+    editingToolpathId?: string | null;
     toolpaths?: RotaryToolpathEntry[];
     name: string;
     mode: RotaryMode;
@@ -165,6 +168,24 @@ export function isRotaryProjectSlice(v: unknown): v is RotaryProjectSlice {
     if (!isRecord(v)) {
         return false;
     }
+    if (
+        v.operation !== undefined &&
+        !['face', 'rough', 'finish', 'groove', 'part'].includes(
+            String(v.operation),
+        )
+    )
+        return false;
+    if (
+        v.toolpathEditorOpen !== undefined &&
+        typeof v.toolpathEditorOpen !== 'boolean'
+    )
+        return false;
+    if (
+        v.editingToolpathId !== undefined &&
+        v.editingToolpathId !== null &&
+        typeof v.editingToolpathId !== 'string'
+    )
+        return false;
     if (typeof v['name'] !== 'string') {
         return false;
     }

@@ -48,7 +48,12 @@ only for current settings after regeneration completes with no blocking checks.
 
 ## Modes
 
-- **Conversational**: drawn envelope IS the part, tooltip cuts at Z = r.
+- **Profile**: a drawn radius-vs-X spline defines the part. Flat/straight-ball
+  roughing and finishing use the same Around stock, Along stock and Helix
+  generator as STL, including cutter compensation, guarded feed segments and G93
+  timing. Along stock makes continuous X/Z passes at closely spaced A positions;
+  it does not plunge at four indexed sides. Helix is finishing-only. Older
+  0-degree/270-degree profile settings migrate to Along/Around respectively.
 - **STL**: original mesh triangles are used. Around stock, Along stock and Helix
   are centreline XZA rotary patterns; Indexed sides provides XYZ+A. Editing a profile
   point switches explicitly back to profile turning.
@@ -86,10 +91,19 @@ and clearing core. Old simultaneous ribbon projects are retained as a legacy
 strategy, not presented as the normal rotary path. Machine Y is transverse and
 Z is up; the preview transforms all commanded axes into material coordinates.
 
-A worker debounces requests, terminates obsolete work and rejects stale results.
+A worker calculates both profile and STL toolpaths, debounces requests, terminates
+obsolete work and rejects stale results. Saving an unchanged preview reuses its
+moves. Profile splines are sampled adaptively in the worker to a 0.005 mm bound;
+that bound is included in cutter inflation. Profile square/pommel ranges protect
+the cutter's full footprint and split paths with safe retractions.
+Both fixtures use the configured cutter/shaft/holder width plus clearance. The
+default profile blank is 110 mm long, leaving space at the tailstock for the sample.
+Adjacent operations retain equivalent A angles without a multi-turn unwind;
+standalone exports normalize their own A origin.
 Mixed rotary/linear feed blocks use G93 with a conservative swept-distance time
 bound and the configured rotary rate limit; G94 is restored afterwards. Mesh
-programs do not reset X to the chuck at the end of an operation.
+and profile programs do not reset X to the chuck at the end of an operation.
+Configured safe clearance is retained for parking and final retraction.
 
 Known fixture overlap, open/nonmanifold or malformed meshes and resource overruns
 block output. A missing mesh after project restore stays in STL mode and blocks

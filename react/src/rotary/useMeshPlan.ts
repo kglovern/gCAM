@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { combineRotaryPaths, toolpathSettingsKey } from './engine/job';
 import type { planRotaryEntry, planRotaryJob } from './engine/job';
 import type {
+    ProfilePoint,
+    RotaryMode,
     RotaryToolpathEntry,
     ProfileSample,
     RotaryStock,
@@ -11,9 +13,11 @@ import type {
 } from './engine/types';
 
 export interface MeshPlanRequest {
+    mode?: RotaryMode;
     entries: RotaryToolpathEntry[];
     draft: RotaryToolpathEntry;
     samples: ProfileSample[];
+    points?: ProfilePoint[];
     stock: RotaryStock;
     pommels: PommelZone[];
     mesh: StlMesh | null;
@@ -39,10 +43,12 @@ export function useMeshPlan(request: MeshPlanRequest | null) {
         if (
             !request ||
             !cached ||
+            (request.mode ?? 'stl') !== (cached.request.mode ?? 'stl') ||
             request.mesh !== cached.request.mesh ||
             request.stock !== cached.request.stock ||
             request.pommels !== cached.request.pommels ||
-            request.samples !== cached.request.samples
+            request.samples !== cached.request.samples ||
+            request.points !== cached.request.points
         )
             return null;
         const available = new Map(
@@ -80,7 +86,11 @@ export function useMeshPlan(request: MeshPlanRequest | null) {
             try {
                 worker = createMeshWorker();
                 worker.onmessage = (
-                    event: MessageEvent<MeshPlanResult | { progress: number }>,
+                    event: MessageEvent<
+                        | MeshPlanResult
+                        | { progress: number }
+                        | { error: string }
+                    >,
                 ) => {
                     if (!active) return;
                     if ('progress' in event.data) {
@@ -89,6 +99,11 @@ export function useMeshPlan(request: MeshPlanRequest | null) {
                     }
                     window.clearTimeout(deadline);
                     worker?.terminate();
+                    if ('error' in event.data) {
+                        setState({ request, error: event.data.error });
+                        active = false;
+                        return;
+                    }
                     completed.current = { request, result: event.data };
                     setState(completed.current);
                     active = false;
@@ -99,7 +114,7 @@ export function useMeshPlan(request: MeshPlanRequest | null) {
                     worker?.terminate();
                     setState({
                         request,
-                        error: 'Mesh planning worker failed. Increase cell size or simplify the mesh.',
+                        error: 'Toolpath calculation failed. Try a coarser quality or simpler design.',
                     });
                     active = false;
                 };
@@ -108,7 +123,7 @@ export function useMeshPlan(request: MeshPlanRequest | null) {
                     if (active)
                         setState({
                             request,
-                            error: 'Mesh planning exceeded 90 seconds. Increase cell size or simplify the mesh.',
+                            error: 'Toolpath calculation exceeded 90 seconds. Try a coarser quality or simpler design.',
                         });
                     active = false;
                 }, 90000);

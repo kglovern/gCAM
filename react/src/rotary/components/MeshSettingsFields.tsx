@@ -1,3 +1,4 @@
+import { profileMachiningSettings } from '../engine/profilePaths';
 import { lengthUnit } from '../../lib/units';
 import { RotarySettingsBoundary } from './RotarySettingsBoundary';
 import { UnitInput } from '../../components/UnitInput';
@@ -17,12 +18,21 @@ export function MeshSettingsFields({
     rotary: UseRotaryState;
     units: UnitSystem;
 }) {
-    if (R.mode !== 'stl') return null;
-    const value = R.opsBase.mesh ?? defaultMeshSettings;
+    if (R.operation !== 'rough' && R.operation !== 'finish') return null;
+    const profile = R.mode === 'profile';
+    const value = profile
+        ? profileMachiningSettings(R.opsBase, R.tool, R.operation === 'rough')
+        : (R.opsBase.mesh ?? defaultMeshSettings);
     const indexed =
         value.strategy === 'indexed' || value.strategy === 'simultaneous';
     const patch = (next: Partial<RotaryMeshSettings>) => {
-        R.setOpsBase((old) => ({ ...old, mesh: { ...value, ...next } }));
+        R.setOpsBase((old) => ({
+            ...old,
+            ...(profile && next.strategy
+                ? { raster: next.strategy === 'along' ? 0 : 270 }
+                : {}),
+            mesh: { ...value, ...next },
+        }));
     };
     return (
         <RotarySettingsBoundary onBeforeChange={R.pushHistory}>
@@ -51,8 +61,12 @@ export function MeshSettingsFields({
                         {R.operation === 'finish' && (
                             <option value="helix">Helix</option>
                         )}
-                        <option value="indexed">Indexed sides (XYZ + A)</option>
-                        {value.strategy === 'simultaneous' && (
+                        {!profile && (
+                            <option value="indexed">
+                                Indexed sides (XYZ + A)
+                            </option>
+                        )}
+                        {!profile && value.strategy === 'simultaneous' && (
                             <option value="simultaneous">
                                 Legacy XYZA ribbon
                             </option>
@@ -190,8 +204,7 @@ export function MeshSettingsFields({
                             Shank and holder diameters are optional (0 =
                             unspecified) and increase the fixture clearance when
                             supplied. Stock axis is X; Z zero is the rotary
-                            centre. Attachment end faces and hidden undercuts
-                            need separate machining.
+                            centre.
                         </p>
                     </div>
                 </details>

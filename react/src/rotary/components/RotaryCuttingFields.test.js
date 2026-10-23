@@ -1,9 +1,14 @@
+import { mapSlotType } from './fields/ToolFields';
+import { useSynchronousPlan } from '../test-stubs/planning';
+jest.unstable_mockModule('../useMeshPlan', () => ({
+    useMeshPlan: useSynchronousPlan,
+}));
+const { useRotaryState } = await import('../useRotaryState');
 import { jest } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { blankSlots, saveSlots } from '../../tools/library';
 import { recommendCuttingParameters } from '../../cutting-parameters/recommend';
 import { DEFAULT_MACHINE_PROFILE } from '../../cutting-parameters/machines';
-import { useRotaryState } from '../useRotaryState';
 
 jest.unstable_mockModule('../../tools/ToolLibraryModal', () => ({
     ToolLibraryModal: () => null,
@@ -134,12 +139,24 @@ test('selecting a small cutter supplies valid mesh defaults and recognizes taper
     fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
     act(() => current.setMode('profile'));
     fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
-    fireEvent.click(
+    expect(
         screen.getByRole('option', { name: /T3.*Tapered Ball Nose/ }),
+    ).toBeDisabled();
+    expect(current.tool.type).toBe('flat');
+    fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
+    act(() =>
+        current.setTool((tool) => ({ ...tool, slotNum: 3, type: 'ball' })),
     );
-    expect(current.tool.type).toBe('ball');
-    act(() => current.setMode('profile'));
-    expect(current.tool.type).toBe('ball');
+    expect(current.tool.type).toBe('taper');
     act(() => current.setMode('stl'));
     expect(current.tool.type).toBe('taper');
+});
+
+test('renaming a catalog taper does not disguise its cutter geometry', () => {
+    expect(
+        mapSlotType('ballnose', 'My cutter', 'sienci-tapered-ballnose'),
+    ).toBe('taper');
+    expect(mapSlotType('ballnose', 'My cutter', 'sienci-ballnose-upcut')).toBe(
+        'ball',
+    );
 });

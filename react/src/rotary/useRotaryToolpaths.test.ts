@@ -1,5 +1,11 @@
+import { useSynchronousPlan } from './test-stubs/planning';
+jest.unstable_mockModule('./useMeshPlan', () => ({
+    useMeshPlan: useSynchronousPlan,
+}));
+const { useRotaryState } = await import('./useRotaryState');
+import { jest } from '@jest/globals';
 import { act, renderHook } from '@testing-library/react';
-import { useRotaryState, type UseRotaryState } from './useRotaryState';
+import type { UseRotaryState } from './useRotaryState';
 import { isRotaryProjectSlice } from './engine/types';
 
 const add = (
@@ -145,4 +151,25 @@ test('missing STL on project restore stays in STL mode and blocks envelope fallb
     act(() => result.current.generate());
     expect(result.current.gcode).toBe('');
     expect(result.current.flags.some((f) => f.level === 'e')).toBe(true);
+});
+
+test('deleting the last saved path returns to the editor instead of leaving export controls visible', () => {
+    const { result } = renderHook(() => useRotaryState());
+    add(result, 'finish');
+    expect(result.current.toolpathEditorOpen).toBe(false);
+    act(() => result.current.removeToolpath(result.current.toolpaths[0].id));
+    expect(result.current.toolpaths).toHaveLength(0);
+    expect(result.current.toolpathEditorOpen).toBe(true);
+});
+
+test('project roundtrip retains a finishing draft and the entry being edited', () => {
+    const { result } = renderHook(() => useRotaryState());
+    add(result, 'finish');
+    act(() => result.current.editToolpath(result.current.toolpaths[0].id));
+    const saved = result.current.snapshotProject();
+    act(() => result.current.setOperation('rough'));
+    act(() => result.current.restoreProject(saved));
+    expect(result.current.operation).toBe('finish');
+    expect(result.current.toolpathEditorOpen).toBe(true);
+    expect(result.current.editingToolpathId).toBe(saved.editingToolpathId);
 });

@@ -22,8 +22,7 @@ import {
     cloneToolpath,
     legacyToolpaths,
     operationLabel,
-    planRotaryEntry,
-    planRotaryJob,
+    combineRotaryPaths,
     rotaryJobGcode,
 } from './engine/job';
 import {
@@ -120,7 +119,7 @@ export function useRotaryState(): RotaryStateApi {
     const [sel, setSel] = useState(-1);
     const [pommels, setPommels] = useState<PommelZone[]>([]);
     const [stock, setStock] = useState<RotaryStock>({
-        length: 90,
+        length: 110,
         diameter: 25.4,
         grip: 19,
         ext: false,
@@ -358,33 +357,17 @@ export function useRotaryState(): RotaryStateApi {
 
     const samples = useMemo(() => sampleProfile(points, 16), [points]);
     const compR = compRFor(mode, tool);
-    const envelopeDraft = useMemo(
-        () =>
-            planRotaryEntry(
-                { id: 'draft', operation, tool, ops: opsBase },
-                samples,
-                stock,
-                mode,
-                pommels,
-            ),
-        [operation, tool, opsBase, samples, stock, mode, pommels],
-    );
-    const envelopeJob = useMemo(
-        () => planRotaryJob(toolpaths, samples, stock, mode, pommels),
-        [toolpaths, samples, stock, mode, pommels],
-    );
     const meshRequest = useMemo(
-        () =>
-            mode === 'stl'
-                ? {
-                      entries: toolpaths,
-                      draft: { id: 'draft', operation, tool, ops: opsBase },
-                      samples,
-                      stock,
-                      pommels,
-                      mesh: stlMesh,
-                  }
-                : null,
+        () => ({
+            mode,
+            entries: toolpaths,
+            draft: { id: 'draft', operation, tool, ops: opsBase },
+            samples,
+            points: mode === 'profile' ? points : undefined,
+            stock,
+            pommels,
+            mesh: stlMesh,
+        }),
         [
             mode,
             toolpaths,
@@ -392,52 +375,48 @@ export function useRotaryState(): RotaryStateApi {
             tool,
             opsBase,
             samples,
+            points,
             stock,
             pommels,
             stlMesh,
         ],
     );
     const meshPlan = useMeshPlan(meshRequest);
-    const planning = mode === 'stl' && !meshPlan?.result && !meshPlan?.error;
+    const planning = !meshPlan?.result && !meshPlan?.error;
     const planningProgress = planning ? (meshPlan?.progress ?? 0) : undefined;
     const pendingFlags: RotaryCheck[] = [
         {
             level: 'e',
             msg:
                 meshPlan?.error ||
-                `Planning mesh toolpaths… ${planningProgress ?? 0}%`,
+                `Planning rotary toolpaths… ${planningProgress ?? 0}%`,
         },
     ];
-    const job =
-        mode === 'stl'
-            ? (meshPlan?.result?.job ?? {
-                  paths: [],
-                  moves: [],
-                  flags: pendingFlags,
-              })
-            : envelopeJob;
-    const draft =
-        mode === 'stl'
-            ? (meshPlan?.result?.draft ?? {
-                  entry: { id: 'draft', operation, tool, ops: opsBase },
-                  compR: 0,
-                  moves: [],
-                  flags: pendingFlags,
-              })
-            : envelopeDraft;
+    const job = meshPlan?.result?.job ?? {
+        paths: [],
+        moves: [],
+        flags: pendingFlags,
+    };
+    const draft = meshPlan?.result?.draft ?? {
+        entry: { id: 'draft', operation, tool, ops: opsBase },
+        compR: 0,
+        moves: [],
+        flags: pendingFlags,
+    };
     const { moves, flags } = job;
     const programs = useMemo(
         () =>
             job.paths.map((path) => ({
                 id: path.entry.id,
                 label: operationLabel(path.entry.operation),
-                gcode: toGcode(path.moves, {
+                gcode: toGcode(combineRotaryPaths([path]).moves, {
                     stock,
                     mode,
                     name,
                     tool: path.entry.tool,
                     compR: path.compR,
                     toolChange: true,
+                    clearance: path.entry.ops.mesh?.clearance,
                 }),
             })),
         [job, stock, mode, name],
@@ -490,6 +469,7 @@ export function useRotaryState(): RotaryStateApi {
     const removeToolpath = (id: string) => {
         pushHistory();
         setToolpaths((list) => list.filter((item) => item.id !== id));
+        if (toolpaths.length === 1) setToolpathEditorOpen(true);
         if (editingToolpathId === id) {
             setEditingToolpathId(null);
             setToolpathEditorOpen(false);
@@ -609,6 +589,9 @@ export function useRotaryState(): RotaryStateApi {
             toolpaths: toolpaths.map(cloneToolpath),
             name,
             mode,
+            operation,
+            toolpathEditorOpen,
+            editingToolpathId,
             stlKey: stlMesh?.key,
             pommels: pommels.map((p) => ({ ...p })),
             points: clonePoints(points),
@@ -620,7 +603,20 @@ export function useRotaryState(): RotaryStateApi {
                 part: { ...opsBase.part },
             },
         };
-    }, [name, mode, stlMesh, pommels, points, stock, tool, opsBase, toolpaths]);
+    }, [
+        name,
+        mode,
+        operation,
+        toolpathEditorOpen,
+        editingToolpathId,
+        stlMesh,
+        pommels,
+        points,
+        stock,
+        tool,
+        opsBase,
+        toolpaths,
+    ]);
 
     /** Restore a project-file slice (validated); STL mode needs its mesh. */
     const restoreProject = useCallback(
@@ -639,10 +635,20 @@ export function useRotaryState(): RotaryStateApi {
             const restoredPaths =
                 slice.toolpaths ?? legacyToolpaths(importedTool, importedOps);
             setToolpaths(restoredPaths.map(cloneToolpath));
-            setOperation(restoredPaths[0]?.operation ?? 'rough');
-            setEditingToolpathId(null);
-            setToolpathEditorOpen(restoredPaths.length === 0);
-            const next = [...slice.points].sort((a, b) => a.x - b.x);
+            setOperation(
+                slice.operation ?? restoredPaths[0]?.operation ?? 'rough',
+            );
+            setEditingToolpathId(
+                restoredPaths.some(
+                    (entry) => entry.id === slice.editingToolpathId,
+                )
+                    ? slice.editingToolpathId!
+                    : null,
+            );
+            setToolpathEditorOpen(
+                slice.toolpathEditorOpen ?? restoredPaths.length === 0,
+            );
+            const next = clonePoints(slice.points).sort((a, b) => a.x - b.x);
             fitHandles(next);
             setPoints(next);
             setStock({ ...stock, ...slice.stock });

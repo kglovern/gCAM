@@ -72,3 +72,34 @@ test('worker reports monotonic progress separately from its final result', () =>
     ).toEqual([0, 25, 50, 75, 99]);
     expect(worker.postMessage.mock.lastCall[0]).toHaveProperty('job');
 });
+
+test('profile requests sample their Bezier geometry in the worker and use profile mode', () => {
+    planRotaryEntry.mockClear();
+    worker.onmessage({
+        data: {
+            mode: 'profile',
+            entries: [path.entry],
+            samples: [],
+            points: [
+                {
+                    x: 30,
+                    r: 5,
+                    type: 'smooth',
+                    h1: { x: 30, r: 5 },
+                    h2: { x: 31, r: 15 },
+                },
+                {
+                    x: 50,
+                    r: 5,
+                    type: 'smooth',
+                    h1: { x: 49, r: 0 },
+                    h2: { x: 50, r: 5 },
+                },
+            ],
+            draft: { ...path.entry, tool: { dia: 2 } },
+        },
+    });
+    expect(planRotaryEntry.mock.lastCall[1].length).toBeGreaterThan(16);
+    expect(planRotaryEntry.mock.lastCall[3]).toBe('profile');
+    expect(worker.postMessage.mock.lastCall[0]).toHaveProperty('draft');
+});

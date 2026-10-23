@@ -25,20 +25,74 @@ export function planRotarySurface(
     aborted: () => boolean,
     onProgress: (fraction: number) => void = () => {},
 ) {
-    const radius = stock.diameter / 2,
-        cutterRadius = tool.dia / 2;
-    const budget =
-            operation === 'rough'
-                ? Math.max(
-                      settings.tolerance / 4,
-                      Math.min(stepdown / 4, cutterRadius / 4),
-                  )
-                : settings.tolerance / 4,
-        leave = operation === 'rough' ? allowance : 0;
+    const budget = rotaryMotionBudget(
+        stock,
+        tool,
+        operation,
+        stepdown,
+        settings,
+    );
+    const leave = operation === 'rough' ? allowance : 0;
     const ball = tool.type === 'ball';
+    const cutterRadius = tool.dia / 2;
     const contact = createRotaryContact(
         mesh,
         cutterRadius + budget + leave + 1e-6,
+    );
+    return planRotaryPaths(
+        stock,
+        tool,
+        operation,
+        stepdown,
+        settings,
+        xmin,
+        xmax,
+        aborted,
+        (x, a, guard) => {
+            const h = contact(x, a % 360, cutterRadius + guard + leave, ball);
+            return Number.isFinite(h)
+                ? h -
+                      (ball ? cutterRadius : 0) +
+                      (ball ? 0 : guard + leave) +
+                      0.001
+                : -stock.diameter / 2;
+        },
+        onProgress,
+    );
+}
+
+export function rotaryMotionBudget(
+    _stock: RotaryStock,
+    tool: RotaryTool,
+    operation: 'rough' | 'finish',
+    stepdown: number,
+    settings: RotaryMeshSettings,
+) {
+    return operation === 'rough'
+        ? Math.max(settings.tolerance / 4, Math.min(stepdown / 4, tool.dia / 8))
+        : settings.tolerance / 4;
+}
+
+/** Shared Around, Along and Helix motion, segment guards, depth layers and feed timing. */
+export function planRotaryPaths(
+    stock: RotaryStock,
+    tool: RotaryTool,
+    operation: 'rough' | 'finish',
+    stepdown: number,
+    settings: RotaryMeshSettings,
+    xmin: number,
+    xmax: number,
+    aborted: () => boolean,
+    contactHeight: (x: number, a: number, guard: number) => number,
+    onProgress: (fraction: number) => void = () => {},
+) {
+    const radius = stock.diameter / 2;
+    const budget = rotaryMotionBudget(
+        stock,
+        tool,
+        operation,
+        stepdown,
+        settings,
     );
     const safe = radius + settings.clearance;
     const paths: Node[][] = [];
@@ -80,10 +134,7 @@ export function planRotarySurface(
             if (aborted()) throw new Error('Rotary planning cancelled.');
             onProgress(Math.min(0.95, (0.95 * samples) / work));
         }
-        const h = contact(x, a % 360, cutterRadius + guard + leave, ball);
-        return Number.isFinite(h)
-            ? h - (ball ? cutterRadius : 0) + (ball ? 0 : guard + leave) + 0.001
-            : -radius;
+        return contactHeight(x, a, guard);
     };
     const strip = (x0: number, x1: number, a0: number, a1: number) => {
         // Half the maximum relative tool/material travel bounds every point's
