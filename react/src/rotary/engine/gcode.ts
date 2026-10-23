@@ -12,6 +12,7 @@ export interface GcodeContext {
     name: string;
     mode: 'profile' | 'stl';
     compR: number;
+    toolChange?: boolean;
 }
 
 export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
@@ -36,11 +37,12 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
     L.push(
         '(Z-zero = cylinder axis, X-zero = chuck side. Enable Rotary mode in gSender.)',
     );
-    L.push('T1');
+    L.push(`T${tool.slotNum ?? 1}`);
     L.push('G17');
     L.push('G21');
     L.push('G90');
     L.push(`G0Z${f3(zPark)}`);
+    if (ctx.toolChange) L.push(`(Change to T${tool.slotNum ?? 1})`, 'M6');
     L.push('G0X0.000A0.000');
     L.push(`S${tool.spindle}M3`);
     let lastOp = '';

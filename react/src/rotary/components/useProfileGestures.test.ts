@@ -23,7 +23,7 @@ test('pinching interrupts editing, zooms, and consumes the remaining finger unti
     act(() => {
         expect(result.current.move(pointer(2, 300))).toBe(true);
     });
-    expect(onView).toHaveBeenLastCalledWith(2, 66);
+    expect(onView).toHaveBeenLastCalledWith(2, 66, 216);
     expect(result.current.end(pointer(2, 300))).toBe(true);
     expect(result.current.move(pointer(1, 110))).toBe(true);
     expect(result.current.end(pointer(1, 110))).toBe(true);

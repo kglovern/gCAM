@@ -1,27 +1,27 @@
-import { saveTextFile } from '../../platform/saveTextFile';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { UseRotaryState } from '../useRotaryState';
 
-/** Export is tied to the exact setup used to generate it, never an old preview. */
+/** Export is tied to the exact setup used to generate it, with automatic generation after editing settles. */
 export function useRotaryExport(rotary: UseRotaryState) {
     const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-    const key = JSON.stringify(rotary.snapshotProject());
+    const { tool: _tool, ops: _ops, ...job } = rotary.snapshotProject();
+    const key = JSON.stringify(job);
     const needsModel = rotary.mode === 'stl' && !rotary.stlMesh;
     const errors =
         rotary.flags.filter((flag) => flag.level === 'e').length +
         (needsModel ? 1 : 0);
-    const ready = generatedKey === key && Boolean(rotary.gcode) && errors === 0;
-    const generate = () => {
+    const ready =
+        generatedKey === key &&
+        Boolean(rotary.gcode) &&
+        errors === 0 &&
+        rotary.moves.length > 0;
+    useEffect(() => {
         if (errors || !rotary.moves.length) return;
-        rotary.generate();
-        setGeneratedKey(key);
-    };
-    const download = () => {
-        if (!ready) return;
-        saveTextFile(
-            rotary.gcode,
-            `${rotary.name.trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '-') || 'rotary'}.gcode`,
-        );
-    };
-    return { ready, generate, download, errors, needsModel };
+        const timer = window.setTimeout(() => {
+            rotary.generate();
+            setGeneratedKey(key);
+        }, 400);
+        return () => window.clearTimeout(timer);
+    }, [key, errors, rotary.moves.length, rotary.generate]);
+    return { ready, errors, needsModel };
 }

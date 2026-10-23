@@ -4,7 +4,6 @@ import type { UnitSystem } from '../../lib/units';
 import { ToolLibraryModal } from '../../tools/ToolLibraryModal';
 import { isConfigured, loadSlots, type ToolSlot } from '../../tools/library';
 import type { UseRotaryState } from '../useRotaryState';
-import { StockFields } from './fields/StockFields';
 import { ToolFields, mapSlotType } from './fields/ToolFields';
 
 export function RotarySetupPane({
@@ -26,13 +25,6 @@ export function RotarySetupPane({
     return (
         <RotarySettingsBoundary onBeforeChange={R.pushHistory}>
             <div className="space-y-3">
-                <StockFields
-                    stock={R.stock}
-                    units={units}
-                    onPatch={(patch) =>
-                        R.setStock((stock) => ({ ...stock, ...patch }))
-                    }
-                />
                 <ToolFields
                     tool={R.tool}
                     units={units}

@@ -3,10 +3,24 @@
  * conversational revolves the drawn profile, STL shows the mesh triangles.
  * Toolpath plots tool centers (= G-code), stock is translucent, no mesh lines.
  */
-import { useEffect, useRef, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
+import { Box, Scan, PanelTop, Settings2, X } from 'lucide-react';
 import { rotaryViewFit } from './viewportFit';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { DARK_CANVAS_THEME, LIGHT_CANVAS_THEME } from '../../canvas/theme';
+import { MachineAlignmentControls } from './MachineAlignmentControls';
+import {
+    alignmentStorageKey,
+    defaultAlignment,
+    disposeMachine,
+    machineViewFit,
+    interpolateMachinePose,
+    poseMachine,
+    readAlignment,
+} from './machinePreview';
 import type {
     ProfileSample,
     RotaryMode,
@@ -61,7 +75,8 @@ interface RotaryViewportProps {
     showPath: boolean;
     stl: StlMesh | null;
     mode: RotaryMode;
-    what: string;
+    showMachine?: boolean;
+    darkMode?: boolean;
 }
 
 export function RotaryViewport({
@@ -72,11 +87,51 @@ export function RotaryViewport({
     showPath,
     stl,
     mode,
-    what,
+    showMachine = true,
+    darkMode = false,
 }: RotaryViewportProps): ReactElement {
     const mountRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const [alignment, setAlignment] = useState(() => {
+        try {
+            return readAlignment(localStorage.getItem(alignmentStorageKey));
+        } catch {
+            return { ...defaultAlignment };
+        }
+    });
+    const [machineStatus, setMachineStatus] = useState('Loading machine…');
+    const [alignmentOpen, setAlignmentOpen] = useState(false);
+    const machineRef = useRef<THREE.Group | null>(null);
+    const input = useMemo(
+        () => ({ samples, stock, moves, stl, mode, alignment }),
+        [samples, stock, moves, stl, mode, alignment],
+    );
+    const preview = useDebouncedValue(input, 400);
+    const animated = useRef({
+        length: stock.length,
+        diameter: stock.diameter,
+        alignment,
+    });
+    const visibleRef = useRef(showMachine);
+    visibleRef.current = showMachine;
+    const fitMachineView = useRef<() => void>(() => {});
+    const sideView = useRef<() => void>(() => {});
+    const followSideView = useRef(true);
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                alignmentStorageKey,
+                JSON.stringify(alignment),
+            );
+        } catch {
+            /* Storage may be disabled. */
+        }
+    }, [alignment]);
+    useEffect(() => {
+        if (machineRef.current) machineRef.current.visible = showMachine;
+    }, [showMachine]);
     const savedView = useRef<{
-        position: THREE.Vector3;
+        camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
         target: THREE.Vector3;
     } | null>(null);
     const fitView = useRef<() => void>(() => {});
@@ -86,21 +141,46 @@ export function RotaryViewport({
         if (!mount) {
             return;
         }
+        const { samples, stock, moves, stl, mode, alignment } = preview;
+        const from = animated.current;
+        const target = {
+            length: stock.length,
+            diameter: stock.diameter,
+            alignment,
+        };
+        let started: number | null = null;
+        let needsSideFrame = true;
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0b0f14);
-        const cam = new THREE.PerspectiveCamera(40, 1, 0.5, 5000);
-        cam.position.set(-40, 55, 85);
-        const ren = new THREE.WebGLRenderer({ antialias: true });
+        scene.background = new THREE.Color(
+            darkMode ? DARK_CANVAS_THEME.bg : LIGHT_CANVAS_THEME.bg,
+        );
+        let cam: THREE.PerspectiveCamera | THREE.OrthographicCamera =
+            savedView.current?.camera?.clone() ??
+            new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, 5000);
+        const aspect = () =>
+            (mount.clientWidth || 400) / (mount.clientHeight || 440);
+        const ren =
+            rendererRef.current ?? new THREE.WebGLRenderer({ antialias: true });
+        rendererRef.current = ren;
         mount.appendChild(ren.domElement);
         const ctl = new OrbitControls(cam, ren.domElement);
+        const perspectiveView = () => {
+            if (!(cam instanceof THREE.PerspectiveCamera)) {
+                cam = new THREE.PerspectiveCamera(40, aspect(), 0.5, 5000);
+                ctl.object = cam;
+            }
+            return cam;
+        };
         const fit = () => {
+            followSideView.current = false;
+            const camera = perspectiveView();
             const view = rotaryViewFit(
                 stock.length,
                 stock.diameter,
-                cam.aspect,
+                camera.aspect,
             );
             ctl.target.set(view.centerX, 0, 0);
-            cam.position
+            camera.position
                 .copy(ctl.target)
                 .add(
                     new THREE.Vector3(-0.35, 0.6, 1)
@@ -109,9 +189,55 @@ export function RotaryViewport({
                 );
             ctl.update();
         };
+        const frameSide = () => {
+            if (!(cam instanceof THREE.OrthographicCamera)) return;
+            const pose = animated.current;
+            const box = new THREE.Box3(
+                new THREE.Vector3(0, -pose.diameter / 2, 0),
+                new THREE.Vector3(pose.length, pose.diameter / 2, 0),
+            );
+            if (machineRef.current?.visible) {
+                // Fit the end assemblies; the long track may extend offscreen.
+                machineRef.current.traverse((object) => {
+                    if (
+                        object.userData.rotaryRole === 'tailstock' ||
+                        object.name.startsWith('Headstock_Assembly') ||
+                        object.name.startsWith('Headstock Assembly')
+                    )
+                        box.expandByObject(object);
+                });
+                const machineBox = new THREE.Box3().setFromObject(
+                    machineRef.current,
+                );
+                box.min.y = Math.min(box.min.y, machineBox.min.y);
+            }
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const halfHeight =
+                Math.max(size.y / 2, size.x / (2 * aspect()), 1) * 1.16;
+            cam.left = -halfHeight * aspect();
+            cam.right = halfHeight * aspect();
+            cam.top = halfHeight;
+            cam.bottom = -halfHeight;
+            cam.zoom = 1;
+            ctl.target.copy(center);
+            cam.position.copy(center).add(new THREE.Vector3(0, 0, 1000));
+            cam.lookAt(center);
+            cam.updateProjectionMatrix();
+        };
+        const side = () => {
+            followSideView.current = true;
+            cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, 5000);
+            ctl.object = cam;
+            frameSide();
+            ctl.update();
+        };
+        ctl.addEventListener('start', () => {
+            followSideView.current = false;
+        });
+        sideView.current = side;
         fitView.current = fit;
         if (savedView.current) {
-            cam.position.copy(savedView.current.position);
             ctl.target.copy(savedView.current.target);
         }
         scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -121,9 +247,7 @@ export function RotaryViewport({
         const fill = new THREE.DirectionalLight(0x88aaff, 0.35);
         fill.position.set(40, -30, -40);
         scene.add(fill);
-        const grid = new THREE.GridHelper(400, 40, 0x2a3540, 0x1a222b);
-        grid.position.y = -30;
-        scene.add(grid);
+        scene.add(new THREE.AxesHelper(30));
 
         const partMat = new THREE.MeshStandardMaterial({
             color: 0xd9a066,
@@ -140,12 +264,6 @@ export function RotaryViewport({
             side: THREE.DoubleSide,
             depthWrite: false,
         });
-        const chuckMat = new THREE.MeshStandardMaterial({
-            color: 0x3a444e,
-            roughness: 0.4,
-            metalness: 0.8,
-        });
-
         let part: THREE.Mesh;
         if (mode === 'stl' && stl) {
             const g = new THREE.BufferGeometry();
@@ -162,25 +280,66 @@ export function RotaryViewport({
 
         let stockMesh: THREE.Mesh | null = null;
         if (showStock) {
-            stockMesh = new THREE.Mesh(
-                stockGeometry(stock.length, stock.diameter / 2),
-                stockMat,
+            stockMesh = new THREE.Mesh(stockGeometry(1, 1), stockMat);
+            stockMesh.scale.set(
+                from.length,
+                from.diameter / 2,
+                from.diameter / 2,
             );
             scene.add(stockMesh);
         }
-        const cg = new THREE.CylinderGeometry(20, 20, 18, 24);
-        cg.rotateZ(Math.PI / 2);
-        cg.translate(-9, 0, 0);
-        const chuck = new THREE.Mesh(cg, chuckMat);
-        scene.add(chuck);
-        let tail: THREE.Mesh | null = null;
-        if (stock.length - stock.grip > stock.diameter * 3) {
-            const tg = new THREE.ConeGeometry(6, 18, 20);
-            tg.rotateZ(-Math.PI / 2);
-            tg.translate(stock.length + 9, 0, 0);
-            tail = new THREE.Mesh(tg, chuckMat);
-            scene.add(tail);
-        }
+        let alive = true;
+        const fitMachine = () => {
+            followSideView.current = false;
+            if (!machineRef.current?.visible) {
+                fit();
+                return;
+            }
+            const box = new THREE.Box3().setFromObject(machineRef.current);
+            box.expandByObject(part);
+            if (stockMesh) box.expandByObject(stockMesh);
+            const camera = perspectiveView();
+            const view = machineViewFit(box, camera.aspect, camera.fov);
+            ctl.target.copy(view.center);
+            camera.position.copy(view.position);
+            camera.far = Math.max(
+                5000,
+                view.distance + box.getSize(new THREE.Vector3()).length() * 2,
+            );
+            cam.updateProjectionMatrix();
+            ctl.update();
+        };
+        fitMachineView.current = fitMachine;
+        const addMachine = (root: THREE.Group) => {
+            poseMachine(root, animated.current, animated.current.alignment);
+            root.visible = visibleRef.current;
+            machineRef.current = root;
+            scene.add(root);
+            needsSideFrame = true;
+            setMachineStatus('');
+        };
+        if (machineRef.current) addMachine(machineRef.current);
+        else
+            new GLTFLoader().load(
+                `${import.meta.env.BASE_URL}models/rotary/vortex.glb`,
+                (gltf) => {
+                    if (!alive) {
+                        disposeMachine(gltf.scene);
+                        return;
+                    }
+                    const root = new THREE.Group();
+                    gltf.scene.scale.setScalar(1000);
+                    root.add(gltf.scene);
+                    addMachine(root);
+                },
+                undefined,
+                () => {
+                    if (alive)
+                        setMachineStatus(
+                            'Machine model could not load. Reload to retry.',
+                        );
+                },
+            );
         let pathLine: THREE.Line | null = null;
         if (showPath && moves.length) {
             const res: Array<{ x: number; z: number; a: number }> = [];
@@ -226,63 +385,173 @@ export function RotaryViewport({
         }
 
         const resize = (): void => {
+            needsSideFrame = true;
             const w = mount.clientWidth || 400;
             const h = mount.clientHeight || 440;
             ren.setSize(w, h);
-            cam.aspect = w / h;
+            if (cam instanceof THREE.PerspectiveCamera) cam.aspect = w / h;
+            else {
+                const halfHeight = (cam.top - cam.bottom) / 2;
+                cam.left = (-halfHeight * w) / h;
+                cam.right = (halfHeight * w) / h;
+            }
             cam.updateProjectionMatrix();
         };
         resize();
-        if (!savedView.current) fit();
+        if (!savedView.current?.camera) side();
         const observer = new ResizeObserver(resize);
         observer.observe(mount);
-        let alive = true;
         const loop = (): void => {
             if (!alive) {
                 return;
             }
             requestAnimationFrame(loop);
+            if (animated.current !== target) {
+                needsSideFrame = true;
+                const pose = interpolateMachinePose(
+                    from,
+                    target,
+                    started === null ? 0 : performance.now() - started,
+                );
+                animated.current = pose;
+                if (machineRef.current)
+                    poseMachine(machineRef.current, pose, pose.alignment);
+                if (stockMesh)
+                    stockMesh.scale.set(
+                        pose.length,
+                        pose.diameter / 2,
+                        pose.diameter / 2,
+                    );
+            }
             ctl.update();
+            if (followSideView.current && needsSideFrame) {
+                frameSide();
+                ctl.update();
+                needsSideFrame = false;
+            }
             ren.render(scene, cam);
+            // Start after the first frame's GPU setup so it cannot consume the tween.
+            started ??= performance.now();
         };
         loop();
         return () => {
             alive = false;
             savedView.current = {
-                position: cam.position.clone(),
+                camera: cam.clone(),
                 target: ctl.target.clone(),
             };
             observer.disconnect();
             ctl.dispose();
+            machineRef.current?.removeFromParent();
+            const materials = new Set<THREE.Material>();
             scene.traverse((o) => {
                 const mesh = o as THREE.Mesh;
                 if (mesh.geometry) {
                     mesh.geometry.dispose();
                 }
+                if (mesh.material)
+                    for (const material of Array.isArray(mesh.material)
+                        ? mesh.material
+                        : [mesh.material])
+                        materials.add(material);
             });
-            ren.dispose();
+            materials.forEach((material) => material.dispose());
             mount.removeChild(ren.domElement);
         };
-    }, [samples, stock, moves, showStock, showPath, stl, mode]);
+    }, [preview, showStock, showPath, showMachine, darkMode]);
+    useEffect(
+        () => () => {
+            if (machineRef.current) disposeMachine(machineRef.current);
+            machineRef.current = null;
+            rendererRef.current?.dispose();
+            rendererRef.current = null;
+        },
+        [],
+    );
 
     return (
-        <div className="rotary-viewport overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-robin-900 dark:bg-dark">
-            <div ref={mountRef} className="rotary-viewport-canvas" />
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-2.5 py-1.5 text-xs dark:border-robin-900">
-                <button
-                    type="button"
-                    onClick={() => fitView.current()}
-                    className="min-h-11 rounded-md border border-slate-300 px-3 dark:border-robin-700"
+        <div className="rotary-viewport relative overflow-hidden">
+            <div className="rotary-viewport-canvas relative">
+                <div ref={mountRef} className="absolute inset-0" />
+                <div
+                    role="group"
+                    aria-label="3D view controls"
+                    className="absolute right-3 top-3 z-10 flex gap-1 rounded-xl border border-slate-300 bg-white/90 p-1 text-slate-600 dark:border-slate-600/60 dark:bg-slate-950/80 dark:text-slate-200 shadow-lg backdrop-blur"
                 >
-                    Fit part
-                </button>
-                <span className="text-slate-500 dark:text-slate-400">
-                    {what}
-                </span>
-                <span className="ml-auto text-slate-500 dark:text-slate-400">
-                    drag to orbit · scroll to zoom
-                </span>
+                    <button
+                        type="button"
+                        aria-label="Side-on stock view"
+                        title="Side-on stock view"
+                        onClick={() => sideView.current()}
+                        className="flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-slate-200 hover:text-slate-950 active:bg-slate-300 dark:hover:bg-slate-700 dark:hover:text-white dark:active:bg-slate-600"
+                    >
+                        <PanelTop size={20} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Fit part"
+                        title="Fit part"
+                        onClick={() => fitView.current()}
+                        className="flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-slate-200 hover:text-slate-950 active:bg-slate-300 dark:hover:bg-slate-700 dark:hover:text-white dark:active:bg-slate-600"
+                    >
+                        <Scan size={20} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Fit machine"
+                        title="Fit machine"
+                        onClick={() => fitMachineView.current()}
+                        className="flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:bg-slate-200 hover:text-slate-950 active:bg-slate-300 dark:hover:bg-slate-700 dark:hover:text-white dark:active:bg-slate-600"
+                    >
+                        <Box size={20} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Machine alignment"
+                        title="Machine alignment"
+                        aria-expanded={alignmentOpen}
+                        aria-controls="rotary-machine-alignment"
+                        onClick={() => setAlignmentOpen((open) => !open)}
+                        className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+                    >
+                        <Settings2 size={20} aria-hidden="true" />
+                    </button>
+                </div>
             </div>
+            {machineStatus && (
+                <p role="status" className="px-3 py-1 text-xs text-slate-500">
+                    {machineStatus}
+                </p>
+            )}
+            {alignmentOpen && (
+                <section
+                    id="rotary-machine-alignment"
+                    role="dialog"
+                    aria-label="Machine alignment"
+                    className="absolute inset-x-3 top-16 z-20 max-h-[calc(100%-5rem)] overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-xl dark:border-robin-700 dark:bg-dark"
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape') setAlignmentOpen(false);
+                    }}
+                >
+                    <div className="flex items-center justify-between border-b px-3 dark:border-robin-900">
+                        <h3 className="text-sm font-medium">
+                            Machine alignment
+                        </h3>
+                        <button
+                            type="button"
+                            aria-label="Close machine alignment"
+                            onClick={() => setAlignmentOpen(false)}
+                            className="flex h-11 w-11 items-center justify-center"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <MachineAlignmentControls
+                        value={alignment}
+                        onChange={setAlignment}
+                    />
+                </section>
+            )}
         </div>
     );
 }

@@ -4,35 +4,43 @@
 import type { Operation } from '../lib/engine';
 import { OPERATION_IMAGES } from './operationCatalog';
 
-interface ToolpathOperationPickerProps {
-    operation: Operation;
-    operations: { value: Operation; label: string }[];
-    onChange: (operation: Operation) => void;
+interface ToolpathOperationPickerProps<T extends string> {
+    operation: T;
+    operations: { value: T; label: string }[];
+    onChange: (operation: T) => void;
+    images?: Partial<Record<T, string>>;
+    descriptions?: Partial<Record<T, string>>;
 }
 
 /** Operation selector kept independent from the parameter form. */
-export function ToolpathOperationPicker({
+export function ToolpathOperationPicker<T extends string = Operation>({
     operation,
     operations,
     onChange,
-}: ToolpathOperationPickerProps) {
-    const descriptions: Partial<Record<Operation, string>> = {
-        'profile-outside':
-            'Cut around the outside edge to shape or release a part.',
-        'profile-inside':
-            'Cut along the inside edge to make a hole or opening.',
-        pocket: 'Clear material from inside a closed shape to make a flat-bottomed recess.',
-        engrave:
-            'Follow the selected line with the cutter to mark or trace it.',
-        vcarve: 'Carve the space between selected lines with a V-bit.',
-        countersink: 'Widen the top of a drilled hole for a countersunk screw.',
-        'surface-clear':
-            'Remove the bulk of material from an imported 3D model.',
-        'surface-finish':
-            'Make a smoother final pass over an imported 3D model.',
-        'surface-waterline':
-            'Finish steep areas of a 3D model with level contour passes.',
-    };
+    images,
+    descriptions: suppliedDescriptions,
+}: ToolpathOperationPickerProps<T>) {
+    const descriptions: Record<string, string | undefined> =
+        suppliedDescriptions ?? {
+            'profile-outside':
+                'Cut around the outside edge to shape or release a part.',
+            'profile-inside':
+                'Cut along the inside edge to make a hole or opening.',
+            pocket: 'Clear material from inside a closed shape to make a flat-bottomed recess.',
+            engrave:
+                'Follow the selected line with the cutter to mark or trace it.',
+            vcarve: 'Carve the space between selected lines with a V-bit.',
+            countersink:
+                'Widen the top of a drilled hole for a countersunk screw.',
+            'surface-clear':
+                'Remove the bulk of material from an imported 3D model.',
+            'surface-finish':
+                'Make a smoother final pass over an imported 3D model.',
+            'surface-waterline':
+                'Finish steep areas of a 3D model with level contour passes.',
+        };
+    const operationImages: Record<string, string | undefined> =
+        images ?? OPERATION_IMAGES;
     const description = descriptions[operation];
 
     return (
@@ -52,9 +60,9 @@ export function ToolpathOperationPicker({
                         }`}
                     >
                         <span className="grid h-8 w-10 shrink-0 place-items-center overflow-hidden rounded border border-slate-300 bg-white dark:border-robin-900 dark:bg-dark">
-                            {OPERATION_IMAGES[item.value] ? (
+                            {operationImages[item.value] ? (
                                 <img
-                                    src={OPERATION_IMAGES[item.value]}
+                                    src={operationImages[item.value]}
                                     alt=""
                                     className="h-full w-full object-contain dark:invert dark:hue-rotate-180"
                                 />

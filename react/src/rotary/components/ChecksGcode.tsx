@@ -1,5 +1,5 @@
 /**
- * Purpose: Rotary checks list + G-code preview/download panel.
+ * Purpose: Rotary blocking checks and warnings.
  */
 import type { ReactElement } from 'react';
 import type { RotaryCheck } from '../engine/types';
@@ -18,22 +18,18 @@ export function ChecksList({
     onGenerate?: () => void;
 }): ReactElement {
     return (
-        <section
-            className="rounded-lg border border-slate-200 bg-white p-3 dark:border-robin-900 dark:bg-dark"
-            aria-label="Checks"
-        >
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Checks
-            </h2>
+        <section className="space-y-1" aria-label="Checks">
             <ul className="mt-2 space-y-1 text-[13px]">
-                {flags.map((f, i) => (
-                    <li
-                        key={i}
-                        className={`rounded-md border px-2 py-1 ${levelClass[f.level]}`}
-                    >
-                        {f.msg}
-                    </li>
-                ))}
+                {flags
+                    .filter((f) => f.level !== 'o')
+                    .map((f, i) => (
+                        <li
+                            key={i}
+                            className={`rounded-md border px-2 py-1 ${levelClass[f.level]}`}
+                        >
+                            {f.msg}
+                        </li>
+                    ))}
             </ul>
             {onGenerate && (
                 <button
@@ -44,57 +40,6 @@ export function ChecksList({
                     Generate G-code
                 </button>
             )}
-        </section>
-    );
-}
-
-export function GcodePanel({
-    gcode,
-    statsLine,
-    onDownload,
-    canDownload = true,
-}: {
-    gcode: string;
-    statsLine: string;
-    onDownload: () => void;
-    canDownload?: boolean;
-}): ReactElement {
-    const lines = gcode ? gcode.split(/\r?\n/) : [];
-    const preview = lines.length
-        ? `${lines.slice(0, 120).join('\n')}\n... (${lines.length} lines total)`
-        : 'Press Generate.';
-    return (
-        <section
-            className="rounded-lg border border-slate-200 bg-white p-3 dark:border-robin-900 dark:bg-dark"
-            aria-label="G-code"
-        >
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                G-code{' '}
-                <small className="font-normal text-slate-500 dark:text-slate-400">
-                    Vortex A-axis GRBL
-                </small>
-            </h2>
-            <pre className="mt-2 max-h-[380px] overflow-auto rounded-md border border-slate-200 bg-slate-950 p-2 font-mono text-[11px] leading-relaxed text-slate-200 dark:border-robin-900">
-                {preview}
-            </pre>
-            <div className="mt-2 flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={onDownload}
-                    disabled={!canDownload}
-                    className="min-h-11 rounded-md border border-slate-300 px-2.5 py-1.5 disabled:opacity-40 text-sm dark:border-robin-900 dark:hover:bg-dark-lighter"
-                >
-                    Download .gcode
-                </button>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {statsLine}
-                </span>
-            </div>
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Z-zero = cylinder axis. X-zero = chuck side, clear of jaws.
-                Enable <b>Rotary mode</b> in gSender. Probe Z on chuck, align Y,
-                zero X at the marked line.
-            </p>
         </section>
     );
 }
