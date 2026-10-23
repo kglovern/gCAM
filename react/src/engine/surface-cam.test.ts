@@ -561,3 +561,15 @@ test('async clearing path builder matches reference paths and yields to cancella
         ),
     ).rejects.toMatchObject({ name: 'AbortError' });
 });
+
+test('off-grid cutter queries include adjacent cell footprints before rounding', () => {
+    const field: HeightField = {
+        bounds: { minX: 0, maxX: 2, minY: 0, maxY: 0, minZ: 0, maxZ: 5 },
+        cellSize: 1,
+        columns: 3,
+        rows: 1,
+        heights: new Float32Array([0, 5, 0]),
+        covered: new Uint8Array([1, 1, 1]),
+    };
+    expect(cutterContactHeight(field, 0.49, 0, 'flat', 0.2)).toBe(5);
+});

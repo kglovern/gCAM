@@ -343,26 +343,28 @@ export function estimate(
 ): ToolpathEstimate {
     let dist = 0;
     let cut = 0;
-    let prev: { x: number; z: number; a: number } | null = null;
+    let prev: { x: number; y: number; z: number; a: number } | null = null;
     let time = 0;
     for (const m of moves) {
         const px: number = prev === null ? 0 : (m.x ?? prev.x);
+        const py: number = prev === null ? 0 : (m.y ?? prev.y);
         const pz: number = prev === null ? 0 : (m.z ?? prev.z);
         const pa: number = prev === null ? 0 : (m.a ?? prev.a);
         if (prev) {
             const dx = (m.x ?? px) - px;
+            const dy = (m.y ?? py) - py;
             const dz = (m.z ?? pz) - pz;
             const da =
                 ((m.a ?? pa) - pa) * (Math.PI / 180) * Math.max(4, pz || 6);
-            const d = Math.hypot(dx, dz, da);
+            const d = Math.hypot(dx, dy, dz, da);
             dist += d;
             const f = m.rapid ? rapidF : m.f || 1000;
-            time += d / f;
+            time += !m.rapid && m.minutes ? m.minutes : d / f;
             if (!m.rapid) {
                 cut += d;
             }
         }
-        prev = { x: m.x ?? px, z: m.z ?? pz, a: m.a ?? pa };
+        prev = { x: m.x ?? px, y: m.y ?? py, z: m.z ?? pz, a: m.a ?? pa };
     }
     return { moves: moves.length, cutLen: cut, totalLen: dist, minutes: time };
 }

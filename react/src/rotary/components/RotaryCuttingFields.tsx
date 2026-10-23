@@ -1,3 +1,4 @@
+import { defaultMeshSettings } from '../engine/meshToolpath';
 /** Share the tool rack and cutting recipe UI with the main toolpath form. */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { ToolSelectionFields } from '../../toolpaths/ToolSelectionFields';
@@ -84,6 +85,16 @@ export function RotaryCuttingFields({
             dia: slot.cuttingDiameterMm ?? tool.dia,
             manualCuttingParams: false,
         }));
+        if (R.mode === 'stl')
+            R.setOpsBase((ops) => ({
+                ...ops,
+                mesh: {
+                    ...(ops.mesh ?? defaultMeshSettings),
+                    fluteLength: slot.cuttingLengthMm ?? 0,
+                    shankDiameter: 0,
+                    stickout: 0,
+                },
+            }));
         setSlots(loadSlots(window.localStorage));
     };
     return (

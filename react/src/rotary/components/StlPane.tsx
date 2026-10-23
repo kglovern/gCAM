@@ -2,23 +2,24 @@
  * Purpose: Rotary STL tab pane — import a Z-up mesh as the rotary surface
  * and show its stats. The 3D view shows the mesh triangles directly.
  */
-import { useRef, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import type { StlInfo } from '../useRotaryState';
 
 interface StlPaneProps {
     stlName: string | null;
     stlInfo: StlInfo | null;
     compR: number;
-    onImportStl: (file: File) => void;
+    onImportStl: (file: File, axis: 'x' | 'y' | 'z', center: boolean) => void;
 }
 
 export function StlPane({
     stlName,
     stlInfo,
-    compR,
     onImportStl,
 }: StlPaneProps): ReactElement {
     const fileRef = useRef<HTMLInputElement>(null);
+    const [axis, setAxis] = useState<'x' | 'y' | 'z'>('z');
+    const [center, setCenter] = useState(true);
     return (
         <div className="p-3">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -27,6 +28,29 @@ export function StlPane({
                     Imported 3D model
                 </small>
             </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                <label>
+                    Source axis along chuck{' '}
+                    <select
+                        aria-label="STL longitudinal axis"
+                        value={axis}
+                        onChange={(e) => setAxis(e.target.value as typeof axis)}
+                        className="ml-2 rounded border bg-transparent p-2"
+                    >
+                        <option value="x">X</option>
+                        <option value="y">Y</option>
+                        <option value="z">Z</option>
+                    </select>
+                </label>
+                <label className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={center}
+                        onChange={(e) => setCenter(e.target.checked)}
+                    />
+                    Centre cross section on import
+                </label>
+            </div>
             <div className="mt-2 flex items-center gap-2">
                 <button
                     type="button"
@@ -44,7 +68,7 @@ export function StlPane({
                     onChange={(event) => {
                         const file = event.currentTarget.files?.[0];
                         if (file) {
-                            onImportStl(file);
+                            onImportStl(file, axis, center);
                         }
                         event.currentTarget.value = '';
                     }}
@@ -77,14 +101,16 @@ export function StlPane({
                         Toolpath from
                     </dt>
                     <dd>
-                        silhouette envelope, tooltip comp R{compR.toFixed(2)}
+                        original STL triangles with a flat/ball cutter envelope
                     </dd>
                 </dl>
             )}
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Machining follows the model's radial silhouette; the preview
-                shows the original mesh. Choose Draw a profile to edit the
-                fitted outline as a profile job. STL coordinates are read in mm.
+                STL toolpaths use the original triangles. Configure independent
+                XYZA axes and measured tool geometry in the sidebar. Choose the
+                source longitudinal axis before import; units are millimetres.
+                Hidden undercuts and attachment end faces may require another
+                setup.
             </p>
         </div>
     );

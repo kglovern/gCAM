@@ -1,3 +1,4 @@
+import { MeshSettingsFields } from './MeshSettingsFields';
 import { StockFields } from './fields/StockFields';
 import { formatLength } from '../../lib/units';
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -160,8 +161,9 @@ export function RotaryToolpathSidebar({
                         machineProfileId={machineProfileId}
                     >
                         <RotaryToolpathsPane rotary={R} units={units} />
+                        <MeshSettingsFields rotary={R} units={units} />
                         <ToolpathSubmitControls
-                            busy={false}
+                            busy={R.planning}
                             hasActiveGeometry={
                                 configured &&
                                 !draftError &&

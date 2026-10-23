@@ -49,8 +49,58 @@ only for current settings after regeneration completes with no blocking checks.
 ## Modes
 
 - **Conversational**: drawn envelope IS the part, tooltip cuts at Z = r.
-- **STL**: mesh IS the surface; ballnose tooltip comp (exact on flats,
-  tangent on slopes). Editing any point drops back to Conversational.
+- **STL**: original mesh triangles are used. Indexed XYZ+A roughing and finishing
+  and simultaneous XYZA finishing are separate strategies. Editing a profile
+  point switches explicitly back to profile turning.
+
+## Independent XYZA mesh setup
+
+Select the source STL longitudinal axis and cross-section centring before import.
+Units are millimetres. Source triangles are retained; the fitted silhouette is
+only available for deliberate profile editing, never for STL cutting.
+
+Pick a flat tool for indexed roughing, or a flat/ball tool for finishing. Enter
+mesh cell size, stepover, A spacing, finish tolerance, measured flute length,
+shank diameter, stickout, holder diameter and fixture clearances. Confirm that
+Y and A are independent axes (Sienci 4th Axis Mode, not Y-to-A substitution).
+Choosing a different cutter resets shank/stickout measurements; the shared tool
+library supplies its cutting length where available.
+
+The planner reuses the XYZ triangle-cell/cutter-contact core and clearing path
+builder. Continuous finishing bounds each local angular sweep with triangle
+convex hulls plus rotation sagitta. It does not wrap a turning silhouette around
+the stock. Machine Y is transverse and Z is up; the preview transforms all four
+axes back into material coordinates and displays cutting segments only.
+
+A worker debounces requests, terminates obsolete work and rejects stale results.
+Mixed rotary/linear feed blocks use G93 with a conservative swept-distance time
+bound and the configured rotary rate limit; G94 is restored afterwards. Mesh
+programs do not reset X to the chuck at the end of an operation.
+
+Known fixture overlap, insufficient flute clearance, open/nonmanifold or malformed
+meshes, unseen faces, excessive sampled finish residual and resource overruns
+block output. A missing mesh after project restore stays in STL mode and blocks
+machining until reimported. Undo retains up to four recently imported meshes
+in session; evicted meshes require reimport. No silent turning-envelope fallback
+is allowed.
+
+Limits: 100,000 triangles / 20 MB STL; 4 million planning samples; 500,000 moves;
+20 million residual comparisons; 90-second worker deadline. Increase cell size,
+stepover or split/simplify the model when these limits are reached. Taper/V-bit,
+mesh facing/groove/part-off and pommel exclusions are not supported. Positive
+stock capacity and full-radius flute clearance are required. Attachment end
+faces are excluded; occluded/undercut surfaces may require another setup.
+
+Visibility and residual tests are sampled diagnostics, not a proof of complete
+removal on arbitrary geometry. The current Simulation view is a transformed
+path preview, not a volumetric rotary stock-removal simulator. These paths have
+not been tested on a live machine. Verify physical zeroing, actual tool/fixture
+geometry and the program before machining.
+
+Run `node scripts/generate-rotary-fixtures.mjs` to reproduce the asymmetric flat
+box and faceted boss/pocket STLs in `cypress/fixtures/`. Geometry, path, post,
+worker lifecycle and browser tests cover both mesh strategies.
+
 
 ## Engine (`engine/`, pure TS, tested)
 

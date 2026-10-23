@@ -17,33 +17,51 @@ export interface GcodeContext {
 
 export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
     const { stock, tool, name, mode, compR } = ctx;
+    const xyza = moves.some((m) => m.y !== undefined);
+    if (
+        xyza &&
+        moves.some(
+            (m) =>
+                [m.x, m.y, m.z, m.a].some(
+                    (v) => v !== undefined && !Number.isFinite(v),
+                ) ||
+                (!m.rapid &&
+                    (!(m.minutes! > 0) || !Number.isFinite(m.minutes))),
+        )
+    )
+        throw new Error(
+            'Invalid XYZA block coordinates or inverse-time duration.',
+        );
     const stockR = stock.diameter / 2;
     const zSafe = stockR + 5;
     const zPark = stockR + 20;
     const L: string[] = [];
-    L.push(`(VortexCAM 1.0 - ${name || 'untitled'})`);
+    const commentName = (name || 'untitled').replace(/[()\r\n]/g, ' ');
+    L.push(`(gCAM rotary - ${commentName})`);
     L.push(
-        `(Mode ${mode === 'stl' ? 'STL rotary (surface + tooltip comp)' : 'Profile conversational (envelope, no comp)'})`,
+        `(Mode ${mode === 'stl' ? 'STL mesh XYZA (tip coordinates)' : 'Profile conversational (envelope, no comp)'})`,
     );
-    if (mode === 'stl') {
+    if (mode === 'stl')
         L.push(
-            `(Ballnose tooltip comp R${compR.toFixed(3)}: tip exact on flats, tangent on slopes)`,
+            '(Mesh cutter envelope; independent Y and A axes required. Use 4th Axis Mode, not Y-to-A substitution.)',
         );
-    }
     L.push(`(Stock L${stock.length} D${stock.diameter} grip${stock.grip})`);
     L.push(
         `(Tool ${tool.type} D${tool.dia} S${tool.spindle} F${tool.feed}/${tool.plunge})`,
     );
     L.push(
-        '(Z-zero = cylinder axis, X-zero = chuck side. Enable Rotary mode in gSender.)',
+        xyza
+            ? '(Z/Y zero = cylinder axis, X-zero = chuck side. Independent XYZA axes.)'
+            : '(Z-zero = cylinder axis, X-zero = chuck side. Enable Rotary mode in gSender.)',
     );
     L.push(`T${tool.slotNum ?? 1}`);
     L.push('G17');
     L.push('G21');
     L.push('G90');
+    if (xyza) L.push('G94');
     L.push(`G0Z${f3(zPark)}`);
     if (ctx.toolChange) L.push(`(Change to T${tool.slotNum ?? 1})`, 'M6');
-    L.push('G0X0.000A0.000');
+    if (!xyza) L.push('G0X0.000A0.000');
     L.push(`S${tool.spindle}M3`);
     let lastOp = '';
     let aMin = Infinity;
@@ -54,10 +72,12 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
             lastOp = m.op;
         }
         // Any axis may be omitted (modal) — never synthesize one.
+        if (xyza && !m.rapid) L.push('G93');
         let w = m.rapid ? 'G0' : 'G1';
         if (m.x !== undefined) {
             w += `X${f3(m.x)}`;
         }
+        if (m.y !== undefined) w += `Y${f3(m.y)}`;
         if (m.a !== undefined) {
             w += `A${f3(m.a)}`;
             if (m.a < aMin) {
@@ -70,8 +90,16 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
         if (m.z !== undefined) {
             w += `Z${f3(m.z)}`;
         }
-        if (!m.rapid && m.f) {
-            w += `F${m.f.toFixed(1)}`;
+        if (!m.rapid) {
+            if (xyza) {
+                // Round down so formatting cannot shorten the requested block time.
+                const inverse = Math.floor((1 / m.minutes!) * 1e6) / 1e6;
+                if (!(inverse > 0))
+                    throw new Error(
+                        'XYZA block duration exceeds supported inverse-time precision.',
+                    );
+                w += `F${inverse.toFixed(6)}`;
+            } else if (m.f) w += `F${m.f.toFixed(1)}`;
         }
         L.push(w);
     }
@@ -80,10 +108,11 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
             `(A range ${aMin.toFixed(1)}..${aMax.toFixed(1)} deg — oscillates, never winds up)`,
         );
     }
+    if (xyza) L.push('G94');
     L.push(`G0Z${f3(zSafe)}`);
     L.push('M5');
     L.push(`G0Z${f3(zPark)}`);
-    L.push('G0X0.000A0.000');
+    if (!xyza) L.push('G0X0.000A0.000');
     L.push('M2');
     return `${L.join('\r\n')}\r\n`;
 }

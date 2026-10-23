@@ -17,11 +17,13 @@ export function OpsFields({
     operation,
     ops,
     onPatch,
+    meshMode = false,
 }: {
     units: UnitSystem;
     operation: RotaryOperation;
     ops: RotaryOps;
     compR: number;
+    meshMode?: boolean;
     onPatch(patch: OpsPatch): void;
 }): ReactElement {
     const unit = lengthUnit(units);
@@ -44,7 +46,7 @@ export function OpsFields({
                     </label>
                 </>
             )}
-            {operation === 'finish' && (
+            {operation === 'finish' && !meshMode && (
                 <>
                     <label className={label}>
                         Finish direction

@@ -19,6 +19,7 @@ export function RotaryToolpathsPane({
                     units={units}
                     operation={R.operation}
                     ops={{ ...R.opsBase, pommels: R.pommels, compR: R.compR }}
+                    meshMode={R.mode === 'stl'}
                     compR={R.compR}
                     onPatch={(patch) =>
                         R.setOpsBase((ops) => ({
@@ -30,36 +31,41 @@ export function RotaryToolpathsPane({
                     }
                 />
             </RotarySettingsBoundary>
-            {(R.operation === 'rough' || R.operation === 'finish') && (
-                <PommelFields
-                    units={units}
-                    pommels={R.pommels}
-                    onAdd={(x0, x1, w) => {
-                        const start = Math.max(
-                            0,
-                            Math.min(x0, x1, R.stock.length),
-                        );
-                        const end = Math.max(
-                            0,
-                            Math.min(Math.max(x0, x1), R.stock.length),
-                        );
-                        if (!Number.isFinite(w) || w <= 0 || end - start < 2)
-                            return;
-                        R.pushHistory();
-                        R.setPommels((list) =>
-                            [...list, { x0: start, x1: end, w }].sort(
-                                (a, b) => a.x0 - b.x0,
-                            ),
-                        );
-                    }}
-                    onRemove={(index) => {
-                        R.pushHistory();
-                        R.setPommels((list) =>
-                            list.filter((_, i) => i !== index),
-                        );
-                    }}
-                />
-            )}
+            {R.mode === 'profile' &&
+                (R.operation === 'rough' || R.operation === 'finish') && (
+                    <PommelFields
+                        units={units}
+                        pommels={R.pommels}
+                        onAdd={(x0, x1, w) => {
+                            const start = Math.max(
+                                0,
+                                Math.min(x0, x1, R.stock.length),
+                            );
+                            const end = Math.max(
+                                0,
+                                Math.min(Math.max(x0, x1), R.stock.length),
+                            );
+                            if (
+                                !Number.isFinite(w) ||
+                                w <= 0 ||
+                                end - start < 2
+                            )
+                                return;
+                            R.pushHistory();
+                            R.setPommels((list) =>
+                                [...list, { x0: start, x1: end, w }].sort(
+                                    (a, b) => a.x0 - b.x0,
+                                ),
+                            );
+                        }}
+                        onRemove={(index) => {
+                            R.pushHistory();
+                            R.setPommels((list) =>
+                                list.filter((_, i) => i !== index),
+                            );
+                        }}
+                    />
+                )}
 
             <ChecksList
                 flags={

@@ -7,7 +7,11 @@ import { fitHandles } from './profileModel';
 import type { ProfilePoint, ProfileSample } from './types';
 
 export function parseSTL(buf: ArrayBuffer | Uint8Array): Float32Array {
-    const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+    const bytes = ArrayBuffer.isView(buf)
+        ? new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
+        : new Uint8Array(buf);
+    if (bytes.length < 15 || bytes.length > 20_000_000)
+        throw new Error('STL file is empty or exceeds 20 MB.');
     const head = String.fromCharCode(...bytes.slice(0, 200));
     if (head.startsWith('solid') && head.includes('facet')) {
         return parseASCII(bytes);
@@ -33,6 +37,10 @@ function parseASCII(bytes: Uint8Array): Float32Array {
     let m: RegExpExecArray | null = re.exec(txt);
     while (m) {
         v.push(+m[1], +m[2], +m[3]);
+        if (v.length > 900_000)
+            throw new Error(
+                'STL exceeds the 100,000-triangle limit. Simplify the mesh.',
+            );
         m = re.exec(txt);
     }
     return new Float32Array(v);
@@ -40,7 +48,10 @@ function parseASCII(bytes: Uint8Array): Float32Array {
 
 function parseBinary(bytes: Uint8Array): Float32Array {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (bytes.length < 84) throw new Error('Incomplete binary STL header.');
     const n = dv.getUint32(80, true);
+    if (!n || n > 100_000 || 84 + n * 50 > bytes.length)
+        throw new Error('Invalid or oversized binary STL triangle count.');
     const v = new Float32Array(n * 9);
     let o = 84;
     for (let i = 0; i < n; i++) {
@@ -211,4 +222,43 @@ export function bakeForViewer(
         out[i + 2] = verts[i + 1];
     }
     return { positions: out, triangles: out.length / 9 };
+}
+
+/** Orient a source STL onto longitudinal Z and optionally centre its cross section. */
+export function orientRotaryImport(
+    vertices: Float32Array,
+    axis: 'x' | 'y' | 'z',
+    center: boolean,
+): Float32Array {
+    const out = new Float32Array(vertices.length);
+    for (let i = 0; i < vertices.length; i += 3) {
+        const p = [vertices[i], vertices[i + 1], vertices[i + 2]];
+        const oriented =
+            axis === 'x'
+                ? [p[1], p[2], p[0]]
+                : axis === 'y'
+                  ? [p[2], p[0], p[1]]
+                  : p;
+        out.set(oriented, i);
+    }
+    if (center) {
+        const { mn, mx } = meshBounds(out),
+            cx = (mn[0] + mx[0]) / 2,
+            cy = (mn[1] + mx[1]) / 2;
+        for (let i = 0; i < out.length; i += 3) {
+            out[i] -= cx;
+            out[i + 1] -= cy;
+        }
+    }
+    return out;
+}
+export function rotaryMeshKey(vertices: Float32Array, name: string): string {
+    let hash = 2166136261;
+    for (const byte of new Uint8Array(
+        vertices.buffer,
+        vertices.byteOffset,
+        vertices.byteLength,
+    ))
+        hash = Math.imul(hash ^ byte, 16777619);
+    return `${name}:${vertices.length / 9}:${hash >>> 0}`;
 }

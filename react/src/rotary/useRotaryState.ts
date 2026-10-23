@@ -1,3 +1,5 @@
+import { validateRotaryMesh } from './engine/meshCoordinates';
+import { useMeshPlan } from './useMeshPlan';
 import { toGcode } from './engine/gcode';
 /**
  * Purpose: Rotary workflow state — conversational profile xor STL mesh,
@@ -49,6 +51,8 @@ import { estimate } from './engine/toolpath';
 import type { ToolpathEstimate } from './engine/toolpath';
 import {
     bakeForViewer,
+    orientRotaryImport,
+    rotaryMeshKey,
     meshBounds,
     parseSTL,
     silhouette,
@@ -129,6 +133,14 @@ export function useRotaryState(): RotaryStateApi {
     const [opsBase, setOpsBase] = useState<OpsBase>(DEFAULT_OPS);
     const [stlMesh, setStlMesh] = useState<StlMesh | null>(null);
     const [stlInfo, setStlInfo] = useState<StlInfo | null>(null);
+    const meshCache = useRef(
+        new Map<string, { mesh: StlMesh; info: StlInfo }>(),
+    );
+    const restoreMesh = useCallback((key: string | undefined) => {
+        const cached = key ? meshCache.current.get(key) : undefined;
+        setStlMesh(cached?.mesh ?? null);
+        setStlInfo(cached?.info ?? null);
+    }, []);
     const [showStock, setShowStock] = useState(true);
     const [showPath, setShowPath] = useState(true);
     const [gcode, setGcode] = useState('');
@@ -184,16 +196,13 @@ export function useRotaryState(): RotaryStateApi {
             setStock(s.stock);
             setTool(s.tool);
             setOpsBase(s.opsBase);
-            setModeState(
-                s.mode === 'stl' && stlMesh?.key === s.stlKey
-                    ? 'stl'
-                    : 'profile',
-            );
+            setModeState(s.mode);
+            restoreMesh(s.stlKey);
             setName(s.name);
             setPommels(s.pommels);
             setSel(-1);
         },
-        [stlMesh],
+        [restoreMesh],
     );
 
     const undo = useCallback(() => {
@@ -334,7 +343,7 @@ export function useRotaryState(): RotaryStateApi {
 
     const samples = useMemo(() => sampleProfile(points, 16), [points]);
     const compR = compRFor(mode, tool);
-    const draft = useMemo(
+    const envelopeDraft = useMemo(
         () =>
             planRotaryEntry(
                 { id: 'draft', operation, tool, ops: opsBase },
@@ -345,10 +354,56 @@ export function useRotaryState(): RotaryStateApi {
             ),
         [operation, tool, opsBase, samples, stock, mode, pommels],
     );
-    const job = useMemo(
+    const envelopeJob = useMemo(
         () => planRotaryJob(toolpaths, samples, stock, mode, pommels),
         [toolpaths, samples, stock, mode, pommels],
     );
+    const meshRequest = useMemo(
+        () =>
+            mode === 'stl'
+                ? {
+                      entries: toolpaths,
+                      draft: { id: 'draft', operation, tool, ops: opsBase },
+                      samples,
+                      stock,
+                      pommels,
+                      mesh: stlMesh,
+                  }
+                : null,
+        [
+            mode,
+            toolpaths,
+            operation,
+            tool,
+            opsBase,
+            samples,
+            stock,
+            pommels,
+            stlMesh,
+        ],
+    );
+    const meshPlan = useMeshPlan(meshRequest);
+    const planning = mode === 'stl' && !meshPlan;
+    const pendingFlags: RotaryCheck[] = [
+        { level: 'e', msg: meshPlan?.error || 'Planning mesh toolpaths...' },
+    ];
+    const job =
+        mode === 'stl'
+            ? (meshPlan?.result?.job ?? {
+                  paths: [],
+                  moves: [],
+                  flags: pendingFlags,
+              })
+            : envelopeJob;
+    const draft =
+        mode === 'stl'
+            ? (meshPlan?.result?.draft ?? {
+                  entry: { id: 'draft', operation, tool, ops: opsBase },
+                  compR: 0,
+                  moves: [],
+                  flags: pendingFlags,
+              })
+            : envelopeDraft;
     const { moves, flags } = job;
     const programs = useMemo(
         () =>
@@ -448,12 +503,17 @@ export function useRotaryState(): RotaryStateApi {
     );
 
     const importStlFile = useCallback(
-        async (file: File) => {
-            pushHistory();
+        async (file: File, axis: 'x' | 'y' | 'z' = 'z', center = true) => {
             const buf = await file.arrayBuffer();
-            const verts = parseSTL(buf);
+            const verts = orientRotaryImport(parseSTL(buf), axis, center);
+            validateRotaryMesh({
+                name: file.name,
+                key: 'import',
+                ...bakeForViewer(verts, 0),
+            });
+            pushHistory();
             const sil = silhouette(verts, 140, 3);
-            const shift = stock.grip + 1;
+            const shift = stock.grip + 30;
             const fitted = fitPoints(sil, 30).map((p) => ({
                 ...p,
                 x: p.x + shift,
@@ -465,25 +525,35 @@ export function useRotaryState(): RotaryStateApi {
             setStock((s) => ({
                 ...s,
                 diameter: Math.min(101.6, Math.ceil(maxR * 2 + 4)),
-                length: Math.ceil(shift + workLen + 6),
+                length: Math.ceil(shift + workLen + 36),
             }));
             const bb = meshBounds(verts);
             const triCount = verts.length / 9;
             const meshName = file.name.replace(/\.stl$/i, '');
             const baked = bakeForViewer(verts, shift);
-            setStlMesh({
+            const nextMesh: StlMesh = {
                 name: meshName,
-                key: `${meshName}:${triCount}`,
+                key: rotaryMeshKey(baked.positions, meshName),
                 ...baked,
-            });
-            setStlInfo({
+            };
+            const nextInfo: StlInfo = {
                 tris: triCount,
                 sx: (bb.mx[0] - bb.mn[0]).toFixed(1),
                 sy: (bb.mx[1] - bb.mn[1]).toFixed(1),
                 sz: (bb.mx[2] - bb.mn[2]).toFixed(1),
                 len: workLen.toFixed(1),
                 maxDia: (maxR * 2).toFixed(1),
+            };
+            meshCache.current.set(nextMesh.key, {
+                mesh: nextMesh,
+                info: nextInfo,
             });
+            while (meshCache.current.size > 4)
+                meshCache.current.delete(
+                    meshCache.current.keys().next().value!,
+                );
+            setStlMesh(nextMesh);
+            setStlInfo(nextInfo);
             setPoints(fitted);
             setName(meshName);
             setModeState('stl');
@@ -543,15 +613,12 @@ export function useRotaryState(): RotaryStateApi {
             }));
             setPommels(slice.pommels.map((p) => ({ ...p })));
             setName(slice.name);
-            setModeState(
-                slice.mode === 'stl' && stlMesh?.key === slice.stlKey
-                    ? 'stl'
-                    : 'profile',
-            );
+            setModeState(slice.mode);
+            restoreMesh(slice.stlKey);
             setSel(-1);
             return true;
         },
-        [pushHistory, stock, tool, stlMesh, opsBase],
+        [pushHistory, stock, tool, restoreMesh, opsBase],
     );
 
     return {
@@ -568,6 +635,7 @@ export function useRotaryState(): RotaryStateApi {
         editToolpath,
         removeToolpath,
         moveToolpath,
+        planning,
         draftMoves: draft.moves,
         draftFlags: draft.flags,
         name,
@@ -631,6 +699,7 @@ export function useRotaryState(): RotaryStateApi {
 }
 
 export interface RotaryStateApi {
+    planning: boolean;
     toolpaths: RotaryToolpathEntry[];
     programs: { id: string; label: string; gcode: string }[];
     operation: RotaryOperation;
@@ -685,7 +754,11 @@ export interface RotaryStateApi {
     nudgePoint: (dx: number, dr: number) => void;
     setPointValues: (which: 'x' | 'r' | 'd', value: number) => void;
     loadTemplate: (templateName: string) => void;
-    importStlFile: (file: File) => Promise<void>;
+    importStlFile: (
+        file: File,
+        axis?: 'x' | 'y' | 'z',
+        center?: boolean,
+    ) => Promise<void>;
     snapshotProject: () => RotaryProjectSlice;
     restoreProject: (slice: unknown) => boolean;
     generate: () => void;
