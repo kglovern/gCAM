@@ -5,6 +5,9 @@ import { useEffect } from 'react';
 
 interface KeyboardShortcutOptions {
     hasSelection: boolean;
+    canNudge: boolean;
+    nudgeStep: number;
+    nudgeSelected(dx: number, dy: number): void;
     setActiveTool(tool: 'select'): void;
     clearTransform(): void;
     clearGuidePlacement(): void;
@@ -16,8 +19,9 @@ interface KeyboardShortcutOptions {
 }
 
 function isEditableTarget(target: EventTarget | null) {
-    const tag = (target as HTMLElement | null)?.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    return target instanceof Element && !!target.closest(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], [role="menu"]',
+    );
 }
 
 /** Global canvas commands. Inputs retain their native editing shortcuts. */
@@ -26,6 +30,19 @@ export function useAppKeyboardShortcuts(options: KeyboardShortcutOptions) {
         const onKeyDown = (event: KeyboardEvent) => {
             if (isEditableTarget(event.target)) return;
             const key = event.key.toLowerCase();
+            if (
+                options.hasSelection && options.canNudge &&
+                !event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey &&
+                ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+            ) {
+                event.preventDefault();
+                const step = options.nudgeStep * (event.shiftKey ? 10 : 1);
+                options.nudgeSelected(
+                    event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
+                    event.key === 'ArrowDown' ? -step : event.key === 'ArrowUp' ? step : 0,
+                );
+                return;
+            }
             if (event.key === 'Escape') {
                 options.setActiveTool('select');
                 options.clearTransform();
