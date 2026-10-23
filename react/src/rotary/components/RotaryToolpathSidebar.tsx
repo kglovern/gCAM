@@ -1,3 +1,8 @@
+import { MeshSettingsFields } from './MeshSettingsFields';
+import {
+    defaultMeshSettings,
+    meshSettingsForTool,
+} from '../engine/meshToolpath';
 import { StockFields } from './fields/StockFields';
 import { formatLength } from '../../lib/units';
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -21,7 +26,7 @@ const images = Object.fromEntries(
 const descriptions: Record<RotaryOperation, string> = {
     face: 'Face the end of the stock.',
     rough: 'Remove bulk material, leaving an allowance for finishing.',
-    finish: 'Cut the final profile or STL surface.',
+    finish: 'Smooth the final shape after roughing the blank.',
     groove: 'Cut a groove at the specified position.',
     part: 'Separate the part from the remaining stock.',
 };
@@ -31,6 +36,7 @@ export function RotaryToolpathSidebar({
     material,
     machineProfileId,
     onMaterialChange,
+    onPreview,
 }: ComponentProps<typeof RotaryPanel>) {
     const configured = loadSlots(window.localStorage).some(
         (slot) => slot.slot === R.tool.slotNum && isConfigured(slot),
@@ -62,6 +68,16 @@ export function RotaryToolpathSidebar({
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                             Job toolpaths ({R.toolpaths.length})
                         </h3>
+                        {R.toolpaths.length > 0 && onPreview && (
+                            <button
+                                type="button"
+                                aria-label="Preview toolpaths"
+                                onClick={onPreview}
+                                className="rounded border border-slate-300 px-2 py-0.5 text-xs dark:border-robin-900"
+                            >
+                                Preview
+                            </button>
+                        )}
                         {!R.toolpathEditorOpen && (
                             <button
                                 type="button"
@@ -139,7 +155,13 @@ export function RotaryToolpathSidebar({
                     ))}
                 </section>
             )}
-            {R.toolpathEditorOpen && (
+            {R.mode === 'stl' && !R.stlMesh && (
+                <p className="rounded-lg border border-slate-200 p-3 text-sm dark:border-robin-900">
+                    Import your STL on the left to start. Then choose an
+                    operation and the cutter installed in your spindle.
+                </p>
+            )}
+            {R.toolpathEditorOpen && (R.mode !== 'stl' || R.stlMesh) && (
                 <>
                     <section className="space-y-2">
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -147,8 +169,27 @@ export function RotaryToolpathSidebar({
                         </h3>
                         <ToolpathOperationPicker
                             operation={R.operation}
-                            operations={ROTARY_OPERATIONS}
-                            onChange={R.setOperation}
+                            operations={
+                                R.mode === 'stl'
+                                    ? ROTARY_OPERATIONS.filter(
+                                          (item) =>
+                                              item.value === 'rough' ||
+                                              item.value === 'finish',
+                                      )
+                                    : ROTARY_OPERATIONS
+                            }
+                            onChange={(operation) => {
+                                R.setOperation(operation);
+                                if (R.mode === 'stl')
+                                    R.setOpsBase((ops) => ({
+                                        ...ops,
+                                        mesh: meshSettingsForTool(
+                                            ops.mesh ?? defaultMeshSettings,
+                                            R.tool.dia,
+                                            operation === 'rough',
+                                        ),
+                                    }));
+                            }}
                             images={images}
                             descriptions={descriptions}
                         />
@@ -159,9 +200,13 @@ export function RotaryToolpathSidebar({
                         material={material}
                         machineProfileId={machineProfileId}
                     >
-                        <RotaryToolpathsPane rotary={R} units={units} />
+                        {configured && (
+                            <RotaryToolpathsPane rotary={R} units={units} />
+                        )}
+                        <MeshSettingsFields rotary={R} units={units} />
                         <ToolpathSubmitControls
-                            busy={false}
+                            busy={R.planning}
+                            progress={R.planningProgress}
                             hasActiveGeometry={
                                 configured &&
                                 !draftError &&

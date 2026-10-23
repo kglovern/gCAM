@@ -10,6 +10,20 @@ const levelClass: Record<RotaryCheck['level'], string> = {
     o: 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900',
 };
 
+function checkHelp(message: string): string | null {
+    if (/faces are occluded or unresolved/.test(message))
+        return 'This pass machines accessible surfaces. Some areas may retain material; a smaller cutter or another setup may be needed.';
+    if (
+        /move limit|sample limit|million.sample|exceeded 90 seconds|resource limit/i.test(
+            message,
+        )
+    )
+        return 'This toolpath is too large to calculate with the current setup. Try a larger cutter, a smaller model or a simpler machining setup.';
+    if (/residual|unresolved.*surface|unfinished/i.test(message))
+        return 'The selected cutter and setup cannot finish every surface to the requested quality. Review the cutter size and model orientation.';
+    return null;
+}
+
 export function ChecksList({
     flags,
     onGenerate,
@@ -22,14 +36,50 @@ export function ChecksList({
             <ul className="mt-2 space-y-1 text-[13px]">
                 {flags
                     .filter((f) => f.level !== 'o')
-                    .map((f, i) => (
-                        <li
-                            key={i}
-                            className={`rounded-md border px-2 py-1 ${levelClass[f.level]}`}
-                        >
-                            {f.msg}
-                        </li>
-                    ))}
+                    .map((f, i) => {
+                        const pending = f.msg.includes(
+                            'Planning mesh toolpaths',
+                        );
+                        const help = checkHelp(f.msg);
+                        return (
+                            <li
+                                key={i}
+                                role={
+                                    pending
+                                        ? 'status'
+                                        : f.level === 'e'
+                                          ? 'alert'
+                                          : undefined
+                                }
+                                className={`rounded-md border px-2 py-2 ${pending ? 'border-slate-200 bg-slate-50 text-slate-600 dark:bg-dark-lighter dark:text-slate-300' : levelClass[f.level]}`}
+                            >
+                                {pending
+                                    ? f.msg.replace(
+                                          'Planning mesh toolpaths',
+                                          'Calculating toolpath',
+                                      )
+                                    : (help ?? f.msg)}
+                                {help && (
+                                    <>
+                                        <a
+                                            className="mt-2 block underline"
+                                            href="#rotary-model-setup"
+                                        >
+                                            Review model setup
+                                        </a>
+                                        <details className="mt-2 text-xs">
+                                            <summary className="cursor-pointer">
+                                                Technical details
+                                            </summary>
+                                            <p className="mt-1 break-words">
+                                                {f.msg}
+                                            </p>
+                                        </details>
+                                    </>
+                                )}
+                            </li>
+                        );
+                    })}
             </ul>
             {onGenerate && (
                 <button

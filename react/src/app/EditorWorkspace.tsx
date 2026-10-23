@@ -118,6 +118,10 @@ export function EditorWorkspace({
                                     onImport={onImport}
                                     onLoadSample={onLoadSample}
                                     loadingSample={loadingSample}
+                                    onRotary={() => {
+                                        rotaryPanelProps.rotary.setMode('stl');
+                                        onTabChange('rotary');
+                                    }}
                                 />
                             )}
                             {inspector && !treeOpen && (

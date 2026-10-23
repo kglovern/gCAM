@@ -7,7 +7,7 @@ function setup(overrides = {}) {
         hasSelection: true, canNudge: true, nudgeStep: 1,
         nudgeSelected: jest.fn(), setActiveTool: jest.fn(), clearTransform: jest.fn(),
         clearGuidePlacement: jest.fn(), fitViewport: jest.fn(), undo: jest.fn(),
-        redo: jest.fn(), deleteSelected: jest.fn(), duplicateSelected: jest.fn(),
+        redo: jest.fn(), deleteSelected: jest.fn<() => void>(), duplicateSelected: jest.fn(),
         ...overrides,
     };
     renderHook(() => useAppKeyboardShortcuts(options));

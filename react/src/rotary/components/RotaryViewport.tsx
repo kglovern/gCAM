@@ -1,3 +1,4 @@
+import { toolInMaterial } from '../engine/meshCoordinates';
 /**
  * Purpose: Rotary 3D viewport — one view whose content follows the mode:
  * conversational revolves the drawn profile, STL shows the mesh triangles.
@@ -265,13 +266,14 @@ export function RotaryViewport({
             depthWrite: false,
         });
         let part: THREE.Mesh;
-        if (mode === 'stl' && stl) {
+        if (mode === 'stl') {
             const g = new THREE.BufferGeometry();
-            g.setAttribute(
-                'position',
-                new THREE.BufferAttribute(stl.positions, 3),
-            );
-            g.computeVertexNormals();
+            if (stl)
+                g.setAttribute(
+                    'position',
+                    new THREE.BufferAttribute(stl.positions, 3),
+                );
+            if (stl) g.computeVertexNormals();
             part = new THREE.Mesh(g, partMat);
         } else {
             part = new THREE.Mesh(revolveGeometry(samples, 96), partMat);
@@ -340,44 +342,59 @@ export function RotaryViewport({
                         );
                 },
             );
-        let pathLine: THREE.Line | null = null;
+        let pathLine: THREE.LineSegments | null = null;
         if (showPath && moves.length) {
-            const res: Array<{ x: number; z: number; a: number }> = [];
+            const res: Array<{
+                x: number;
+                y: number;
+                z: number;
+                a: number;
+                rapid: boolean;
+            }> = [];
             let cx = 0;
+            let cy = 0;
             let cz = 0;
             let ca = 0;
             for (const m of moves) {
                 cx = m.x ?? cx;
+                cy = m.y ?? cy;
                 cz = m.z ?? cz;
                 ca = m.a ?? ca;
-                res.push({ x: cx, z: cz, a: ca });
+                res.push({
+                    x: cx,
+                    y: cy,
+                    z: cz,
+                    a: ca,
+                    rapid: Boolean(m.rapid),
+                });
             }
-            const P = (p: { x: number; z: number; a: number }) =>
-                new THREE.Vector3(
-                    p.x,
-                    p.z * Math.cos((p.a * Math.PI) / 180),
-                    p.z * Math.sin((p.a * Math.PI) / 180),
-                );
-            const pts = [P(res[0])];
+            const P = (p: { x: number; y: number; z: number; a: number }) => {
+                const material = toolInMaterial(p, p.a);
+                return new THREE.Vector3(material.x, material.z, material.y);
+            };
+            const pts: THREE.Vector3[] = [];
             for (let i = 1; i < res.length; i++) {
                 const a = res[i - 1];
                 const b = res[i];
+                if (b.rapid) continue;
+                let previous = P(a);
                 const n = Math.min(
                     72,
                     Math.max(1, Math.ceil(Math.abs(b.a - a.a) / 5)),
                 );
                 for (let k = 1; k <= n; k++) {
                     const t = k / n;
-                    pts.push(
-                        P({
-                            x: a.x + (b.x - a.x) * t,
-                            z: a.z + (b.z - a.z) * t,
-                            a: a.a + (b.a - a.a) * t,
-                        }),
-                    );
+                    const next = P({
+                        x: a.x + (b.x - a.x) * t,
+                        y: a.y + (b.y - a.y) * t,
+                        z: a.z + (b.z - a.z) * t,
+                        a: a.a + (b.a - a.a) * t,
+                    });
+                    pts.push(previous, next);
+                    previous = next;
                 }
             }
-            pathLine = new THREE.Line(
+            pathLine = new THREE.LineSegments(
                 new THREE.BufferGeometry().setFromPoints(pts),
                 new THREE.LineBasicMaterial({ color: 0x4caf7d }),
             );

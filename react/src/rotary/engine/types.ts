@@ -70,7 +70,24 @@ export interface PartOp {
     x: number;
 }
 
+export interface RotaryMeshSettings {
+    strategy: 'around' | 'along' | 'helix' | 'indexed' | 'simultaneous';
+    cellSize: number;
+    tolerance: number;
+    stepover: number;
+    angleStep: number;
+    fluteLength: number;
+    shankDiameter: number;
+    stickout: number;
+    holderDiameter: number;
+    tailClearance: number;
+    clearance: number;
+    rotaryRate: number;
+    independentAxis: boolean;
+}
+
 export interface RotaryOps {
+    mesh?: RotaryMeshSettings;
     face: boolean;
     rough: boolean;
     /** Allowance left for the finish pass, mm. */
@@ -97,6 +114,9 @@ export interface RotaryToolpathEntry {
 export type RotaryMode = 'profile' | 'stl';
 
 export interface ToolpathMove {
+    y?: number;
+    /** Inverse-time block duration in minutes for verified mesh paths. */
+    minutes?: number;
     x?: number;
     z?: number;
     a?: number;
@@ -123,7 +143,7 @@ export interface StlMesh {
 /**
  * Rotary slice of a gCAM project file (.gcam.json). The mesh itself is
  * never serialized — stlKey re-links a mesh already loaded in the session
- * (same rule as undo snapshots); otherwise STL mode falls back to profile.
+ * (same rule as undo snapshots); a missing STL blocks output until reimport.
  */
 export interface RotaryProjectSlice {
     toolpaths?: RotaryToolpathEntry[];
@@ -212,6 +232,32 @@ export function isRotaryToolpathEntry(
         finite(ops.groove.x) &&
         finite(ops.groove.w) &&
         ops.groove.w > 0 &&
-        finite(ops.part.x)
+        finite(ops.part.x) &&
+        (ops.mesh === undefined || isRotaryMeshSettings(ops.mesh))
+    );
+}
+
+export function isRotaryMeshSettings(
+    value: unknown,
+): value is RotaryMeshSettings {
+    if (!isRecord(value)) return false;
+    return (
+        ['around', 'along', 'helix', 'indexed', 'simultaneous'].includes(
+            String(value.strategy),
+        ) &&
+        typeof value.independentAxis === 'boolean' &&
+        [
+            'cellSize',
+            'tolerance',
+            'stepover',
+            'angleStep',
+            'fluteLength',
+            'shankDiameter',
+            'stickout',
+            'holderDiameter',
+            'tailClearance',
+            'clearance',
+            'rotaryRate',
+        ].every((k) => finite(value[k]) && Number(value[k]) >= 0)
     );
 }

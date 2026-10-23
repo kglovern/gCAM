@@ -14,6 +14,7 @@ interface ToolSlotSelectorProps {
     onSelect: (slot: number) => void;
     onOpenLibrary: () => void;
     onSetupTools: () => void;
+    slotIssue?: (slot: ToolSlot) => string | null;
 }
 
 /** The tool-rack chooser is shared form chrome, not operation parameters. */
@@ -25,6 +26,7 @@ export function ToolSlotSelector({
     onSelect,
     onOpenLibrary,
     onSetupTools,
+    slotIssue,
 }: ToolSlotSelectorProps) {
     const hasCompatibleTool = slots.some(isConfigured);
 
@@ -56,10 +58,12 @@ export function ToolSlotSelector({
                             options: slots.map((slot) => ({
                                 id: String(slot.slot),
                                 label: `T${slot.slot} — ${slot.name || 'empty'}`,
+                                disabled: Boolean(slotIssue?.(slot)),
                                 detail:
-                                    slot.cuttingDiameterMm != null
+                                    slotIssue?.(slot) ??
+                                    (slot.cuttingDiameterMm != null
                                         ? `Ø${displayValue(slot.cuttingDiameterMm, units)}${lengthUnit(units)}`
-                                        : 'Not configured',
+                                        : 'Not configured'),
                                 image: slot.image,
                             })),
                         },

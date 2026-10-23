@@ -112,6 +112,14 @@ test('tailstock tweens through intermediate positions even when reduced motion i
     expect(load).toHaveBeenCalledTimes(1);
     expect(view.container.querySelector('canvas')).toBe(canvas);
     expect(renderer.dispose).not.toHaveBeenCalled();
+    view.rerender(<RotaryViewport {...props} mode="stl" stl={null} />);
+    act(() => jest.advanceTimersByTime(500));
+    const scene = renderer.render.mock.calls.at(-1)[0];
+    const part = scene.children.find(
+        (object) =>
+            object.isMesh && object.material.color?.getHex() === 0xd9a066,
+    );
+    expect(part.geometry.getAttribute('position')?.count ?? 0).toBe(0);
     view.unmount();
     expect(renderer.dispose).toHaveBeenCalledTimes(1);
     window.matchMedia = oldMatchMedia;

@@ -37,6 +37,8 @@ describe('Rotary workspace', () => {
                 cy.get('[aria-label="File"]').should('exist');
             });
         cy.contains('summary', 'G-code preview').should('not.exist');
+        cy.get('button[aria-label="Tool library slot"]').click();
+        cy.contains('[role="option"]', 'Test flat').click();
         cy.get('[aria-label="Operations"]')
             .parents('section')
             .should('contain.text', 'Toolpath settings');
@@ -176,7 +178,7 @@ describe('Rotary workspace', () => {
         );
         cy.get('[role="alert"]').should('be.visible');
         footer().should('not.exist');
-        cy.get('[aria-label="Checks"]').should('contain.text', 'Import an STL');
+        cy.contains('Import your STL on the left').should('be.visible');
     });
     it('exports a rotary-only project without requiring a 2D drawing', () => {
         cy.get('[aria-label="Stock length"]').clear().type('100').blur();
@@ -193,6 +195,8 @@ describe('Rotary workspace', () => {
             'cypress/fixtures/relief.stl',
             { force: true },
         );
+        cy.get('[aria-label="Model units"]').select('mm');
+        cy.contains('button', 'Continue to model setup').click();
         cy.get('[aria-label="Rotary shape"]').should('contain.text', 'relief');
         cy.contains('[role="tab"]', /^STL$/).should(
             'have.attr',
@@ -201,7 +205,7 @@ describe('Rotary workspace', () => {
         );
         cy.get('[aria-label="Rotary shape"]').should(
             'contain.text',
-            'Triangles',
+            'maximum diameter',
         );
     });
     it('displays stock and operation fields in the chosen unit system', () => {
@@ -214,6 +218,8 @@ describe('Rotary workspace', () => {
         cy.get('[aria-label="Stock diameter"]')
             .parent()
             .should('contain.text', 'in');
+        cy.get('button[aria-label="Tool library slot"]').click();
+        cy.contains('[role="option"]', 'Test flat').click();
         cy.get('[aria-label="Roughing allowance"]').should(
             'have.value',
             '0.031',
@@ -224,6 +230,8 @@ describe('Rotary workspace', () => {
     });
     it('preserves operation drafts with the full sidebar on a portrait tablet', () => {
         cy.viewport(800, 1280);
+        cy.get('button[aria-label="Tool library slot"]').click();
+        cy.contains('[role="option"]', 'Test flat').click();
         cy.get('[aria-label="Pommel start"]').clear().type('25').blur();
         cy.get('[aria-label="Pommel start"]').should('have.value', '25');
         footer().should('not.exist');

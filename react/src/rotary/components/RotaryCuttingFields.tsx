@@ -1,3 +1,7 @@
+import {
+    defaultMeshSettings,
+    meshSettingsForTool,
+} from '../engine/meshToolpath';
 /** Share the tool rack and cutting recipe UI with the main toolpath form. */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { ToolSelectionFields } from '../../toolpaths/ToolSelectionFields';
@@ -33,6 +37,14 @@ export function RotaryCuttingFields({
         ['flat', 'ball', 'ballnose', 'v-bit'].includes(slot.toolType),
     );
     const activeSlot = compatible.find((slot) => slot.slot === R.tool.slotNum);
+    useEffect(() => {
+        if (!activeSlot) return;
+        const type = mapSlotType(
+            activeSlot.toolType,
+            R.mode === 'stl' ? activeSlot.name : '',
+        );
+        if (type !== R.tool.type) R.setTool((tool) => ({ ...tool, type }));
+    }, [activeSlot, R.mode, R.tool.type, R.setTool]);
     const recommendation = useMemo(() => {
         if (
             !activeSlot ||
@@ -80,10 +92,24 @@ export function RotaryCuttingFields({
         R.setTool((tool) => ({
             ...tool,
             slotNum: slot.slot,
-            type: mapSlotType(slot.toolType),
+            type: mapSlotType(slot.toolType, R.mode === 'stl' ? slot.name : ''),
             dia: slot.cuttingDiameterMm ?? tool.dia,
             manualCuttingParams: false,
         }));
+        if (R.mode === 'stl')
+            R.setOpsBase((ops) => ({
+                ...ops,
+                mesh: {
+                    ...meshSettingsForTool(
+                        ops.mesh ?? defaultMeshSettings,
+                        slot.cuttingDiameterMm ?? R.tool.dia,
+                        R.operation === 'rough',
+                    ),
+                    fluteLength: slot.cuttingLengthMm ?? 0,
+                    shankDiameter: 0,
+                    stickout: 0,
+                },
+            }));
         setSlots(loadSlots(window.localStorage));
     };
     return (
@@ -94,6 +120,30 @@ export function RotaryCuttingFields({
                 </h3>
                 <ToolSelectionFields
                     slots={compatible}
+                    slotIssue={
+                        R.mode === 'stl'
+                            ? (slot) => {
+                                  if (!isConfigured(slot)) return null;
+                                  const type = mapSlotType(
+                                      slot.toolType,
+                                      slot.name,
+                                  );
+                                  if (type === 'taper')
+                                      return 'Tapered cutters are not supported for STL machining.';
+                                  if (
+                                      R.operation === 'rough' &&
+                                      (R.opsBase.mesh?.strategy === 'indexed' ||
+                                          R.opsBase.mesh?.strategy ===
+                                              'simultaneous') &&
+                                      type !== 'flat'
+                                  )
+                                      return 'Roughing needs a flat endmill. Use this ball endmill for finishing.';
+                                  return type === 'flat' || type === 'ball'
+                                      ? null
+                                      : 'Choose a flat or straight ball endmill.';
+                              }
+                            : undefined
+                    }
                     hasAnyConfiguredTool={slots.some(isConfigured)}
                     slotNum={R.tool.slotNum ?? 0}
                     units={units}

@@ -67,6 +67,7 @@ interface AppModalLayerProps {
     surfaceUnitImportChoice: SurfaceUnitImportChoice | null;
     resolveSurfaceModelUnits(units: 'mm' | 'inch'): void;
     cancelSurfaceModelUnits(): void;
+    onImportRotaryModel?(file: File, units: 'mm' | 'inch'): void;
 }
 
 /** Binds document commands to the shared transient-dialog layer. */
@@ -104,6 +105,7 @@ export function AppModalLayer({
     surfaceUnitImportChoice,
     resolveSurfaceModelUnits,
     cancelSurfaceModelUnits,
+    onImportRotaryModel,
 }: AppModalLayerProps) {
     const traceImage = traceSource?.img ?? null;
     return (
@@ -233,6 +235,16 @@ export function AppModalLayer({
                     sizeMm={surfaceUnitImportChoice.sizeMm}
                     onApply={resolveSurfaceModelUnits}
                     onCancel={cancelSurfaceModelUnits}
+                    onRotary={
+                        onImportRotaryModel &&
+                        /\.stl$/i.test(surfaceUnitImportChoice.file.name)
+                            ? (units) =>
+                                  onImportRotaryModel(
+                                      surfaceUnitImportChoice.file,
+                                      units,
+                                  )
+                            : undefined
+                    }
                 />
             )}
         </>

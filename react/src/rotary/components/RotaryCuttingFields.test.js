@@ -102,3 +102,44 @@ test('manual overrides remain in force when material changes', () => {
     view.rerender(<Harness material="foam" />);
     expect(current.tool.feed).toBe(900);
 });
+
+test('selecting a small cutter supplies valid mesh defaults and recognizes tapered cutters', () => {
+    const slots = blankSlots();
+    slots[1] = {
+        ...slots[1],
+        name: 'Small flat',
+        cuttingDiameterMm: 0.5,
+        cuttingLengthMm: 5,
+        flutes: 2,
+    };
+    slots[2] = {
+        ...slots[2],
+        name: 'Tapered Ball Nose',
+        toolType: 'ballnose',
+        cuttingDiameterMm: 0.5,
+        cuttingLengthMm: 15,
+        flutes: 2,
+    };
+    saveSlots(localStorage, slots);
+    render(<Harness />);
+    act(() => current.setMode('stl'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
+    fireEvent.click(screen.getByRole('option', { name: /T2.*Small flat/ }));
+    expect(current.opsBase.mesh.cellSize).toBeLessThanOrEqual(0.125);
+    expect(current.opsBase.mesh.stepover).toBeLessThanOrEqual(0.25);
+    fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
+    expect(
+        screen.getByRole('option', { name: /T3.*Tapered Ball Nose/ }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
+    act(() => current.setMode('profile'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tool library slot' }));
+    fireEvent.click(
+        screen.getByRole('option', { name: /T3.*Tapered Ball Nose/ }),
+    );
+    expect(current.tool.type).toBe('ball');
+    act(() => current.setMode('profile'));
+    expect(current.tool.type).toBe('ball');
+    act(() => current.setMode('stl'));
+    expect(current.tool.type).toBe('taper');
+});

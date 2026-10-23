@@ -17,6 +17,7 @@ export function RotaryPanel({
     machineProfileId,
     onMaterialChange,
     output,
+    onPreview,
 }: {
     rotary: UseRotaryState;
     units: UnitSystem;
@@ -25,6 +26,7 @@ export function RotaryPanel({
     machineProfileId: string;
     onMaterialChange(material: MaterialId): void;
     output: ReturnType<typeof useRotaryExport>;
+    onPreview?(): void;
 }) {
     const [showMachine, setShowMachine] = useState(true);
     return (
@@ -95,6 +97,7 @@ export function RotaryPanel({
                             machineProfileId={machineProfileId}
                             onMaterialChange={onMaterialChange}
                             output={output}
+                            onPreview={onPreview}
                         />
                     </div>
                     {!R.toolpathEditorOpen && (

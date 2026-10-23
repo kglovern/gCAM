@@ -753,6 +753,10 @@ export default function App() {
             units,
             rotary,
             darkMode,
+            onPreview: () => {
+                setSimulationSource('rotary');
+                setSideTab('preview');
+            },
             material: stock.material,
             machineProfileId,
             onMaterialChange: (material) =>
@@ -853,6 +857,30 @@ export default function App() {
                     surfaceUnitImportChoice={surfaceUnitImportChoice}
                     resolveSurfaceModelUnits={resolveSurfaceModelUnits}
                     cancelSurfaceModelUnits={cancelSurfaceModelUnits}
+                    onImportRotaryModel={async (file, modelUnits) => {
+                        cancelSurfaceModelUnits();
+                        try {
+                            await rotary.importStlFile(
+                                file,
+                                'auto',
+                                true,
+                                modelUnits === 'inch' ? 25.4 : 1,
+                            );
+                            setSimulationSource('rotary');
+                            setSideTab('rotary');
+                        } catch (error) {
+                            setStatus(
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Could not import this STL.',
+                            );
+                            showToast(
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Could not import this STL.',
+                            );
+                        }
+                    }}
                 />
             </div>
         </ErrorBoundary>

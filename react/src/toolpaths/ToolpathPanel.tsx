@@ -411,8 +411,13 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     }, [editId]);
 
     useEffect(() => {
-        if (autoCutDepth) setCutDepth(stock.thicknessMm);
-    }, [stock.thicknessMm, autoCutDepth]);
+        if (autoCutDepth)
+            setCutDepth(
+                operation === 'pocket'
+                    ? Math.min(3, stock.thicknessMm / 3)
+                    : stock.thicknessMm,
+            );
+    }, [stock.thicknessMm, autoCutDepth, operation]);
 
     // Only offer operations that fit the selection: bitmap ops need a
     // placed bitmap, vector ops need vector geometry.
@@ -499,7 +504,13 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         surfaceModelSelectedAlone: Boolean(selectedSurfaceBitmap),
     });
     useEffect(() => {
-        if (!visibleOps.some((op) => op.value === operation)) {
+        if (
+            selectedSurfaceBitmap &&
+            !editEntry &&
+            operation === 'profile-outside'
+        ) {
+            setOperation('surface-clear');
+        } else if (!visibleOps.some((op) => op.value === operation)) {
             setOperation(visibleOps[0]?.value ?? 'profile-outside');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1126,6 +1137,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                                 Cut depth ({units === 'imperial' ? 'in' : 'mm'})
                             </span>
                             <UnitInput
+                                aria-label={`Cut depth (${units === 'imperial' ? 'in' : 'mm'})`}
                                 units={units}
                                 stepMm={0.1}
                                 minMm={0.1}
@@ -1136,6 +1148,11 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                                 }}
                                 className="w-full rounded bg-slate-100 dark:bg-dark-lighter border border-slate-300 dark:border-robin-900 px-2 py-1 text-slate-900 dark:text-white"
                             />
+                            <span className="block text-xs text-slate-600 dark:text-slate-300">
+                                {cutDepth >= stock.thicknessMm
+                                    ? 'Cuts through the full material thickness.'
+                                    : 'Depth measured down from the top surface.'}
+                            </span>
                         </label>
                     )}
                 {operation === 'countersink' && (

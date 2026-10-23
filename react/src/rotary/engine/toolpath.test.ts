@@ -1,3 +1,4 @@
+import { defaultFixtureSettings, fixtureXClearance } from './fixtureClearance';
 /** Tests: rotary toolpath motion rules (no gouging, bounded A, keep-out). */
 import { runChecks } from './checks';
 import { sampleProfile, templateProfile } from './profileModel';
@@ -178,4 +179,67 @@ test('checks flag pommel corner fit and groove overlap', () => {
         pommels: [{ x0: 30, x1: 40, w: 20 }],
     });
     expect(gp.some((f) => f.level === 'w' && /Groove/.test(f.msg))).toBe(true);
+});
+
+test.each([0, 270])(
+    'profile operations keep cutters clear of the chuck (raster %i)',
+    (raster) => {
+        for (const diameter of [2, 6.35, 16]) {
+            const cutter = { ...tool, dia: diameter };
+            const minX = stock.grip + diameter / 2 + 5 + 0.5;
+            const ops = {
+                ...base,
+                raster,
+                groove: { on: true, x: 55, w: 20 },
+                part: { on: true, x: 80 },
+            };
+            const moves = planToolpath(queenSamples(), stock, cutter, ops);
+            expect(moves.length).toBeGreaterThan(0);
+            for (const move of moves)
+                if (move.x !== undefined)
+                    expect(move.x).toBeGreaterThanOrEqual(minX - 1e-9);
+        }
+    },
+);
+
+test.each(['groove', 'part', 'face'] as const)(
+    'unsafe %s cuts are blocked at both planning and export checks',
+    (operation) => {
+        const samples =
+            operation === 'face'
+                ? [
+                      { x: 19, r: 10 },
+                      { x: 22, r: 10 },
+                  ]
+                : queenSamples();
+        const ops = {
+            ...base,
+            face: operation === 'face',
+            rough: false,
+            finish: false,
+            groove: { on: operation === 'groove', x: 29, w: 6.35 },
+            part: { on: operation === 'part', x: 23 },
+        };
+        expect(planToolpath(samples, stock, tool, ops)).toEqual([]);
+        expect(
+            runChecks(samples, stock, tool, ops).some(
+                (f) => f.level === 'e' && /chuck clearance/.test(f.msg),
+            ),
+        ).toBe(true);
+    },
+);
+
+test('fixture margin includes configured shank and holder widths', () => {
+    expect(
+        fixtureXClearance(tool, {
+            ...defaultFixtureSettings,
+            shankDiameter: 12,
+        }),
+    ).toBe(11.5);
+    expect(
+        fixtureXClearance(tool, {
+            ...defaultFixtureSettings,
+            holderDiameter: 24,
+        }),
+    ).toBe(17.5);
 });

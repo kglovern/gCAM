@@ -2,6 +2,7 @@
  * Tests: rejects unsafe machine values before G-code emission; keeps V-bit and tab constraints together with emission validation.
  */
 import { validateToolpaths } from './gcode-validation.js';
+import { buildPassDepths } from './operations/contract.js';
 
 const valid = {
     operation: 'profile-outside',
@@ -21,9 +22,18 @@ test('rejects unsafe machine values before G-code emission', () => {
     expect(() => validateToolpaths([{ ...valid, safeZ: 0 }])).toThrow(
         'Z Safe must be greater than zero',
     );
-    expect(() => validateToolpaths([{ ...valid, passDepth: 4 }])).toThrow(
+    expect(() => validateToolpaths([{ ...valid, passDepth: 0 }])).toThrow(
         'Pass depth must be greater than zero',
     );
+});
+
+test('a shallow pocket uses one final-depth pass when the suggested pass limit is larger', () => {
+    expect(() =>
+        validateToolpaths([
+            { ...valid, operation: 'pocket', cutDepth: 2, passDepth: 3 },
+        ]),
+    ).not.toThrow();
+    expect(buildPassDepths(2, 3)).toEqual([-2]);
 });
 
 test('keeps V-bit and tab constraints together with emission validation', () => {

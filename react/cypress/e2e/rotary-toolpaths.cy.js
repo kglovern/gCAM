@@ -31,6 +31,7 @@ describe('Rotary operation toolpaths', () => {
                     );
             },
         );
+        tool('flat');
         cy.get('[aria-label="Roughing allowance"]').should('be.visible');
         cy.get('[aria-label="Finish raster angle"]').should('not.exist');
         cy.contains('button', /^Finishing$/).click();

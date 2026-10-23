@@ -1,20 +1,36 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 export function SurfaceUnitsModal({
     fileName,
     sizeMm,
     onApply,
     onCancel,
+    onRotary,
 }: {
     fileName: string;
     sizeMm: { x: number; y: number; z: number };
     onApply(units: 'mm' | 'inch'): void;
     onCancel(): void;
+    onRotary?(units: 'mm' | 'inch'): void;
 }) {
+    const panelRef = useRef<HTMLDivElement>(null);
+    useDialogFocus(panelRef, true);
     const [units, setUnits] = useState<'mm' | 'inch' | ''>('');
+    const [destination, setDestination] = useState<'flat' | 'rotary' | ''>(
+        onRotary ? '' : 'flat',
+    );
 
     return (
         <div
+            ref={panelRef}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                    event.stopPropagation();
+                    onCancel();
+                }
+            }}
             className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
@@ -25,12 +41,51 @@ export function SurfaceUnitsModal({
                     id="surface-units-title"
                     className="text-lg font-semibold text-slate-900 dark:text-white"
                 >
-                    Check model units
+                    {onRotary ? 'Set up your 3D model' : 'Check model units'}
                 </h2>
+                {onRotary && (
+                    <fieldset className="mt-4 space-y-2">
+                        <legend className="mb-2 text-sm font-medium">
+                            How will you machine it?
+                        </legend>
+                        {(
+                            [
+                                [
+                                    'flat',
+                                    'Flat-bed',
+                                    'Cut from above on the machine bed.',
+                                ],
+                                [
+                                    'rotary',
+                                    'Rotary',
+                                    'Turn the wood in a chuck.',
+                                ],
+                            ] as const
+                        ).map(([value, label, hint]) => (
+                            <label
+                                key={value}
+                                className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm ${destination === value ? 'border-robin-500 bg-robin-50 dark:bg-robin-950' : 'border-slate-300 dark:border-robin-800'}`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="model-destination"
+                                    value={value}
+                                    checked={destination === value}
+                                    onChange={() => setDestination(value)}
+                                />
+                                <span>
+                                    <strong>{label}</strong>
+                                    <span className="block text-slate-600 dark:text-slate-300">
+                                        {hint}
+                                    </span>
+                                </span>
+                            </label>
+                        ))}
+                    </fieldset>
+                )}
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    STL and OBJ files usually do not say whether their
-                    dimensions are millimetres or inches. Choose the units shown
-                    in the model’s download details before importing it.
+                    Choose the model’s original units, then check the size
+                    below.
                 </p>
                 <label className="mt-4 block text-sm text-slate-700 dark:text-slate-200">
                     Model units
@@ -65,15 +120,9 @@ export function SurfaceUnitsModal({
                         {(sizeMm.y * 25.4).toFixed(1)} ×{' '}
                         {(sizeMm.z * 25.4).toFixed(1)} mm
                     </p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Choose the size that matches the intended real part. A
-                        spindle/router machine bed is a useful scale check.
-                    </p>
                 </div>
                 <p className="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                    The wrong choice makes the model 25.4 times too large or too
-                    small. If unsure, check the dimensions in the model’s
-                    download details.
+                    Wrong units change the size by 25.4 times.
                 </p>
                 <p
                     className="mt-2 truncate text-xs text-slate-500 dark:text-slate-400"
@@ -91,8 +140,13 @@ export function SurfaceUnitsModal({
                     </button>
                     <button
                         type="button"
-                        disabled={!units}
-                        onClick={() => units && onApply(units)}
+                        disabled={!units || !destination}
+                        onClick={() =>
+                            units &&
+                            (destination === 'rotary'
+                                ? onRotary?.(units)
+                                : onApply(units))
+                        }
                         className="rounded bg-robin-600 px-3 py-2 text-sm font-medium text-white enabled:hover:bg-robin-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Continue to model setup

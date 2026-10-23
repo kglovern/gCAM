@@ -32,8 +32,8 @@ export function StockFields({
                 Job stock
             </h3>
             <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                Set these dimensions to match the material fixed on your CNC.
-                They apply to every toolpath in this job.
+                Enter your measured round blank size, including the end held in
+                the chuck. These are wood dimensions, not model dimensions.
             </p>
             <RotarySettingsBoundary onBeforeChange={onBeforeChange}>
                 <div className="grid grid-cols-2 gap-2">

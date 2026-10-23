@@ -14,9 +14,7 @@ test('requires a clear STL/OBJ unit choice before continuing', () => {
     );
 
     expect(
-        screen.getByText(
-            /usually do not say whether their dimensions are millimetres or inches/i,
-        ),
+        screen.getByText(/original units, then check the size/i),
     ).toBeInTheDocument();
     expect(
         screen.getByText('Millimetres: 50.0 × 25.0 × 10.0 mm'),
@@ -35,4 +33,30 @@ test('requires a clear STL/OBJ unit choice before continuing', () => {
     );
 
     expect(onApply).toHaveBeenCalledWith('inch');
+});
+
+test('an STL can go directly to rotary with explicit units instead of the flat-bed flow', () => {
+    const flat = jest.fn(),
+        rotary = jest.fn();
+    render(
+        <SurfaceUnitsModal
+            fileName="queen.stl"
+            sizeMm={{ x: 32, y: 32, z: 60 }}
+            onApply={flat}
+            onRotary={rotary}
+            onCancel={() => {}}
+        />,
+    );
+    fireEvent.change(screen.getByLabelText('Model units'), {
+        target: { value: 'mm' },
+    });
+    expect(
+        screen.getByRole('button', { name: 'Continue to model setup' }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole('radio', { name: /Rotary/ }));
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Continue to model setup' }),
+    );
+    expect(rotary).toHaveBeenCalledWith('mm');
+    expect(flat).not.toHaveBeenCalled();
 });

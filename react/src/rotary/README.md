@@ -49,8 +49,75 @@ only for current settings after regeneration completes with no blocking checks.
 ## Modes
 
 - **Conversational**: drawn envelope IS the part, tooltip cuts at Z = r.
-- **STL**: mesh IS the surface; ballnose tooltip comp (exact on flats,
-  tangent on slopes). Editing any point drops back to Conversational.
+- **STL**: original mesh triangles are used. Around stock, Along stock and Helix
+  are centreline XZA rotary patterns; Indexed sides provides XYZ+A. Editing a profile
+  point switches explicitly back to profile turning.
+
+## Independent XYZA mesh setup
+
+Automatic orientation uses the longest side; model details allow a source-axis
+override. Confirm source units before import. Source triangles are retained; the fitted silhouette is
+only available for deliberate profile editing, never for STL cutting.
+
+Pick a straight flat or ball tool for rotary roughing and finishing. Indexed
+roughing currently requires a flat tool.
+Tool selection, operation changes and finish tolerance changes supply mesh cell
+size and stepover automatically. Mesh controls and fixture clearances are under
+Advanced machining settings; normal use does not require editing them.
+Shank and holder diameters are optional (zero means unspecified); supplied
+diameters increase the fixture exclusion distance. Mesh machining assumes
+independent X, Y, Z and A axes.
+Choosing a different cutter resets shank/stickout measurements; the shared tool
+library supplies its cutting length where available.
+
+Normal rotary machining uses original STL triangles and exact face/edge/vertex
+contact for vertical flat and ball cutters, with Y held on the rotary centreline.
+Around stock makes full A turns then steps X; Along stock cuts X then steps A;
+Helix continuously advances X and A and is available for finishing. Roughing
+uses depth layers and a three-dimensional allowance. Around stock is the default.
+For every linear command, midpoint cutter inflation bounds both the translation
+and the rotation of every material point. Both command endpoints are raised to
+clear that envelope, protecting the complete segment rather than just samples.
+The model may extend below the centreline; contact Z is not clamped to zero.
+Overhangs are approached from above; material under them is left in place.
+
+Indexed sides remains a separate XYZ+A option using the shared XYZ triangle-cell
+and clearing core. Old simultaneous ribbon projects are retained as a legacy
+strategy, not presented as the normal rotary path. Machine Y is transverse and
+Z is up; the preview transforms all commanded axes into material coordinates.
+
+A worker debounces requests, terminates obsolete work and rejects stale results.
+Mixed rotary/linear feed blocks use G93 with a conservative swept-distance time
+bound and the configured rotary rate limit; G94 is restored afterwards. Mesh
+programs do not reset X to the chuck at the end of an operation.
+
+Known fixture overlap, open/nonmanifold or malformed meshes and resource overruns
+block output. A missing mesh after project restore stays in STL mode and blocks
+machining until reimported. Undo retains up to four recently imported meshes
+in session; evicted meshes require reimport. No silent turning-envelope fallback
+is allowed.
+
+Limits: 100,000 triangles / 20 MB STL; 2 million contact queries for rotary paths;
+500,000 moves; 90-second worker deadline. Indexed/legacy strategies additionally
+limit raster samples and residual comparisons. Increase stepover, use a coarser
+finish quality or split/simplify the model when these limits are reached. Taper/V-bit,
+mesh facing/groove/part-off and pommel exclusions are not supported. Positive
+stock capacity is required. Flute length and stickout do not block planning;
+shank and holder collisions along the cutting surface are not checked. Attachment end
+faces are excluded. Indexed/legacy visibility and residual diagnostics warn about
+remaining material; detected gouges block those paths. Rotary paths use the
+analytic swept cutter clearance bound described above.
+
+Visibility and residual tests are sampled diagnostics, not a proof of complete
+removal on arbitrary geometry. The current Simulation view is a transformed
+path preview, not a volumetric rotary stock-removal simulator. These paths have
+not been tested on a live machine. Verify physical zeroing, actual tool/fixture
+geometry and the program before machining.
+
+Run `node scripts/generate-rotary-fixtures.mjs` to reproduce the asymmetric flat
+box and faceted boss/pocket STLs in `cypress/fixtures/`. Geometry, path, post,
+worker lifecycle and browser tests cover rotary patterns and indexed machining.
+
 
 ## Engine (`engine/`, pure TS, tested)
 

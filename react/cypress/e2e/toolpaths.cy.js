@@ -64,6 +64,10 @@ describe('Retained mesh operations', () => {
             it(`${extension.toUpperCase()} → ${label}`, () => {
                 cy.importDesign(`relief.${extension}`);
                 cy.get('[aria-label="Model units"]').select('mm');
+                if (extension === 'stl')
+                    cy.get(
+                        'input[name="model-destination"][value="flat"]',
+                    ).check();
                 cy.contains('button', 'Continue to model setup').click();
                 cy.contains('button', 'Place 3D model', {
                     timeout: 30000,

@@ -129,3 +129,20 @@ test('invalid pass depth cannot add a toolpath or enter the planner', () => {
     act(() => result.current.saveToolpath());
     expect(result.current.toolpaths).toHaveLength(0);
 });
+
+test('missing STL on project restore stays in STL mode and blocks envelope fallback', () => {
+    const { result } = renderHook(() => useRotaryState());
+    const saved = result.current.snapshotProject();
+    act(() =>
+        result.current.restoreProject({
+            ...saved,
+            mode: 'stl',
+            stlKey: 'missing-mesh',
+        }),
+    );
+    expect(result.current.mode).toBe('stl');
+    expect(result.current.stlMesh).toBeNull();
+    act(() => result.current.generate());
+    expect(result.current.gcode).toBe('');
+    expect(result.current.flags.some((f) => f.level === 'e')).toBe(true);
+});

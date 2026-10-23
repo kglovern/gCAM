@@ -1,0 +1,86 @@
+solid rotary-asymmetric
+facet normal 0 0 0
+outer loop
+vertex -6 -3 0
+vertex 8 5 0
+vertex 8 -3 0
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 -3 0
+vertex -6 5 0
+vertex 8 5 0
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 -3 30
+vertex 8 -3 30
+vertex 8 5 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 -3 30
+vertex 8 5 30
+vertex -6 5 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 -3 0
+vertex 8 -3 0
+vertex 8 -3 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 -3 0
+vertex 8 -3 30
+vertex -6 -3 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex 8 -3 0
+vertex 8 5 0
+vertex 8 5 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex 8 -3 0
+vertex 8 5 30
+vertex 8 -3 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex 8 5 0
+vertex -6 5 0
+vertex -6 5 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex 8 5 0
+vertex -6 5 30
+vertex 8 5 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 5 0
+vertex -6 -3 0
+vertex -6 -3 30
+endloop
+endfacet
+facet normal 0 0 0
+outer loop
+vertex -6 5 0
+vertex -6 -3 30
+vertex -6 5 30
+endloop
+endfacet
+endsolid rotary-asymmetric

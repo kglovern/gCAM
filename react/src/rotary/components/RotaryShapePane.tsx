@@ -22,11 +22,16 @@ export function RotaryShapePane({
     const [snap, setSnap] = useState(true);
     const [importError, setImportError] = useState('');
     const [importing, setImporting] = useState(false);
-    const importModel = async (file: File) => {
+    const importModel = async (
+        file: File,
+        axis: 'x' | 'y' | 'z' | 'auto' = 'auto',
+        center = true,
+        scale = 1,
+    ) => {
         setImporting(true);
         setImportError('');
         try {
-            await R.importStlFile(file);
+            await R.importStlFile(file, axis, center, scale);
         } catch (error) {
             setImportError(
                 error instanceof Error
@@ -237,8 +242,8 @@ export function RotaryShapePane({
                         stlName={R.stlMesh?.name ?? null}
                         stlInfo={R.stlInfo}
                         compR={R.compR}
-                        onImportStl={(file) => {
-                            void importModel(file);
+                        onImportStl={(file, axis, center) => {
+                            void importModel(file, axis, center);
                         }}
                     />
                 )}

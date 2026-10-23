@@ -5,8 +5,9 @@ import { panel, h2, hint, num, check, Row, Label } from './FieldLayout';
 import { ToolSlotSelector } from '../../../toolpaths/ToolSlotSelector';
 import { isConfigured, type ToolSlot } from '../../../tools/library';
 import type { RotaryTool, RotaryToolType } from '../../engine/types';
-function mapSlotType(t: ToolSlot['toolType']): RotaryToolType {
+function mapSlotType(t: ToolSlot['toolType'], name = ''): RotaryToolType {
     if (t === 'ball' || t === 'ballnose') {
+        if (/\btaper(?:ed)?\b/i.test(name)) return 'taper';
         return 'ball';
     }
     if (t === 'v-bit') {

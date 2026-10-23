@@ -1,3 +1,4 @@
+import { planMeshToolpath } from './meshToolpath';
 import { isRotaryToolpathEntry } from './types';
 import type {
     RotaryOperation,
@@ -9,6 +10,7 @@ import type {
     PommelZone,
     RotaryTool,
     RotaryCheck,
+    StlMesh,
 } from './types';
 import { planToolpath } from './toolpath';
 import { runChecks } from './checks';
@@ -40,8 +42,19 @@ export function cloneToolpath(entry: RotaryToolpathEntry): RotaryToolpathEntry {
     return {
         ...entry,
         tool: { ...entry.tool },
-        ops: operationOps(entry.operation, entry.ops),
+        ops: {
+            ...operationOps(entry.operation, entry.ops),
+            ...(entry.ops.mesh ? { mesh: { ...entry.ops.mesh } } : {}),
+        },
     };
+}
+/** Entry IDs and the automatic/manual UI switch do not change cutter motion. */
+export function toolpathSettingsKey(entry: RotaryToolpathEntry) {
+    return JSON.stringify([
+        entry.operation,
+        { ...entry.tool, manualCuttingParams: undefined },
+        cloneToolpath(entry).ops,
+    ]);
 }
 export function legacyToolpaths(
     tool: RotaryTool,
@@ -63,6 +76,8 @@ export function planRotaryEntry(
     stock: RotaryStock,
     mode: RotaryMode,
     pommels: PommelZone[],
+    mesh?: StlMesh | null,
+    onProgress: (fraction: number) => void = () => {},
 ) {
     if (!isRotaryToolpathEntry(entry))
         return {
@@ -76,8 +91,60 @@ export function planRotaryEntry(
                 },
             ],
         };
-    const compR =
-        mode === 'stl' && entry.tool.type !== 'flat' ? entry.tool.dia / 2 : 0;
+    if (mode === 'stl') {
+        try {
+            if (!mesh)
+                throw new Error(
+                    'Import an STL before planning mesh toolpaths.',
+                );
+            if (!entry.ops.mesh)
+                throw new Error(
+                    'Configure XYZA mesh settings; old turning-envelope STL paths are disabled.',
+                );
+            if (entry.operation !== 'rough' && entry.operation !== 'finish')
+                throw new Error(
+                    'STL mesh mode currently supports roughing and finishing only. Use profile mode for turning operations.',
+                );
+            if (pommels.length)
+                throw new Error(
+                    'Mesh paths do not support pommel exclusions yet. Remove them before planning.',
+                );
+            const flags: RotaryCheck[] = [];
+            return {
+                entry,
+                compR: 0,
+                moves: planMeshToolpath(
+                    mesh,
+                    stock,
+                    entry.tool,
+                    entry.operation,
+                    entry.ops.roughStep,
+                    entry.ops.allow,
+                    entry.ops.mesh,
+                    undefined,
+                    (msg) => flags.push({ level: 'w', msg }),
+                    onProgress,
+                ),
+                flags,
+            };
+        } catch (error) {
+            return {
+                entry,
+                compR: 0,
+                moves: [],
+                flags: [
+                    {
+                        level: 'e' as const,
+                        msg:
+                            error instanceof Error
+                                ? error.message
+                                : 'Mesh planning failed.',
+                    },
+                ],
+            };
+        }
+    }
+    const compR = 0;
     const ops = { ...operationOps(entry.operation, entry.ops), compR, pommels };
     return {
         entry,
@@ -92,10 +159,27 @@ export function planRotaryJob(
     stock: RotaryStock,
     mode: RotaryMode,
     pommels: PommelZone[],
+    mesh?: StlMesh | null,
+    onProgress: (fraction: number) => void = () => {},
 ) {
-    const paths = entries.map((entry) =>
-        planRotaryEntry(entry, samples, stock, mode, pommels),
-    );
+    const paths = entries.map((entry, index) => {
+        const path = planRotaryEntry(
+            entry,
+            samples,
+            stock,
+            mode,
+            pommels,
+            mesh,
+            (fraction) => onProgress((index + fraction) / entries.length),
+        );
+        onProgress((index + 1) / entries.length);
+        return path;
+    });
+    return combineRotaryPaths(paths);
+}
+export function combineRotaryPaths(
+    paths: ReturnType<typeof planRotaryEntry>[],
+) {
     const flags: RotaryCheck[] = paths.flatMap((path) =>
         path.flags
             .filter((flag) => flag.level !== 'o')
@@ -105,9 +189,9 @@ export function planRotaryJob(
             })),
     );
     if (
-        entries.some(
-            (entry, index) =>
-                entry.operation === 'part' && index !== entries.length - 1,
+        paths.some(
+            ({ entry }, index) =>
+                entry.operation === 'part' && index !== paths.length - 1,
         )
     )
         flags.push({
@@ -136,19 +220,18 @@ export function rotaryJobGcode(
         lines.push(
             `(Toolpath ${index + 1}: ${operationLabel(path.entry.operation)})`,
         );
-        lines.push(
-            ...toGcode(path.moves, {
-                stock,
-                tool,
-                name,
-                mode,
-                compR: path.compR,
-                toolChange,
-            })
-                .trim()
-                .split(/\r?\n/)
-                .filter((line) => line !== 'M2'),
-        );
+        const programLines = toGcode(path.moves, {
+            stock,
+            tool,
+            name,
+            mode,
+            compR: path.compR,
+            toolChange,
+        })
+            .trim()
+            .split(/\r?\n/)
+            .filter((line) => line !== 'M2');
+        for (const line of programLines) lines.push(line);
     });
     return `${lines.join('\r\n')}\r\nM2\r\n`;
 }
