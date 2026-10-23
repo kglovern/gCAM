@@ -3,35 +3,52 @@ describe('Rotary workspace', () => {
         cy.freshProject();
         cy.get('[aria-label="Rotary"]').click();
     });
-    const step = (name) =>
-        cy
-            .get('[aria-label="Rotary workflow"]')
-            .contains('[role="tab"]', name)
+    const addRoughing = () => {
+        cy.get('button[aria-label="Tool library slot"]').click();
+        cy.contains('[role="option"]', 'Test flat').click();
+        cy.contains('button', /^Add Toolpath$/)
+            .should('be.enabled')
             .click();
+    };
     const footer = () => cy.get('[aria-label="Rotary actions"]');
-    it('keeps the preview and primary action visible while moving between stages', () => {
+    it('keeps design and toolpath settings on one page', () => {
         cy.viewport(1280, 800);
+        cy.get('[aria-label="Rotary design"]')
+            .find('[aria-label="Stock length"]')
+            .should('not.exist');
+        cy.get('[aria-label="Rotary job stock"]')
+            .should('be.visible')
+            .within(() => {
+                cy.get('[aria-label="Stock length"]').should('exist');
+                cy.get('[aria-label="Stock diameter"]').should('exist');
+                cy.get('[aria-label="Rotary stock material"]').should('exist');
+            });
         cy.get('[aria-label="Stock length"]').clear().type('100').blur();
-        footer().contains('button', 'Continue to Shape').click();
         cy.get('[aria-label="Load template"]').select('handle');
-        step('Setup');
         cy.get('[aria-label="Stock length"]').should('have.value', '100');
-        step('Shape');
         cy.get('[aria-label="Profile editor"]').should('be.visible');
-        footer().should(($footer) =>
-            expect($footer[0].getBoundingClientRect().bottom).to.be.at.most(
-                800,
-            ),
-        );
-        cy.get('[aria-label="Rotary preview"]').should('be.visible');
+        footer().should('not.exist');
+        cy.get('[aria-label="Rotary design"]').should('be.visible');
+        cy.get('[aria-label="Design name"]').should('not.exist');
+        cy.get('[aria-label="Rotary tools"]')
+            .should('be.visible')
+            .within(() => {
+                cy.get('[aria-label="Undo rotary change"]').should('exist');
+                cy.get('[aria-label="File"]').should('exist');
+            });
+        cy.contains('summary', 'G-code preview').should('not.exist');
+        cy.get('[aria-label="Operations"]')
+            .parents('section')
+            .should('contain.text', 'Toolpath settings');
         cy.document().then((doc) =>
             expect(doc.documentElement.scrollWidth).to.equal(1280),
         );
+        addRoughing();
+        footer().find('button').should('have.length', 3);
         cy.screenshot('rotary-shape-landscape', { capture: 'viewport' });
     });
     it('picks points accurately and keeps point fields visible while editing', () => {
         cy.viewport(1280, 800);
-        step('Shape');
         cy.get('[aria-label="Profile editor"]').should(($svg) => {
             const [, , width, height] = $svg
                 .attr('viewBox')
@@ -45,6 +62,7 @@ describe('Rotary workspace', () => {
             .first()
             .click();
         cy.get('[aria-label="Node X"]')
+            .scrollIntoView()
             .should('have.value', '20')
             .should(($input) =>
                 expect($input[0].getBoundingClientRect().bottom).to.be.lessThan(
@@ -68,6 +86,32 @@ describe('Rotary workspace', () => {
                 );
             });
         checkCurveAlignment();
+        cy.get('[aria-label="Profile editor"]').should(($svg) => {
+            const [, , width, height] = $svg
+                .attr('viewBox')
+                .split(' ')
+                .map(Number);
+            const lines = [...$svg[0].querySelectorAll('line')];
+            const vertical = lines.filter(
+                (line) =>
+                    Number(line.getAttribute('y1')) === 22 &&
+                    Number(line.getAttribute('y2')) === height - 24,
+            );
+            const horizontal = lines.filter(
+                (line) =>
+                    Number(line.getAttribute('x1')) === 34 &&
+                    Number(line.getAttribute('x2')) === width - 10 &&
+                    line.getAttribute('y1') === line.getAttribute('y2'),
+            );
+            expect(
+                Number(vertical[1].getAttribute('x1')) -
+                    Number(vertical[0].getAttribute('x1')),
+            ).to.be.closeTo(
+                Number(horizontal[0].getAttribute('y1')) -
+                    Number(horizontal[1].getAttribute('y1')),
+                0.1,
+            );
+        });
         cy.viewport(1180, 760);
         checkCurveAlignment();
         cy.get('[aria-label="Profile editor"]').type('{rightarrow}');
@@ -80,29 +124,47 @@ describe('Rotary workspace', () => {
         cy.get('[aria-label="Redo rotary change"]').click();
         cy.get('[aria-label="Stock length"]').should('have.value', '100');
     });
-    it('requires regeneration after editing a generated rotary job', () => {
-        step('Toolpaths');
-        footer().contains('button', 'Export G-code').should('be.disabled');
-        footer().contains('button', 'Generate G-code').click();
+    it('exports automatically regenerated G-code after edits', () => {
+        addRoughing();
         cy.task('clearDownloads');
         footer()
             .contains('button', 'Export G-code')
             .should('be.enabled')
             .click();
-        cy.readDownload('.gcode').then((text) => {
+        cy.readDownload('.nc').then((text) => {
             expect(text).to.include('G21');
             expect(text).to.match(/A-?\d/);
         });
-        step('Setup');
         cy.get('[aria-label="Stock length"]').clear().type('100').blur();
-        step('Toolpaths');
-        footer().contains('button', 'Export G-code').should('be.disabled');
-        footer().contains('button', 'Generate G-code').click();
+        cy.task('clearDownloads');
+        footer()
+            .contains('button', 'Export G-code')
+            .should('be.enabled')
+            .click();
+        cy.readDownload('.nc').should('contain', 'Stock L100');
+    });
+    it('keeps rotary G-code in Simulation current after changes', () => {
+        addRoughing();
+        cy.get('[aria-label="Simulation"]').click();
+        cy.get('[aria-label="Rotary simulation"]').should('be.visible');
+        cy.get('[aria-label="Rotary simulation"] pre').should(
+            'contain.text',
+            '(rough)',
+        );
+        cy.get('[aria-label="Rotary"]').click();
         footer().contains('button', 'Export G-code').should('be.enabled');
+        cy.get('[aria-label="Stock length"]').clear().type('100').blur();
+        cy.get('[aria-label="Simulation"]').click();
+        cy.get('[aria-label="Rotary simulation"] pre').should(
+            'contain.text',
+            'Stock L100',
+        );
+        cy.get('[aria-label="Toolpaths"]').click();
+        cy.get('[aria-label="Simulation"]').click();
+        cy.get('[aria-label="Rotary simulation"]').should('not.exist');
     });
     it('lets users enter STL mode without a picker and reports invalid files', () => {
-        step('Shape');
-        cy.contains('button', 'Import an STL').click();
+        cy.contains('[role="tab"]', /^STL$/).click();
         cy.contains('button', /^Import STL$/).should('be.visible');
         cy.get('[aria-label="Import STL file"]').selectFile(
             {
@@ -113,8 +175,7 @@ describe('Rotary workspace', () => {
             { force: true },
         );
         cy.get('[role="alert"]').should('be.visible');
-        step('Toolpaths');
-        footer().contains('button', 'Generate G-code').should('be.disabled');
+        footer().should('not.exist');
         cy.get('[aria-label="Checks"]').should('contain.text', 'Import an STL');
     });
     it('exports a rotary-only project without requiring a 2D drawing', () => {
@@ -126,19 +187,16 @@ describe('Rotary workspace', () => {
             expect(project.rotary.points.length).to.be.greaterThan(1);
         });
     });
-    it('imports an STL and retains it while visiting setup and toolpaths', () => {
-        step('Shape');
-        cy.contains('button', 'Import an STL').click();
+    it('imports an STL and keeps its source tab active', () => {
+        cy.contains('[role="tab"]', /^STL$/).click();
         cy.get('[aria-label="Import STL file"]').selectFile(
             'cypress/fixtures/relief.stl',
             { force: true },
         );
         cy.get('[aria-label="Rotary shape"]').should('contain.text', 'relief');
-        step('Setup');
-        step('Shape');
-        cy.contains('button', 'Import an STL').should(
+        cy.contains('[role="tab"]', /^STL$/).should(
             'have.attr',
-            'aria-pressed',
+            'aria-selected',
             'true',
         );
         cy.get('[aria-label="Rotary shape"]').should(
@@ -156,7 +214,6 @@ describe('Rotary workspace', () => {
         cy.get('[aria-label="Stock diameter"]')
             .parent()
             .should('contain.text', 'in');
-        step('Toolpaths');
         cy.get('[aria-label="Roughing allowance"]').should(
             'have.value',
             '0.031',
@@ -165,19 +222,11 @@ describe('Rotary workspace', () => {
             .parent()
             .should('contain.text', 'in');
     });
-    it('preserves field drafts across stages and fits a portrait tablet', () => {
+    it('preserves operation drafts with the full sidebar on a portrait tablet', () => {
         cy.viewport(800, 1280);
-        step('Toolpaths');
-        cy.contains('summary', 'Square sections').click();
         cy.get('[aria-label="Pommel start"]').clear().type('25').blur();
-        step('Shape');
-        step('Toolpaths');
         cy.get('[aria-label="Pommel start"]').should('have.value', '25');
-        footer().should(($footer) =>
-            expect($footer[0].getBoundingClientRect().bottom).to.be.at.most(
-                1280,
-            ),
-        );
+        footer().should('not.exist');
         cy.document().then((doc) =>
             expect(doc.documentElement.scrollWidth).to.equal(800),
         );

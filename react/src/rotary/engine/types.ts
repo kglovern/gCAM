@@ -39,6 +39,7 @@ export interface RotaryStock {
 export type RotaryToolType = 'flat' | 'ball' | 'taper' | 'vbit';
 
 export interface RotaryTool {
+    manualCuttingParams?: boolean;
     type: RotaryToolType;
     /** Cutter diameter, mm. */
     dia: number;
@@ -85,6 +86,14 @@ export interface RotaryOps {
     compR: number;
 }
 
+export type RotaryOperation = 'face' | 'rough' | 'finish' | 'groove' | 'part';
+export interface RotaryToolpathEntry {
+    id: string;
+    operation: RotaryOperation;
+    tool: RotaryTool;
+    ops: Omit<RotaryOps, 'pommels' | 'compR'>;
+}
+
 export type RotaryMode = 'profile' | 'stl';
 
 export interface ToolpathMove {
@@ -117,6 +126,7 @@ export interface StlMesh {
  * (same rule as undo snapshots); otherwise STL mode falls back to profile.
  */
 export interface RotaryProjectSlice {
+    toolpaths?: RotaryToolpathEntry[];
     name: string;
     mode: RotaryMode;
     stlKey?: string;
@@ -150,5 +160,58 @@ export function isRotaryProjectSlice(v: unknown): v is RotaryProjectSlice {
     if (v['stlKey'] !== undefined && typeof v['stlKey'] !== 'string') {
         return false;
     }
+    if (
+        v.toolpaths !== undefined &&
+        (!Array.isArray(v.toolpaths) ||
+            !v.toolpaths.every(isRotaryToolpathEntry) ||
+            new Set(v.toolpaths.map((entry) => entry.id)).size !==
+                v.toolpaths.length)
+    )
+        return false;
     return true;
+}
+function finite(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+export function isRotaryToolpathEntry(
+    entry: unknown,
+): entry is RotaryToolpathEntry {
+    if (
+        !isRecord(entry) ||
+        typeof entry.id !== 'string' ||
+        !entry.id ||
+        !['face', 'rough', 'finish', 'groove', 'part'].includes(
+            String(entry.operation),
+        )
+    )
+        return false;
+    const tool = entry.tool,
+        ops = entry.ops;
+    if (
+        !isRecord(tool) ||
+        !isRecord(ops) ||
+        !isRecord(ops.groove) ||
+        !isRecord(ops.part)
+    )
+        return false;
+    return (
+        ['flat', 'ball', 'taper', 'vbit'].includes(String(tool.type)) &&
+        finite(tool.spindle) &&
+        tool.spindle >= 0 &&
+        ['dia', 'feed', 'plunge'].every(
+            (key) => finite(tool[key]) && Number(tool[key]) > 0,
+        ) &&
+        (tool.slotNum === null ||
+            (finite(tool.slotNum) &&
+                Number.isInteger(tool.slotNum) &&
+                tool.slotNum > 0)) &&
+        ['allow', 'roughStep', 'raster'].every((key) => finite(ops[key])) &&
+        Number(ops.allow) >= 0 &&
+        Number(ops.roughStep) > 0 &&
+        [0, 270].includes(Number(ops.raster)) &&
+        finite(ops.groove.x) &&
+        finite(ops.groove.w) &&
+        ops.groove.w > 0 &&
+        finite(ops.part.x)
+    );
 }

@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import { CanvasToolbar } from '../canvas/CanvasToolbar';
 import { ConfigToolbar, PreviewToolbar } from '../components/AppToolbars';
 import { Sidebar } from '../components/Sidebar';
+import { RotaryToolbar } from '../rotary/components/RotaryToolbar';
 import logoUrl from '../../assets/logo.svg';
 
 type ActiveTab = ComponentProps<typeof Sidebar>['activeTab'];
@@ -13,6 +14,7 @@ interface AppHeaderProps {
     activeTab: ActiveTab;
     toolbarProps: ComponentProps<typeof CanvasToolbar>;
     previewControls: ComponentProps<typeof PreviewToolbar>['controls'] | null;
+    rotary: ComponentProps<typeof RotaryToolbar>['rotary'];
     configActions: ComponentProps<typeof ConfigToolbar>['actions'] | null;
 }
 
@@ -22,6 +24,7 @@ export function AppHeader({
     toolbarProps,
     previewControls,
     configActions,
+    rotary,
 }: AppHeaderProps) {
     return (
         <header className="min-h-16 py-2 pt-[max(8px,env(safe-area-inset-top))] shrink-0 flex items-center gap-2 px-2 md:px-4 min-w-0 bg-white border-b border-slate-200 dark:bg-dark dark:border-robin-900">
@@ -37,6 +40,11 @@ export function AppHeader({
             )}
             {activeTab === 'config' && configActions && (
                 <ConfigToolbar actions={configActions} />
+            )}
+            {activeTab === 'rotary' && (
+                <div className="min-w-0 flex-1 overflow-visible">
+                    <RotaryToolbar rotary={rotary} commands={toolbarProps} />
+                </div>
             )}
             {activeTab === 'toolpaths' && (
                 <div className="min-w-0 flex-1 overflow-visible">

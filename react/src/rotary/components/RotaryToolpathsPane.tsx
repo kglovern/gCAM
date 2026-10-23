@@ -3,24 +3,21 @@ import type { UnitSystem } from '../../lib/units';
 import type { UseRotaryState } from '../useRotaryState';
 import { OpsFields } from './fields/OpsFields';
 import { PommelFields } from './fields/PommelFields';
-import { ChecksList, GcodePanel } from './ChecksGcode';
+import { ChecksList } from './ChecksGcode';
 
 export function RotaryToolpathsPane({
     rotary: R,
     units,
-    ready,
-    onDownload,
 }: {
     rotary: UseRotaryState;
     units: UnitSystem;
-    ready: boolean;
-    onDownload(): void;
 }) {
     return (
         <div className="space-y-3">
             <RotarySettingsBoundary onBeforeChange={R.pushHistory}>
                 <OpsFields
                     units={units}
+                    operation={R.operation}
                     ops={{ ...R.opsBase, pommels: R.pommels, compR: R.compR }}
                     compR={R.compR}
                     onPatch={(patch) =>
@@ -33,10 +30,7 @@ export function RotaryToolpathsPane({
                     }
                 />
             </RotarySettingsBoundary>
-            <details className="rounded-lg border border-slate-200 bg-white p-3 dark:border-robin-900 dark:bg-dark">
-                <summary className="min-h-11 flex items-center text-sm font-medium cursor-pointer">
-                    Square sections / pommels ({R.pommels.length})
-                </summary>
+            {(R.operation === 'rough' || R.operation === 'finish') && (
                 <PommelFields
                     units={units}
                     pommels={R.pommels}
@@ -65,31 +59,21 @@ export function RotaryToolpathsPane({
                         );
                     }}
                 />
-            </details>
+            )}
+
             <ChecksList
                 flags={
                     R.mode === 'stl' && !R.stlMesh
                         ? [
                               {
                                   level: 'e',
-                                  msg: 'Import an STL in Shape before generating this job.',
+                                  msg: 'Import an STL before generating this job.',
                               },
-                              ...R.flags,
+                              ...R.draftFlags,
                           ]
-                        : R.flags
+                        : R.draftFlags
                 }
             />
-            <details className="rounded-lg border border-slate-200 bg-white p-3 dark:border-robin-900 dark:bg-dark">
-                <summary className="min-h-11 flex items-center text-sm font-medium cursor-pointer">
-                    G-code preview {ready ? '(ready)' : '(not generated)'}
-                </summary>
-                <GcodePanel
-                    gcode={ready ? R.gcode : ''}
-                    statsLine={`${R.moves.length.toLocaleString()} moves`}
-                    onDownload={onDownload}
-                    canDownload={ready}
-                />
-            </details>
         </div>
     );
 }

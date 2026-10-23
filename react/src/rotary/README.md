@@ -1,28 +1,50 @@
 # Rotary (Vortex) workflow
 
-Fourth sidebar tab (`Rotary`, Cylinder icon). No 2.5D canvas, rail, or
-simulation renders here — only this module, with Setup/Shape/Toolpaths stages. Machine settings use the global `ConfigPanel`.
+The Rotary sidebar tab opens one page with a 3D preview and profile/STL editor
+in one card, and a persistent toolpath settings sidebar on the right. Machine
+configuration and material use the same application settings as the main workflow.
+Job Stock in the right sidebar groups rotary length, diameter and material,
+using the same field styling as the main job stock card.
 
 ## Workspace
 
-- **Setup**: stock, grip and cutter selection using the shared tool library.
-- **Shape**: draw a profile or import an STL. Point dimensions stay beside the
-  graph; its SVG coordinates follow the rendered surface for accurate picking.
-- **Toolpaths**: operations, optional square/pommel sections, checks and G-code
-  preview. Generate and export stay in the persistent footer.
+The preview starts in orthographic side view; part and machine perspective fits
+remain available. Stock, toolpath and machine visibility live in the header.
+The gear button opens preview-only CAD alignment controls.
 
-Landscape tablets show controls beside the part preview; portrait tablets stack
-preview above controls. Only the control pane scrolls. Stage panels stay mounted
-so drafts and view settings survive navigation. Machine settings remain in the
-shared Config tab.
+The profile editor uses one pixel-per-millimetre scale for both axes. Wheel zoom
+anchors at the cursor; drag the background or use two fingers to pan and zoom.
+Home resets the view. Profile/STL tabs sit on the left of the editor. Both editing
+surfaces use the main canvas light/dark palette. Geometry stays in millimetres;
+length and feed inputs follow the application's selected units.
 
-The 3D preview preserves its camera during edits and provides Fit part. Length
-and feed inputs use the application's selected units; geometry remains in mm.
-Export is enabled only for a generated job matching the current project settings,
-with no blocking checks. Changes require regeneration.
+Choose Facing, Roughing, Finishing, Groove or Part-off from the shared operation
+picker (with rotary SVG illustrations). Pick a library tool, set operation-specific
+parameters, then Add Toolpath. The job list supports edit/save/cancel, delete,
+reorder and undo. Each entry keeps its own cutter, feeds, spindle and pass depth.
+Only added entries are previewed in Simulation and included in Export/Send;
+the editor previews the current draft without adding it to the job.
+The export dropdown can save one entry. Part-off must be last.
 
-UI composition is split into setup, shape, toolpaths, field groups, viewport,
-settings history and export modules. The pure engine stays independent of React.
+Geometry, stock and pommel edits replan the saved operations against the current
+part; changing a draft tool does not alter saved entries. Tool changes use the
+same M6 convention as the main post, after retracting to park and stopping the
+previous spindle. Project files retain the list; older checkbox-based projects
+migrate to equivalent ordered entries.
+
+Tool selection and suggested/manual cutting values reuse `ToolSelectionFields`
+and `CuttingRecipeFields`. Rotary profiling uses the existing profile-outside
+recipe with the configured machine, selected material and cutter. Applied values
+are saved into rotary tool/operation state and used by generation. Older projects
+without the suggestion flag retain their saved manual cutting values.
+
+File and undo/redo controls use the main toolbar components at the top.
+Export and Send reuse the main sidebar controls; G-code updates automatically
+after a 400 ms pause in editing. G-code and the rotary
+toolpath preview live on Simulation; switching back retains generation status.
+The shared Send to gSender control uses the configured local handoff port.
+Export and Send are enabled
+only for current settings after regeneration completes with no blocking checks.
 
 ## Modes
 
@@ -37,7 +59,7 @@ settings history and export modules. The pure engine stays independent of React.
 - `toolpath` — XZA rough (spiral peel per level-run), finish (helical
   zigzag 270° or indexed 0°), groove/part/facing. A oscillates within one
   turn; every entry retracts to Z-safe; pommel ranges are keep-out.
-- `gcode` — Vortex A-axis GRBL post (`.gcode`, not `.nc`): T1/G17/G21/G90,
+- `gcode` — Vortex A-axis GRBL post (shared `.nc` export): T1/G17/G21/G90,
   Z-zero at cylinder axis, A0 sync, A-range stamp, M5/M2.
 - `checks` — stock/travel limits, grip, tailstock rule, tool fit, pommels.
 - `stl` — binary+ASCII parse, silhouette, RDP fit, viewer baking.
@@ -48,9 +70,9 @@ A ≤ 360°, pommel exclusion.
 
 ## Tooling
 
-Tool rack reads the shared gCAM library (`loadSlots(localStorage)`);
-diameter/type seed the rotary tool, feeds stay rotary-specific (router +
-A-axis needs its own numbers, tuned via gSender override).
+The rack reads the shared gCAM library (`loadSlots(localStorage)`). Supported
+rotary library types are flat, ball/ballnose and V-bit cutters; configured tool
+diameter/type and shared recommendations populate the rotary settings.
 
 ## Shared infrastructure (not duplicated)
 

@@ -36,6 +36,7 @@ type DocumentState = ReturnType<typeof useDocumentWorkspace>;
  * untyped escape hatches.
  */
 export interface WorkspaceModelOptions {
+    simulationSource: 'toolpaths' | 'rotary';
     activeTab: ComponentProps<typeof EditorWorkspace>['activeTab'];
     onTabChange: ComponentProps<typeof EditorWorkspace>['onTabChange'];
     drawing: DrawingState;
@@ -102,6 +103,7 @@ export function createWorkspaceModel(
     return {
         editor: {
             activeTab: options.activeTab,
+            simulationSource: options.simulationSource,
             onTabChange: options.onTabChange,
             canvasProps: {
                 activeTool: options.drawing.activeTool,

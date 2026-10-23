@@ -8,6 +8,7 @@ import type { ViewLoop } from './canvas/types';
 import { useConfirmation } from './components/ConfirmDialog';
 import { useToasts } from './components/Toasts';
 import { useAppKeyboardShortcuts } from './interactions/useAppKeyboardShortcuts';
+import { useRotaryExport } from './rotary/components/useRotaryExport';
 import { useRotaryState } from './rotary/useRotaryState';
 import { useGuideCommands } from './interactions/useGuideCommands';
 import { useFileLoading } from './document/useFileLoading';
@@ -225,6 +226,11 @@ export default function App() {
     const { expandedSelectedIds, selectedLoops, offsetSource, booleanLoops } =
         useVisibleSelection(loops, selected, hidden);
     const rotary = useRotaryState();
+    const rotaryOutput = useRotaryExport(rotary);
+    const [newRotaryProject] = useState(() => rotary.snapshotProject());
+    const [simulationSource, setSimulationSource] = useState<
+        'toolpaths' | 'rotary'
+    >('toolpaths');
 
     const undo = () => {
         if (sideTab === 'rotary') {
@@ -665,7 +671,12 @@ export default function App() {
     };
     const workspaceModel = createWorkspaceModel({
         activeTab: sideTab,
-        onTabChange: setSideTab,
+        onTabChange: (tab) => {
+            if (tab === 'toolpaths' || tab === 'rotary')
+                setSimulationSource(tab);
+            setSideTab(tab);
+        },
+        simulationSource,
         drawing,
         transforms,
         arrange,
@@ -733,7 +744,16 @@ export default function App() {
         toolpathRailProps,
         previewWorkspaceProps,
         configPanelProps,
-        rotaryPanelProps: { units, rotary },
+        rotaryPanelProps: {
+            output: rotaryOutput,
+            units,
+            rotary,
+            darkMode,
+            material: stock.material,
+            machineProfileId,
+            onMaterialChange: (material) =>
+                setStock((previous) => ({ ...previous, material })),
+        },
     });
 
     return (
@@ -742,8 +762,30 @@ export default function App() {
                 <UpdateControls notice />
                 <AppHeader
                     activeTab={sideTab}
-                    toolbarProps={toolbarProps}
-                    previewControls={previewControls}
+                    rotary={rotary}
+                    toolbarProps={
+                        sideTab === 'rotary'
+                            ? {
+                                  ...toolbarProps,
+                                  onNewCanvas: async () => {
+                                      if (
+                                          await confirm({
+                                              title: 'New rotary project?',
+                                              message:
+                                                  'Reset the rotary setup? You can undo this change.',
+                                              confirmLabel: 'New project',
+                                          })
+                                      )
+                                          rotary.restoreProject(
+                                              newRotaryProject,
+                                          );
+                                  },
+                              }
+                            : toolbarProps
+                    }
+                    previewControls={
+                        simulationSource === 'rotary' ? null : previewControls
+                    }
                     configActions={configActions}
                 />
 
