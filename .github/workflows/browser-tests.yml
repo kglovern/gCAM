@@ -6,6 +6,11 @@ permissions:
   contents: read
 jobs:
   cypress:
+    name: Cypress shard ${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -22,11 +27,16 @@ jobs:
           cache-dependency-path: react/yarn.lock
       - run: corepack enable
       - run: yarn install --frozen-lockfile
-      - run: xvfb-run -a yarn test:e2e
+      - name: Run browser tests
+        env:
+          TEST_SHARD: ${{ matrix.shard }}
+        run: |
+          specs=$(node --input-type=module -e 'import { readdirSync } from "node:fs"; console.log(readdirSync("cypress/e2e", { recursive: true }).filter(name => name.endsWith(".cy.js")).sort().filter((_, index) => index % 4 === Number(process.env.TEST_SHARD)).map(name => "cypress/e2e/" + name).join(","))')
+          xvfb-run -a yarn test:e2e "$specs"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: browser-failures
+          name: browser-failures-${{ matrix.shard }}
           path: |
             react/cypress/screenshots
             react/cypress/videos

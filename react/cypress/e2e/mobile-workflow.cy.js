@@ -132,7 +132,7 @@ describe('Mobile editing workflow', () => {
             .should('be.visible')
             .parent()
             .should('not.have.attr', 'open');
-        cy.get('[aria-label^="3D stock simulation"]').should(($canvas) =>
+        cy.get('[aria-label="G-code preview"] canvas').should(($canvas) =>
             expect($canvas[0].getBoundingClientRect().height).to.be.greaterThan(
                 400,
             ),

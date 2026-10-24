@@ -117,6 +117,8 @@ export function GcodeViewer3DView({
 
     return (
         <div
+            role="region"
+            aria-label="G-code preview"
             className={`relative h-full flex flex-col rounded border overflow-hidden ${
                 darkMode
                     ? 'border-robin-900 bg-[#0b1220]'

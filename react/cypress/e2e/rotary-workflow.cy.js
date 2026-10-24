@@ -120,11 +120,24 @@ describe('Rotary workspace', () => {
         cy.get('[aria-label="Node X"]').should('have.value', '20.5');
     });
     it('groups stock field typing into one undoable change', () => {
-        cy.get('[aria-label="Stock length"]').clear().type('100').blur();
-        cy.get('[aria-label="Undo rotary change"]').click();
-        cy.get('[aria-label="Stock length"]').should('have.value', '90');
-        cy.get('[aria-label="Redo rotary change"]').click();
-        cy.get('[aria-label="Stock length"]').should('have.value', '100');
+        cy.get('[aria-label="Stock length"]')
+            .invoke('val')
+            .then((initial) => {
+                cy.get('[aria-label="Stock length"]')
+                    .clear()
+                    .type('100')
+                    .blur();
+                cy.get('[aria-label="Undo rotary change"]').click();
+                cy.get('[aria-label="Stock length"]').should(
+                    'have.value',
+                    initial,
+                );
+                cy.get('[aria-label="Redo rotary change"]').click();
+                cy.get('[aria-label="Stock length"]').should(
+                    'have.value',
+                    '100',
+                );
+            });
     });
     it('exports automatically regenerated G-code after edits', () => {
         addRoughing();

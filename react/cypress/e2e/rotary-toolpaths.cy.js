@@ -57,11 +57,17 @@ describe('Rotary operation toolpaths', () => {
             },
         );
         tool('flat');
-        cy.get('[aria-label="Roughing allowance"]').should('be.visible');
+        cy.get('[aria-label="Roughing allowance"]')
+            .scrollIntoView()
+            .should('be.visible');
         cy.get('[aria-label="Finish raster angle"]').should('not.exist');
         cy.contains('button', /^Finishing$/).click();
-        cy.get('[aria-label="Mesh strategy"]').should('be.visible');
-        cy.get('[aria-label="Finish quality"]').should('be.visible');
+        cy.get('[aria-label="Mesh strategy"]')
+            .scrollIntoView()
+            .should('be.visible');
+        cy.get('[aria-label="Finish quality"]')
+            .scrollIntoView()
+            .should('be.visible');
         cy.get('[aria-label="Roughing allowance"]').should('not.exist');
         cy.get('[aria-label="Rotary actions"]').should('not.exist');
     });
