@@ -5,8 +5,12 @@ import { isBitmapFile, placeBitmap } from './bitmap';
 
 test('routes DXF drawings to vector import despite image MIME types', () => {
     for (const type of ['image/vnd.dxf', 'image/x-dxf', 'image/dxf']) {
-        expect(isBitmapFile(new File(['DXF'], 'drawing.dxf', { type }))).toBe(false);
-        expect(isBitmapFile(new File(['DXF'], 'drawing', { type }))).toBe(false);
+        expect(isBitmapFile(new File(['DXF'], 'drawing.dxf', { type }))).toBe(
+            false,
+        );
+        expect(isBitmapFile(new File(['DXF'], 'drawing', { type }))).toBe(
+            false,
+        );
     }
 });
 

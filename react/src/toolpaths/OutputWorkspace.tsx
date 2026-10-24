@@ -37,10 +37,7 @@ export function OutputWorkspace({
                 </span>
             </div>
             <div className="flex-1 min-h-0">
-                <GcodeViewer3DView
-                    darkMode={darkMode}
-                    gcode={gcode}
-                />
+                <GcodeViewer3DView darkMode={darkMode} gcode={gcode} />
             </div>
             <div className="shrink-0 rounded border border-slate-200 bg-white p-3 dark:border-robin-900 dark:bg-dark">
                 <GcodePreview gcode={gcode} fileName={fileName} />

@@ -19,8 +19,11 @@ interface KeyboardShortcutOptions {
 }
 
 function isEditableTarget(target: EventTarget | null) {
-    return target instanceof Element && !!target.closest(
-        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], [role="menu"]',
+    return (
+        target instanceof Element &&
+        !!target.closest(
+            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], [role="menu"]',
+        )
     );
 }
 
@@ -31,15 +34,29 @@ export function useAppKeyboardShortcuts(options: KeyboardShortcutOptions) {
             if (isEditableTarget(event.target)) return;
             const key = event.key.toLowerCase();
             if (
-                options.hasSelection && options.canNudge &&
-                !event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey &&
-                ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+                options.hasSelection &&
+                options.canNudge &&
+                !event.defaultPrevented &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.altKey &&
+                ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
+                    event.key,
+                )
             ) {
                 event.preventDefault();
                 const step = options.nudgeStep * (event.shiftKey ? 10 : 1);
                 options.nudgeSelected(
-                    event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
-                    event.key === 'ArrowDown' ? -step : event.key === 'ArrowUp' ? step : 0,
+                    event.key === 'ArrowLeft'
+                        ? -step
+                        : event.key === 'ArrowRight'
+                          ? step
+                          : 0,
+                    event.key === 'ArrowDown'
+                        ? -step
+                        : event.key === 'ArrowUp'
+                          ? step
+                          : 0,
                 );
                 return;
             }

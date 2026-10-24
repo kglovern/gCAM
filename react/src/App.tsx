@@ -458,10 +458,14 @@ export default function App() {
 
     useAppKeyboardShortcuts({
         hasSelection: selected.length > 0,
-        canNudge: sideTab !== 'rotary' && activeTool === 'select' &&
-            (!transformMode || transformMode === 'move') && !guidePlacement,
+        canNudge:
+            sideTab !== 'rotary' &&
+            activeTool === 'select' &&
+            (!transformMode || transformMode === 'move') &&
+            !guidePlacement,
         nudgeStep: units === 'imperial' ? 0.254 : 1,
-        nudgeSelected: (dx, dy) => handleTransformCommit({ type: 'move', dx, dy }, true),
+        nudgeSelected: (dx, dy) =>
+            handleTransformCommit({ type: 'move', dx, dy }, true),
         setActiveTool: () => setActiveTool('select'),
         clearTransform: () => setTransformMode(null),
         clearGuidePlacement: () => {

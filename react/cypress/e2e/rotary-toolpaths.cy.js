@@ -5,13 +5,20 @@ describe('Rotary operation toolpaths', () => {
         // Keep lifecycle exports small; full-size machining has its own regression.
         cy.get('[aria-label="Import lathe profile file"]').selectFile(
             {
-                contents: Cypress.Buffer.from(JSON.stringify({
-                    format: 'gcam-lathe-profile', version: 1, units: 'mm',
-                    points: [30, 34].map((x) => ({
-                        x, r: 11, type: 'corner',
-                        h1: { x, r: 11 }, h2: { x, r: 11 },
-                    })),
-                })),
+                contents: Cypress.Buffer.from(
+                    JSON.stringify({
+                        format: 'gcam-lathe-profile',
+                        version: 1,
+                        units: 'mm',
+                        points: [30, 34].map((x) => ({
+                            x,
+                            r: 11,
+                            type: 'corner',
+                            h1: { x, r: 11 },
+                            h2: { x, r: 11 },
+                        })),
+                    }),
+                ),
                 fileName: 'lifecycle-profile.json',
             },
             { force: true },
@@ -120,7 +127,9 @@ describe('Rotary operation toolpaths', () => {
             cy.get('[aria-label="Rotary actions"]').should('not.exist');
             tool('ball');
             cy.contains('button', /^Cancel Edit$/).click();
-            exportJob().then((after) => expect(after === before).to.equal(true));
+            exportJob().then((after) =>
+                expect(after === before).to.equal(true),
+            );
         });
     });
 });

@@ -84,10 +84,7 @@ describe('Independent XYZA mesh machining', () => {
         );
         cy.screenshot('rotary-helix-fixture', { capture: 'viewport' });
         cy.get('[aria-label="Edit Finishing"]').click();
-        cy.get('[aria-label="Mesh strategy"]').should(
-            'have.value',
-            'helix',
-        );
+        cy.get('[aria-label="Mesh strategy"]').should('have.value', 'helix');
         cy.get('[aria-label="Rotary actions"]').should('not.exist');
     });
 });
