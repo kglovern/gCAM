@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import type { RotaryPanel } from './RotaryPanel';
-import { RotaryViewport } from './RotaryViewport';
+import { GcodeViewer3DView } from '../../components/GcodeViewer3DView';
 import { GcodePreview } from '../../components/GcodePreview';
 
 export function RotarySimulation({
@@ -14,17 +14,10 @@ export function RotarySimulation({
             className="relative flex-1 min-w-0 min-h-0 flex flex-col gap-3 bg-slate-100 p-3 dark:bg-slate-800"
         >
             <div className="text-sm font-medium">Rotary toolpath preview</div>
-            <div className="relative flex flex-1 min-h-0 rounded border border-slate-200 dark:border-robin-900 [&>.rotary-viewport]:flex-1">
-                <RotaryViewport
-                    samples={R.samples}
-                    stock={R.stock}
-                    moves={output.ready ? R.moves : []}
-                    showStock={true}
-                    showPath={output.ready}
-                    showMachine={true}
+            <div className="flex-1 min-h-0">
+                <GcodeViewer3DView
+                    gcode={output.ready ? R.gcode : ''}
                     darkMode={darkMode}
-                    stl={R.stlMesh}
-                    mode={R.mode}
                 />
             </div>
             {!output.ready && (

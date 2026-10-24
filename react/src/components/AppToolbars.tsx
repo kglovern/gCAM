@@ -1,18 +1,9 @@
 /**
  * Purpose: Implementation module for AppToolbars in the components domain.
  */
-import {
-    Box,
-    Camera,
-    Download,
-    Play,
-    RotateCcw,
-    Square,
-    Upload,
-} from 'lucide-react';
+import { Download, RotateCcw, Upload } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ConfigActions } from './ConfigPanel';
-import type { PreviewControls } from './CutPreview3DView';
 
 export function ToolButton({
     active,
@@ -37,52 +28,6 @@ export function ToolButton({
             {icon}
             {label}
         </button>
-    );
-}
-
-export function PreviewToolbar({ controls }: { controls: PreviewControls }) {
-    const buttonClass = (active = false) =>
-        `inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm ${
-            active
-                ? 'bg-robin-500 text-white'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-dark-lighter dark:hover:text-white'
-        } disabled:opacity-40`;
-
-    return (
-        <div
-            className="flex items-center gap-0.5 shrink-0"
-            role="toolbar"
-            aria-label="3D preview controls"
-        >
-            <button
-                onClick={controls.simulate}
-                disabled={controls.empty}
-                className={buttonClass(controls.running)}
-            >
-                {controls.running ? (
-                    <Square size={14} fill="currentColor" />
-                ) : (
-                    <Play size={14} fill="currentColor" />
-                )}
-                {controls.running ? 'Stop simulation' : 'Simulate'}
-            </button>
-            <button
-                onClick={controls.iso}
-                className={buttonClass()}
-                title="Isometric view"
-                aria-label="Isometric view"
-            >
-                <Camera size={16} />
-            </button>
-            <button
-                onClick={controls.top}
-                className={buttonClass()}
-                title="Top view"
-                aria-label="Top view"
-            >
-                <Box size={16} />
-            </button>
-        </div>
     );
 }
 

@@ -1,7 +1,13 @@
 /**
  * Purpose: G-code preview powered by the shared gviewer parser and renderer.
  */
-import { useEffect, useRef, useState } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ComponentProps,
+} from 'react';
 import { GCodeVisualizer } from '@sienci/gviewer/react';
 import {
     gCodeViewerThemePresets,
@@ -64,6 +70,51 @@ export function GcodeViewer3DView({
             });
     }, [gcode]);
 
+    const options = useMemo<
+        NonNullable<ComponentProps<typeof GCodeVisualizer>['options']>
+    >(
+        () => ({
+            units: 'mm',
+            boundingBox: { visible: true, labels: true },
+            grid: {
+                sizeX: 1000,
+                sizeY: 1000,
+                axisDepth: 200,
+                labels: true,
+                bounds: null,
+            },
+            camera: {
+                projection: 'perspective',
+                fov: 45,
+                focusDurationMs: 250,
+                orbit: { enableDamping: false },
+                initialPosition: { x: 0, y: -500, z: 500 },
+            },
+            render: {
+                antialias: true,
+                theme: darkMode
+                    ? gCodeViewerThemePresets['tokyo-night']
+                    : gCodeViewerThemePresets.light,
+            },
+        }),
+        [darkMode],
+    );
+    const callbacks = useMemo<
+        NonNullable<ComponentProps<typeof GCodeVisualizer>['callbacks']>
+    >(
+        () => ({
+            onProgress: (event) => {
+                if (event.state === 'determinate')
+                    setStatus(
+                        `${event.label} ${event.processed}/${event.total}`,
+                    );
+                else if (event.state === 'indeterminate')
+                    setStatus(event.label);
+            },
+        }),
+        [],
+    );
+
     return (
         <div
             className={`relative h-full flex flex-col rounded border overflow-hidden ${
@@ -77,40 +128,8 @@ export function GcodeViewer3DView({
                     id="gcam-gcode-viewer"
                     ref={viewerRef}
                     className="h-full w-full"
-                    options={{
-                        units: 'mm',
-                        boundingBox: { visible: true, labels: true },
-                        grid: {
-                            sizeX: 1000,
-                            sizeY: 1000,
-                            axisDepth: 200,
-                            labels: true,
-                            bounds: null,
-                        },
-                        camera: {
-                            projection: 'perspective',
-                            fov: 45,
-                            focusDurationMs: 250,
-                            orbit: { enableDamping: false },
-                            initialPosition: { x: 0, y: -500, z: 500 },
-                        },
-                        render: {
-                            antialias: true,
-                            theme: darkMode
-                                ? gCodeViewerThemePresets['tokyo-night']
-                                : gCodeViewerThemePresets.light,
-                        },
-                    }}
-                    callbacks={{
-                        onProgress: (event) => {
-                            if (event.state === 'determinate')
-                                setStatus(
-                                    `${event.label} ${event.processed}/${event.total}`,
-                                );
-                            else if (event.state === 'indeterminate')
-                                setStatus(event.label);
-                        },
-                    }}
+                    options={options}
+                    callbacks={callbacks}
                 />
             </div>
             <div

@@ -143,8 +143,6 @@ export default function App() {
         setGrid,
         sideTab,
         setSideTab,
-        previewControls,
-        setPreviewControls,
         configActions,
         setConfigActions,
         darkMode,
@@ -616,7 +614,6 @@ export default function App() {
         fileName,
         darkMode,
         stock,
-        onPreviewControlsChange: setPreviewControls,
     };
     const handleMachineProfileChange = (id: string) => {
         const next = machineProfileById(id);
@@ -790,9 +787,6 @@ export default function App() {
                                   },
                               }
                             : toolbarProps
-                    }
-                    previewControls={
-                        simulationSource === 'rotary' ? null : previewControls
                     }
                     configActions={configActions}
                 />

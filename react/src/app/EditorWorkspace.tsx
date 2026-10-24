@@ -138,7 +138,7 @@ export function EditorWorkspace({
                 <RotarySimulation {...rotaryPanelProps} />
             )}
             {activeTab === 'preview' && simulationSource !== 'rotary' && (
-                <OutputWorkspace mode="preview" {...previewWorkspaceProps} />
+                <OutputWorkspace {...previewWorkspaceProps} />
             )}
             {activeTab === 'config' && (
                 <main className="relative flex-1 min-w-0 bg-slate-100 dark:bg-slate-800 min-h-0">
