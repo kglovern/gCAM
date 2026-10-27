@@ -14,6 +14,15 @@ describe('G-code-only Simulation', () => {
         cy.contains('button', /^Add Toolpath$/, { timeout: 90000 })
             .should('be.enabled')
             .click();
+        const previewWorkers = [];
+        cy.window().then((win) => {
+            const NativeWorker = win.Worker;
+            cy.stub(win, 'Worker').callsFake(function (url, options) {
+                if (String(url).includes('gcode-preview.worker'))
+                    previewWorkers.push(url);
+                return new NativeWorker(url, options);
+            });
+        });
         cy.get('[aria-label="Preview toolpaths"]').click();
         cy.get('[aria-label="Rotary simulation"]').within(() => {
             cy.get('canvas').should('be.visible');
@@ -21,7 +30,11 @@ describe('G-code-only Simulation', () => {
                 'be.visible',
             );
             cy.get('.rotary-viewport').should('not.exist');
+            cy.get('pre').should(($pre) =>
+                expect($pre.text().length).to.be.lessThan(20100),
+            );
         });
+        cy.then(() => expect(previewWorkers.length).to.be.greaterThan(0));
         cy.contains('button', /^Simulate$/).should('not.exist');
         cy.get('[aria-label="Toolpaths"]').click();
         cy.get('[aria-label="Simulation"]').click();
