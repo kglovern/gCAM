@@ -2,11 +2,15 @@ import { jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 const download = jest.fn();
+const sendToTablet = jest.fn(() => null);
 jest.unstable_mockModule('../toolpaths/exportGcode', () => ({
     downloadGcode: download,
 }));
 jest.unstable_mockModule('../integrations/gsender/SendToGsenderButton', () => ({
     SendToGsenderButton: () => null,
+}));
+jest.unstable_mockModule('../integrations/pendant/SendToTabletButton', () => ({
+    SendToTabletButton: sendToTablet,
 }));
 jest.unstable_mockModule('../hooks/useMediaQuery', () => ({
     useMediaQuery: () => false,
@@ -26,4 +30,8 @@ test('limits DOM text for a large program but exports the complete file', () => 
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save GCODE' }));
     expect(download).toHaveBeenCalledWith(gcode, 'large');
+    expect(sendToTablet.mock.calls[0][0]).toMatchObject({
+        gcode,
+        fileName: 'large',
+    });
 });
