@@ -33,6 +33,7 @@ import {
     loadGsenderPort,
     saveGsenderPort,
 } from '../integrations/gsender/settings';
+import { TabletSettings } from '../integrations/pendant/TabletSettings';
 
 export type GridStyle = 'lines' | 'dots';
 
@@ -477,6 +478,8 @@ export function ConfigPanel({
                     </div>
                 </div>
             </section>
+
+            <TabletSettings />
 
             <section className="space-y-4">
                 <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">

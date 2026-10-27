@@ -1,4 +1,5 @@
 import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
+import { SendToTabletButton } from '../integrations/pendant/SendToTabletButton';
 import { downloadGcode } from './exportGcode';
 import { ChevronDown, Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -98,6 +99,7 @@ export function GcodeExportButton({
                 </button>
             </div>
             <SendToGsenderButton gcode={gcode} fileName={fileName} />
+            <SendToTabletButton gcode={gcode} fileName={fileName} />
             {open && (
                 <div className="absolute bottom-full z-30 mb-2 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl dark:border-robin-900 dark:bg-dark">
                     <p className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">

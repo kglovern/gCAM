@@ -26,6 +26,7 @@ app.on('browser-window-created', (_event, window) => {
                 const update = await window.gcamUpdates.status();
                 if (!update.currentVersion || update.phase !== 'idle') throw new Error('Update bridge unavailable or smoke test contacted update server');
                 if (document.body.textContent.includes('Add gCAM to your Home Screen')) throw new Error('PWA controls remain');
+                if (typeof window.gcamPendant?.discover !== 'function') throw new Error('Tablet pairing bridge missing');
                 const catalogue = await fetch('library/tools/sienci/tools.json');
                 if (!catalogue.ok || !(await catalogue.text()).includes('tool')) throw new Error('Local tool catalogue unavailable');
                 return await new Promise((resolve, reject) => {

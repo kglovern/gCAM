@@ -3,6 +3,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
  * Purpose: Implementation module for GcodePreview in the components domain.
  */
 import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
+import { SendToTabletButton } from '../integrations/pendant/SendToTabletButton';
 import { downloadGcode } from '../toolpaths/exportGcode';
 
 export function GcodePreview({
@@ -39,6 +40,7 @@ export function GcodePreview({
                 Save GCODE
             </button>
             <SendToGsenderButton gcode={gcode} fileName={fileName} />
+            <SendToTabletButton gcode={gcode} fileName={fileName} />
         </div>
     );
 }
