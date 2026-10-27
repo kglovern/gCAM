@@ -1,7 +1,6 @@
 const { join } = require('node:path');
 const { BrowserWindow, shell, app } = require('electron');
 const { APP_URL, isAppUrl, isExternalUrl } = require('./app-protocol.cjs');
-const { join } = require('node:path');
 
 function createWindow() {
     const window = new BrowserWindow({
