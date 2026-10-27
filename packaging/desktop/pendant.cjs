@@ -19,6 +19,8 @@ const IDLE_STOP_MS = 2 * 60 * 1000;
 const QR_TTL_MS = 2 * 60 * 1000;
 const CLAIM_TIMEOUT_MS = 3000;
 const SEND_TIMEOUT_MS = 30000;
+const PROBE_TIMEOUT_MS = 1500;
+const SCAN_INTERVAL_MS = 15000;
 
 const pickIPv4 = (service) =>
     (service.addresses || []).find((addr) =>
@@ -37,6 +39,47 @@ async function postWithTimeout(url, init, timeoutMs) {
     }
 }
 
+/**
+ * Every other address on this computer's /24 networks, on the default
+ * receiver port. Used when mDNS finds nothing: plenty of tablets and mesh
+ * routers drop multicast while plain HTTP to the receiver works fine.
+ */
+function subnetTargets() {
+    const targets = [];
+    for (const addresses of Object.values(os.networkInterfaces())) {
+        for (const addr of addresses || []) {
+            if (addr.family !== 'IPv4' || addr.internal) continue;
+            const prefix = addr.address.split('.').slice(0, 3).join('.');
+            for (let i = 1; i < 255; i++) {
+                const host = `${prefix}.${i}`;
+                if (host !== addr.address)
+                    targets.push({ host, port: DEFAULT_PORT });
+            }
+        }
+    }
+    return targets;
+}
+
+async function probeStatus({ host, port }) {
+    try {
+        const res = await postWithTimeout(
+            `http://${host}:${port}/pendant/status`,
+            { method: 'GET' },
+            PROBE_TIMEOUT_MS,
+        );
+        const status = res.ok ? await res.json() : null;
+        if (status?.status !== 'ready' || !status.deviceId) return null;
+        return {
+            id: status.deviceId,
+            name: status.deviceName || 'Tablet',
+            host,
+            port,
+        };
+    } catch {
+        return null;
+    }
+}
+
 function loadBonjour() {
     const { Bonjour } = require('bonjour-service');
     return new Bonjour(undefined, (err) =>
@@ -48,6 +91,7 @@ function createPendantService({
     storePath,
     desktopName = `gCAM – ${os.hostname()}`,
     createBonjour = loadBonjour,
+    scanTargets = subnetTargets,
     onChange = () => {},
 }) {
     let store = readStore();
@@ -55,6 +99,8 @@ function createPendantService({
     let browser = null;
     let idleTimer = null;
     let activeQr = null;
+    let scanning = null;
+    let lastScanAt = 0;
     const discovered = new Map();
 
     function readStore() {
@@ -130,6 +176,16 @@ function createPendantService({
         }
     }
 
+    function remember({ id, name, host, port }, viaScan) {
+        discovered.set(id, { id, name, host, port, viaScan });
+        // Follow a paired tablet to its new address after a DHCP change.
+        const entry = store.tablets[id];
+        if (entry && (entry.lastHost !== host || entry.lastPort !== port)) {
+            store.tablets[id] = { ...entry, lastHost: host, lastPort: port };
+            writeStore();
+        }
+    }
+
     function handleUp(service) {
         const id = service.txt?.id;
         const host = pickIPv4(service);
@@ -139,21 +195,38 @@ function createPendantService({
             /\s\([0-9a-f]{4}\)$/i,
             '',
         );
-        discovered.set(id, { id, name, host, port: service.port });
-        // Follow a paired tablet to its new address after a DHCP change.
-        const entry = store.tablets[id];
-        if (
-            entry &&
-            (entry.lastHost !== host || entry.lastPort !== service.port)
-        ) {
-            store.tablets[id] = {
-                ...entry,
-                lastHost: host,
-                lastPort: service.port,
-            };
-            writeStore();
-        }
+        remember({ id, name, host, port: service.port }, false);
         emit();
+    }
+
+    /**
+     * Fallback discovery: asks every address on the local /24 for the
+     * receiver's status page. Throttled; resolves once the sweep finishes.
+     */
+    function scan() {
+        if (scanning || Date.now() - lastScanAt < SCAN_INTERVAL_MS)
+            return scanning ?? Promise.resolve();
+        lastScanAt = Date.now();
+        scanning = Promise.all(scanTargets().map(probeStatus))
+            .then((results) => {
+                const found = new Map();
+                for (const tablet of results)
+                    if (tablet) found.set(tablet.id, tablet);
+                for (const [id, entry] of discovered)
+                    if (entry.viaScan && !found.has(id)) discovered.delete(id);
+                // mDNS results win; they carry the advertised port.
+                for (const tablet of found.values())
+                    if (
+                        !discovered.get(tablet.id) ||
+                        discovered.get(tablet.id).viaScan
+                    )
+                        remember(tablet, true);
+                emit();
+            })
+            .finally(() => {
+                scanning = null;
+            });
+        return scanning;
     }
 
     function handleDown(service) {
@@ -174,7 +247,7 @@ function createPendantService({
                 online: Boolean(live),
             };
         });
-        for (const [id, live] of discovered) {
+        for (const [id, { viaScan, ...live }] of discovered) {
             if (!store.tablets[id])
                 tablets.push({ ...live, paired: false, online: true });
         }
@@ -187,6 +260,8 @@ function createPendantService({
     }
 
     function createQr() {
+        touch();
+        void scan();
         const nonce = crypto.randomBytes(16).toString('base64url');
         activeQr = { nonce, expiresAt: Date.now() + QR_TTL_MS };
         const params = new URLSearchParams({
@@ -244,6 +319,8 @@ function createPendantService({
         ) {
             return { paired: false, expired: true };
         }
+        // Nothing answered mDNS: keep sweeping the subnet while the QR is up.
+        if (![...discovered.values()].some((t) => !t.viaScan)) void scan();
         const body = { nonce, desktopId: desktopId(), desktopName };
         const results = await Promise.allSettled(
             [...discovered.values()].map(({ host, port }) =>

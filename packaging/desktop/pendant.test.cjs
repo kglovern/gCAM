@@ -37,6 +37,17 @@ function startTablet({ fileStatus = 200 } = {}) {
                 );
                 return;
             }
+            if (req.url === '/pendant/status') {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(
+                    JSON.stringify({
+                        status: 'ready',
+                        deviceId: 'tab-1',
+                        deviceName: 'Shop Tablet',
+                    }),
+                );
+                return;
+            }
             if (req.url === '/pendant/file') {
                 seen.files.push({ headers: req.headers, body });
                 res.writeHead(fileStatus, {
@@ -72,6 +83,7 @@ function makeService(t, extra = {}) {
         storePath,
         desktopName: 'gCAM – test',
         createBonjour: () => bonjour,
+        scanTargets: () => [],
         onChange: (state) => changes.push(state),
         ...extra,
     });
@@ -202,4 +214,33 @@ test('a 401 on send forgets the tablet', async (t) => {
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'unpaired');
     assert.deepEqual(service.list().tablets, []);
+});
+
+test('QR pairing falls back to a subnet sweep when mDNS finds nothing', async (t) => {
+    const tablet = await startTablet();
+    t.after(() => tablet.server.close());
+    const { service } = makeService(t, {
+        scanTargets: () => [
+            { host: '127.0.0.1', port: tablet.port },
+            // Nothing listens here; must not break the sweep.
+            { host: '127.0.0.1', port: 1 },
+        ],
+    });
+    const { nonce } = service.createQr();
+    tablet.seen.pendingNonce = nonce;
+
+    // The sweep started by createQr may still be running on the first poll.
+    let result = await service.claim({ nonce });
+    for (let i = 0; !result.paired && i < 20; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        result = await service.claim({ nonce });
+    }
+    assert.equal(result.paired, true);
+    assert.equal(result.tablet.port, tablet.port);
+    assert.deepEqual(
+        service
+            .list()
+            .tablets.map(({ id, paired, online }) => ({ id, paired, online })),
+        [{ id: 'tab-1', paired: true, online: true }],
+    );
 });

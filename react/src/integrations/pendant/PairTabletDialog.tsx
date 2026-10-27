@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { type PendantTablet, pendantBridge } from './pendantBridge';
+import { usePendantTablets } from './usePendantTablets';
 
 const POLL_MS = 1500;
 const DEFAULT_RECEIVER_PORT = 8010;
@@ -95,6 +96,8 @@ function PairWithQr({
 }) {
     const [payload, setPayload] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const { tablets } = usePendantTablets();
+    const found = tablets.filter((tablet) => !tablet.paired);
     const onPairedRef = useRef(onPaired);
     onPairedRef.current = onPaired;
 
@@ -163,10 +166,22 @@ function PairWithQr({
                     {error}
                 </p>
             ) : (
-                <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Waiting for a tablet to scan…
-                </p>
+                <div
+                    role="status"
+                    className="space-y-1 text-center text-xs text-slate-500 dark:text-slate-400"
+                >
+                    <p className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {found.length
+                            ? 'Waiting for a tablet to scan…'
+                            : 'Looking for tablets on this network…'}
+                    </p>
+                    <p>
+                        {found.length
+                            ? `Found: ${found.map((tablet) => tablet.name).join(', ')}`
+                            : 'Make sure Remote File Receive is on and the tablet is on the same Wi-Fi.'}
+                    </p>
+                </div>
             )}
             <button type="button" onClick={onUseCode} className={linkCls}>
                 Use pairing code instead
