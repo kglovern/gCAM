@@ -9,6 +9,8 @@ import {
     type ComponentProps,
 } from 'react';
 import { GCodeVisualizer } from '@sienci/gviewer/react';
+import type { WorkerSegmentsData } from '@sienci/gviewer';
+import { createGcodePreviewWorker } from './gcodePreviewWorker';
 import {
     gCodeViewerThemePresets,
     type GCodeViewerBounds,
@@ -55,19 +57,55 @@ export function GcodeViewer3DView({
             return;
         }
         setStatus('Preparing G-code preview…');
-        void viewer
-            .loadFromText(gcode)
-            .then(() => {
-                if (request !== requestRef.current) return;
-                const bounds = viewer.getBounds();
-                if (bounds) viewer.setOptions({ grid: gridForBounds(bounds) });
-                viewer.focusToModel();
-                setStatus('Drag to orbit · scroll to zoom · right-drag to pan');
-            })
-            .catch(() => {
-                if (request === requestRef.current)
-                    setStatus('Unable to render this G-code.');
-            });
+        let active = true;
+        let worker: Worker | undefined;
+        const fail = () => {
+            if (!active || request !== requestRef.current) return;
+            worker?.terminate();
+            viewer.unload();
+            setStatus('Unable to render this G-code.');
+        };
+        try {
+            worker = createGcodePreviewWorker();
+            worker.onerror = fail;
+            worker.onmessage = async (
+                event: MessageEvent<
+                    | { progress: number }
+                    | { data: WorkerSegmentsData }
+                    | { error: string }
+                >,
+            ) => {
+                if (!active || request !== requestRef.current) return;
+                if ('progress' in event.data) {
+                    setStatus(
+                        `Preparing G-code preview… ${event.data.progress}%`,
+                    );
+                    return;
+                }
+                if ('error' in event.data) return fail();
+                worker?.terminate();
+                try {
+                    await viewer.loadFromSegments(event.data.data);
+                    if (!active || request !== requestRef.current) return;
+                    const bounds = viewer.getBounds();
+                    if (bounds)
+                        viewer.setOptions({ grid: gridForBounds(bounds) });
+                    viewer.focusToModel();
+                    setStatus(
+                        'Drag to orbit · scroll to zoom · right-drag to pan',
+                    );
+                } catch {
+                    fail();
+                }
+            };
+            worker.postMessage(gcode);
+        } catch {
+            fail();
+        }
+        return () => {
+            active = false;
+            worker?.terminate();
+        };
     }, [gcode]);
 
     const options = useMemo<
