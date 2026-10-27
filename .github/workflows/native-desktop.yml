@@ -50,10 +50,12 @@ jobs:
         working-directory: packaging/desktop
       - name: Smoke test desktop renderer and CAM worker
         if: runner.os != 'Linux'
+        timeout-minutes: 2
         run: npm run smoke
         working-directory: packaging/desktop
       - name: Smoke test under Xvfb
         if: runner.os == 'Linux'
+        timeout-minutes: 2
         run: xvfb-run -a node_modules/.bin/electron --no-sandbox smoke.cjs
         working-directory: packaging/desktop
       - name: Build installer
