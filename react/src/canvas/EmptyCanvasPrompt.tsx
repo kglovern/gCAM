@@ -6,6 +6,7 @@ interface EmptyCanvasPromptProps {
     onImport: () => void;
     onLoadSample: () => void;
     loadingSample: boolean;
+    onRotary?: () => void;
 }
 
 /** First-run actions shown over an otherwise empty editor canvas. */
@@ -14,6 +15,7 @@ export function EmptyCanvasPrompt({
     onImport,
     onLoadSample,
     loadingSample,
+    onRotary,
 }: EmptyCanvasPromptProps) {
     return (
         <div className="absolute inset-0 z-10 grid place-items-center pointer-events-none">
@@ -21,6 +23,14 @@ export function EmptyCanvasPrompt({
                 <div className="font-medium text-slate-900 dark:text-white">
                     How would you like to begin?
                 </div>
+                {onRotary && (
+                    <button
+                        onClick={onRotary}
+                        className="mt-2 w-full rounded border border-robin-500 px-3 py-2 text-sm font-medium text-robin-800 hover:bg-robin-50 dark:text-robin-200 dark:hover:bg-robin-950"
+                    >
+                        Start a rotary job (STL)
+                    </button>
+                )}
                 <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
                     <button
                         onClick={onNewCanvas}
@@ -36,9 +46,8 @@ export function EmptyCanvasPrompt({
                     </button>
                 </div>
                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    Open a DXF/SVG drawing, STL/OBJ model, or bitmap image, or
-                    drag it onto the canvas. Trace a bitmap into vectors or use
-                    it directly for artistic effects.
+                    Open a DXF/SVG drawing or a 3D model. For a chuck and
+                    tailstock, choose a rotary job.
                 </p>
                 <button
                     onClick={onLoadSample}

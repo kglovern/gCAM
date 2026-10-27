@@ -35,7 +35,17 @@ else {
                 : new Response('Not found', { status: 404 });
         });
         registerPendant();
-        createWindow();
+        const updates = require('./updates.cjs').setupUpdates({
+            app,
+            ipcMain: require('electron').ipcMain,
+            dialog: require('electron').dialog,
+            autoUpdater: require('electron-updater').autoUpdater,
+            windows: () => BrowserWindow.getAllWindows(),
+        });
+        const window = createWindow();
+        window.webContents.once('did-finish-load', () => {
+            if (!app.commandLine.hasSwitch('smoke-test')) void updates.check();
+        });
         app.on('activate', () => {
             if (!BrowserWindow.getAllWindows().length) createWindow();
         });

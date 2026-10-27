@@ -39,6 +39,7 @@ export interface RotaryStock {
 export type RotaryToolType = 'flat' | 'ball' | 'taper' | 'vbit';
 
 export interface RotaryTool {
+    manualCuttingParams?: boolean;
     type: RotaryToolType;
     /** Cutter diameter, mm. */
     dia: number;
@@ -69,7 +70,24 @@ export interface PartOp {
     x: number;
 }
 
+export interface RotaryMeshSettings {
+    strategy: 'around' | 'along' | 'helix' | 'indexed' | 'simultaneous';
+    cellSize: number;
+    tolerance: number;
+    stepover: number;
+    angleStep: number;
+    fluteLength: number;
+    shankDiameter: number;
+    stickout: number;
+    holderDiameter: number;
+    tailClearance: number;
+    clearance: number;
+    rotaryRate: number;
+    independentAxis: boolean;
+}
+
 export interface RotaryOps {
+    mesh?: RotaryMeshSettings;
     face: boolean;
     rough: boolean;
     /** Allowance left for the finish pass, mm. */
@@ -85,9 +103,20 @@ export interface RotaryOps {
     compR: number;
 }
 
+export type RotaryOperation = 'face' | 'rough' | 'finish' | 'groove' | 'part';
+export interface RotaryToolpathEntry {
+    id: string;
+    operation: RotaryOperation;
+    tool: RotaryTool;
+    ops: Omit<RotaryOps, 'pommels' | 'compR'>;
+}
+
 export type RotaryMode = 'profile' | 'stl';
 
 export interface ToolpathMove {
+    y?: number;
+    /** Inverse-time block duration in minutes for verified mesh paths. */
+    minutes?: number;
     x?: number;
     z?: number;
     a?: number;
@@ -114,9 +143,13 @@ export interface StlMesh {
 /**
  * Rotary slice of a gCAM project file (.gcam.json). The mesh itself is
  * never serialized — stlKey re-links a mesh already loaded in the session
- * (same rule as undo snapshots); otherwise STL mode falls back to profile.
+ * (same rule as undo snapshots); a missing STL blocks output until reimport.
  */
 export interface RotaryProjectSlice {
+    operation?: RotaryOperation;
+    toolpathEditorOpen?: boolean;
+    editingToolpathId?: string | null;
+    toolpaths?: RotaryToolpathEntry[];
     name: string;
     mode: RotaryMode;
     stlKey?: string;
@@ -135,6 +168,24 @@ export function isRotaryProjectSlice(v: unknown): v is RotaryProjectSlice {
     if (!isRecord(v)) {
         return false;
     }
+    if (
+        v.operation !== undefined &&
+        !['face', 'rough', 'finish', 'groove', 'part'].includes(
+            String(v.operation),
+        )
+    )
+        return false;
+    if (
+        v.toolpathEditorOpen !== undefined &&
+        typeof v.toolpathEditorOpen !== 'boolean'
+    )
+        return false;
+    if (
+        v.editingToolpathId !== undefined &&
+        v.editingToolpathId !== null &&
+        typeof v.editingToolpathId !== 'string'
+    )
+        return false;
     if (typeof v['name'] !== 'string') {
         return false;
     }
@@ -150,5 +201,84 @@ export function isRotaryProjectSlice(v: unknown): v is RotaryProjectSlice {
     if (v['stlKey'] !== undefined && typeof v['stlKey'] !== 'string') {
         return false;
     }
+    if (
+        v.toolpaths !== undefined &&
+        (!Array.isArray(v.toolpaths) ||
+            !v.toolpaths.every(isRotaryToolpathEntry) ||
+            new Set(v.toolpaths.map((entry) => entry.id)).size !==
+                v.toolpaths.length)
+    )
+        return false;
     return true;
+}
+function finite(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+export function isRotaryToolpathEntry(
+    entry: unknown,
+): entry is RotaryToolpathEntry {
+    if (
+        !isRecord(entry) ||
+        typeof entry.id !== 'string' ||
+        !entry.id ||
+        !['face', 'rough', 'finish', 'groove', 'part'].includes(
+            String(entry.operation),
+        )
+    )
+        return false;
+    const tool = entry.tool,
+        ops = entry.ops;
+    if (
+        !isRecord(tool) ||
+        !isRecord(ops) ||
+        !isRecord(ops.groove) ||
+        !isRecord(ops.part)
+    )
+        return false;
+    return (
+        ['flat', 'ball', 'taper', 'vbit'].includes(String(tool.type)) &&
+        finite(tool.spindle) &&
+        tool.spindle >= 0 &&
+        ['dia', 'feed', 'plunge'].every(
+            (key) => finite(tool[key]) && Number(tool[key]) > 0,
+        ) &&
+        (tool.slotNum === null ||
+            (finite(tool.slotNum) &&
+                Number.isInteger(tool.slotNum) &&
+                tool.slotNum > 0)) &&
+        ['allow', 'roughStep', 'raster'].every((key) => finite(ops[key])) &&
+        Number(ops.allow) >= 0 &&
+        Number(ops.roughStep) > 0 &&
+        [0, 270].includes(Number(ops.raster)) &&
+        finite(ops.groove.x) &&
+        finite(ops.groove.w) &&
+        ops.groove.w > 0 &&
+        finite(ops.part.x) &&
+        (ops.mesh === undefined || isRotaryMeshSettings(ops.mesh))
+    );
+}
+
+export function isRotaryMeshSettings(
+    value: unknown,
+): value is RotaryMeshSettings {
+    if (!isRecord(value)) return false;
+    return (
+        ['around', 'along', 'helix', 'indexed', 'simultaneous'].includes(
+            String(value.strategy),
+        ) &&
+        typeof value.independentAxis === 'boolean' &&
+        [
+            'cellSize',
+            'tolerance',
+            'stepover',
+            'angleStep',
+            'fluteLength',
+            'shankDiameter',
+            'stickout',
+            'holderDiameter',
+            'tailClearance',
+            'clearance',
+            'rotaryRate',
+        ].every((k) => finite(value[k]) && Number(value[k]) >= 0)
+    );
 }

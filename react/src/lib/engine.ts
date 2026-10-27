@@ -89,6 +89,7 @@ export interface ProfileArgs {
     tabs?: PlacedTab[];
     fileName?: string;
     libraryToolId?: string;
+    libraryToolName?: string;
     surfaceBitmapId?: string;
     surfaceResolutionMm?: number;
     surfaceStepoverMm?: number;
@@ -114,6 +115,7 @@ export function buildSurfaceToolpathResult(options: {
     toolDiameter: number;
     cutterType: ToolType;
     libraryToolId?: string;
+    libraryToolName?: string;
     toolNumber: number;
     feedRate: number;
     plungeRate: number;
@@ -144,6 +146,7 @@ export function buildSurfaceToolpathResult(options: {
         label,
         cutterType: options.cutterType,
         libraryToolId: options.libraryToolId,
+        libraryToolName: options.libraryToolName,
         toolDiameter: options.toolDiameter,
         toolNumber: options.toolNumber,
         feedRate: options.feedRate,
@@ -337,6 +340,7 @@ export function buildToolpathGcode({
     tabWidth,
     tabHeight,
     toolNumber,
+    libraryToolName,
     bitmap,
 }: ProfileArgs & { bitmap?: RasterBitmap }): Promise<ToolpathResult> {
     if (!loops.length) return Promise.reject(new Error('No vectors selected.'));
@@ -395,6 +399,7 @@ export function buildToolpathGcode({
         tabWidth,
         tabHeight,
         toolNumber,
+        libraryToolName,
     });
     // Raster ops sample bitmap pixels: flag the loop and hand the entity over.
     const raster = prepareRasterInput(loops, operation, bitmap);

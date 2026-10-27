@@ -1,12 +1,8 @@
 import type { ReactElement } from 'react';
 import { UnitInput } from '../../../components/UnitInput';
-import {
-    formatLength,
-    lengthUnit,
-    feedUnit,
-    type UnitSystem,
-} from '../../../lib/units';
-import { panel, h2, hint, num, check, Row, Label } from './FieldLayout';
+import { formatLength, lengthUnit, type UnitSystem } from '../../../lib/units';
+import { hint } from './FieldLayout';
+import { rotaryInput as num } from './OpsFields';
 import { useState } from 'react';
 import type { PommelZone } from '../../engine/types';
 export function PommelFields({
@@ -24,57 +20,57 @@ export function PommelFields({
     const [x1, setX1] = useState(35);
     const [w, setW] = useState(30);
     return (
-        <section className={panel} aria-label="Pommels">
-            <h2 className={h2}>
-                Pommels{' '}
-                <small className="font-normal text-slate-500 dark:text-slate-400">
-                    square sections · keep-out
-                </small>
-            </h2>
-            <Row>
-                <Label>
+        <section
+            className="rotary-operation-fields border-t border-slate-200 pt-3 dark:border-robin-900"
+            aria-label="Pommels"
+        >
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+                Square sections / pommels
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     X0
                     <UnitInput
                         units={units}
                         valueMm={x0}
                         stepMm={1}
                         onChangeMm={setX0}
-                        className={`${num} w-16`}
+                        className={`${num} !mt-0 !w-16`}
                         aria-label="Pommel start"
                     />
-                </Label>
-                <Label>
+                </label>
+                <label className="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     X1
                     <UnitInput
                         units={units}
                         valueMm={x1}
                         stepMm={1}
                         onChangeMm={setX1}
-                        className={`${num} w-16`}
+                        className={`${num} !mt-0 !w-16`}
                         aria-label="Pommel end"
                     />
-                </Label>
-                <Label>
+                </label>
+                <label className="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     □
                     <UnitInput
                         units={units}
                         valueMm={w}
                         stepMm={0.5}
                         onChangeMm={setW}
-                        className={`${num} w-16`}
+                        className={`${num} !mt-0 !w-16`}
                         aria-label="Pommel flat-to-flat width"
                         title="Flat-to-flat width of the square"
                     />
                     {lengthUnit(units)}
-                </Label>
+                </label>
                 <button
                     type="button"
                     onClick={() => onAdd(x0, x1, w)}
-                    className="min-h-11 rounded-md border border-slate-300 px-2.5 py-1 text-sm dark:border-robin-900 dark:hover:bg-dark-lighter"
+                    className="rounded border border-slate-300 px-2 py-1.5 text-xs dark:border-robin-900 dark:hover:bg-dark-lighter"
                 >
                     Add
                 </button>
-            </Row>
+            </div>
             <ul className="mt-1.5 space-y-1 text-xs">
                 {pommels.map((pm, i) => (
                     <li key={i} className="flex items-center gap-2">
@@ -88,7 +84,7 @@ export function PommelFields({
                             title="Remove pommel"
                             aria-label={`Remove pommel ${i + 1}`}
                             onClick={() => onRemove(i)}
-                            className="min-h-11 min-w-11 rounded border border-slate-300 px-1.5 dark:border-robin-900"
+                            className="min-h-8 min-w-8 rounded border border-slate-300 px-1.5 dark:border-robin-900"
                         >
                             ✕
                         </button>

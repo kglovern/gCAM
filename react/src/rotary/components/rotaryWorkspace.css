@@ -2,43 +2,113 @@
     min-width: 0;
     min-height: 0;
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
     padding: 0.75rem;
-    overflow: hidden;
+    overflow: auto;
 }
-.rotary-body {
-    flex: 1;
-    min-height: 0;
+.rotary-single-page {
     display: grid;
-    grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(420px, 1fr) 360px;
     gap: 0.75rem;
+    min-width: 792px;
+    height: 100%;
 }
-.rotary-controls {
-    min-width: 0;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 0.25rem;
-}
-.rotary-preview {
+.rotary-design-card {
     min-width: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
 }
 .rotary-viewport {
-    min-height: 0;
-    flex: 1;
+    flex: 0 0 clamp(210px, 34vh, 380px);
+    min-height: 210px;
     display: flex;
     flex-direction: column;
 }
 .rotary-viewport-canvas {
     flex: 1;
-    min-height: 220px;
+    min-height: 0;
 }
-.rotary-workspace input[type="checkbox"] {
+.rotary-shape {
+    display: flex;
+    flex: 1 0 auto;
+    min-height: 270px;
+    border-top: 1px solid rgb(226 232 240);
+}
+.dark .rotary-shape {
+    border-color: #263c49;
+}
+.rotary-source-tabs {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 74px;
+    padding-top: 0.5rem;
+    border-right: 2px solid #9ca3af;
+    background: #fff;
+}
+.rotary-source-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 80px;
+    margin-left: 4px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 500;
+    border: 2px solid transparent;
+    border-right: 0;
+    border-radius: 5px 0 0 5px;
+}
+.rotary-source-tab-active {
+    margin-right: -2px;
+    z-index: 1;
+    border-color: #9ca3af;
+    color: #2563eb;
+    background: linear-gradient(90deg, #79aad84d 40%, #f8fafc);
+}
+.dark .rotary-source-tabs {
+    background: #1e293b;
+    border-color: #374151;
+}
+.dark .rotary-source-tab {
+    color: #9ca3af;
+}
+.dark .rotary-source-tab-active {
+    border-color: #374151;
+    color: #60a5fa;
+    background: linear-gradient(90deg, #3b82f633 40%, #1e293b);
+}
+.rotary-source-content {
+    flex: 1;
+    min-width: 0;
+}
+.rotary-profile-editor {
+    height: 210px;
+    min-height: 180px;
+    display: flex;
+}
+.rotary-profile-editor svg {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+}
+.rotary-toolpath-sidebar {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+}
+.rotary-toolpath-fields {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.rotary-design-card input[type="checkbox"] {
     width: 1.125rem;
     height: 1.125rem;
     flex-shrink: 0;
@@ -52,45 +122,27 @@
     outline: 2px solid #559cbe;
     outline-offset: 2px;
 }
-@media (max-width: 1099px) {
-    .rotary-body {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(180px, 0.8fr) minmax(0, 1.2fr);
-    }
-    .rotary-preview {
-        grid-row: 1;
-    }
-    .rotary-viewport-canvas {
-        min-height: 140px;
-    }
-}
-@media (max-height: 650px) and (min-width: 1100px) {
-    .rotary-workspace {
-        gap: 0.5rem;
-        padding: 0.5rem;
+@media (min-height: 900px) {
+    .rotary-profile-editor {
+        height: 260px;
     }
 }
 
-.rotary-controls #rotary-step-1:not([hidden]) {
-    height: 100%;
+.rotary-toolpath-fields input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    accent-color: #559cbe;
 }
-.rotary-shape {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 400px;
-    overflow: hidden;
+.rotary-toolpath-fields .rotary-operation-fields label {
+    font-size: 12px;
 }
-.rotary-shape > div:first-child {
-    flex-shrink: 0;
+.rotary-toolpath-fields .rotary-operation-fields > div {
+    gap: 0.5rem;
 }
-.rotary-profile-editor {
-    min-height: 160px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+.rotary-toolpath-fields .rotary-operation-fields input {
+    min-height: 0;
+    width: 100%;
 }
-.rotary-profile-editor svg {
-    min-height: 115px;
-    flex: 1;
+.rotary-toolpath-fields .rotary-operation-fields button {
+    min-height: 32px;
 }

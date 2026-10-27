@@ -1,55 +1,27 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ToolpathWorkspace } from './ToolpathWorkspace';
-import { mockMediaQuery } from '../test-stubs/media-query';
-let media: ReturnType<typeof mockMediaQuery>;
-afterEach(() => media.restore());
-function workspace() {
-    return (
+
+test('keeps settings visible and preserves the draft when selection actions change', () => {
+    const workspace = (actions?: React.ReactNode) => (
         <ToolpathWorkspace
-            selectedCount={1}
-            rail={
-                <div>
-                    Cut settings
-                    <input aria-label="Draft feed" defaultValue="100" />
-                </div>
-            }
+            rail={<input aria-label="Draft feed" defaultValue="100" />}
+            actions={actions}
         >
             <main>Canvas</main>
         </ToolpathWorkspace>
     );
-}
-test('narrow layout keeps the canvas available and opens/closes settings explicitly', () => {
-    media = mockMediaQuery(true);
-    render(workspace());
-    expect(screen.getByText('Cut settings')).not.toBeVisible();
-    const toggle = screen.getByRole('button', { name: 'Toolpath settings' });
-    fireEvent.click(toggle);
-    expect(screen.getByText('Cut settings')).toBeVisible();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Draft feed' }), {
-        target: { value: '250' },
-    });
-    expect(
-        screen.getByRole('button', { name: 'Close toolpath settings' }),
-    ).toHaveFocus();
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.getByText('Cut settings')).not.toBeVisible();
-    expect(toggle).toHaveFocus();
-    fireEvent.click(toggle);
-    expect(screen.getByRole('textbox', { name: 'Draft feed' })).toHaveValue(
-        '250',
-    );
-    expect(screen.getByRole('main')).toHaveTextContent('Canvas');
-});
-test('rotation restores the desktop rail and keeps drawer state without replacing canvas', () => {
-    media = mockMediaQuery(true);
-    render(workspace());
+    const { rerender } = render(workspace());
     const canvas = screen.getByRole('main');
-    act(() => media.change(false));
-    expect(screen.getByText('Cut settings')).toBeVisible();
+    const feed = screen.getByRole('textbox', { name: 'Draft feed' });
+    expect(
+        screen.getByRole('region', { name: 'Toolpath settings panel' }),
+    ).toBeVisible();
+    fireEvent.change(feed, { target: { value: '250' } });
+    rerender(workspace(<button type="button">Properties</button>));
+    expect(screen.getByRole('main')).toBe(canvas);
+    expect(screen.getByRole('textbox', { name: 'Draft feed' })).toBe(feed);
+    expect(feed).toHaveValue('250');
     expect(
         screen.queryByRole('button', { name: 'Toolpath settings' }),
     ).not.toBeInTheDocument();
-    act(() => media.change(true));
-    expect(screen.getByText('Cut settings')).not.toBeVisible();
-    expect(screen.getByRole('main')).toBe(canvas);
 });

@@ -166,8 +166,14 @@ function spanControls(
     };
 }
 
-/** Sample the profile to a polyline, sorted by X. */
-export function sampleProfile(pts: ProfilePoint[], per = 12): ProfileSample[] {
+export const PROFILE_SAMPLE_TOLERANCE = 0.005;
+
+/** Sample the profile to a polyline, sorted by X. Optional adaptive sampling bounds curve error. */
+export function sampleProfile(
+    pts: ProfilePoint[],
+    per = 12,
+    tolerance?: number,
+): ProfileSample[] {
     if (pts.length < 2) {
         return pts.map((p) => ({ x: p.x, r: Math.max(0, p.r) }));
     }
@@ -177,6 +183,56 @@ export function sampleProfile(pts: ProfilePoint[], per = 12): ProfileSample[] {
         const a = s[i];
         const b = s[i + 1];
         const { c1x, c1r, c2x, c2r } = spanControls(a, b);
+        if (tolerance !== undefined) {
+            if (!(tolerance > 0) || !Number.isFinite(tolerance))
+                throw new Error('Use a positive profile sampling tolerance.');
+            const midpoint = (p: ProfileSample, q: ProfileSample) => ({
+                x: (p.x + q.x) / 2,
+                r: (p.r + q.r) / 2,
+            });
+            const flatten = (
+                p: ProfileSample,
+                q: ProfileSample,
+                u: ProfileSample,
+                v: ProfileSample,
+                depth: number,
+            ) => {
+                const dx = v.x - p.x,
+                    dr = v.r - p.r,
+                    length2 = dx * dx + dr * dr;
+                const distance = (n: ProfileSample) => {
+                    const t = length2
+                        ? Math.max(
+                              0,
+                              Math.min(
+                                  1,
+                                  ((n.x - p.x) * dx + (n.r - p.r) * dr) /
+                                      length2,
+                              ),
+                          )
+                        : 0;
+                    return Math.hypot(n.x - p.x - t * dx, n.r - p.r - t * dr);
+                };
+                if (Math.max(distance(q), distance(u)) <= tolerance) {
+                    out.push({ x: p.x, r: Math.max(0, p.r) });
+                    return;
+                }
+                if (depth >= 20 || out.length > 50_000)
+                    throw new Error(
+                        'Profile curve is too complex. Simplify its handles.',
+                    );
+                const pq = midpoint(p, q),
+                    qu = midpoint(q, u),
+                    uv = midpoint(u, v),
+                    left = midpoint(pq, qu),
+                    right = midpoint(qu, uv),
+                    centre = midpoint(left, right);
+                flatten(p, pq, left, centre, depth + 1);
+                flatten(centre, right, uv, v, depth + 1);
+            };
+            flatten(a, { x: c1x, r: c1r }, { x: c2x, r: c2r }, b, 0);
+            continue;
+        }
         for (let k = 0; k < per; k++) {
             const t = k / per;
             out.push({

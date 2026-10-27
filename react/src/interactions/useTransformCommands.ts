@@ -233,8 +233,11 @@ export function useTransformCommands<
         }
     };
 
-    const handleTransformCommit = (commit: TransformCommit | null) => {
-        options.setTransformMode(null);
+    const handleTransformCommit = (
+        commit: TransformCommit | null,
+        preserveMode = false,
+    ) => {
+        if (!preserveMode) options.setTransformMode(null);
         if (!commit) return;
         const targets = options.selectedLoops();
         if (!targets.length) return;

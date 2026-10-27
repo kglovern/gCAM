@@ -3,18 +3,17 @@
  * Bezier nodes/handles, click-to-split segments, mm rulers and snap.
  * Nodes can never cross; handles repair live so spans cannot fold.
  */
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { clonePoints, fitHandles, sampleProfile } from '../engine/profileModel';
-
+import { DARK_CANVAS_THEME, LIGHT_CANVAS_THEME } from '../../canvas/theme';
+import { profileCamera, zoomProfileAt } from './profileCamera';
 import { useProfileViewport } from './useProfileViewport';
 import { useProfileGestures } from './useProfileGestures';
 import type { ProfilePoint, RotaryStock } from '../engine/types';
-
 const ML = 34;
 const MR = 10;
 const MT = 22;
 const MB = 24;
-
 interface DragState {
     kind: 'pt' | 'hd' | 'bg';
     i?: number;
@@ -22,13 +21,14 @@ interface DragState {
     x0: number;
     y0: number;
     pan: number;
+    panY: number;
     moved: boolean;
 }
-
 interface ProfileEditorViewProps {
     points: ProfilePoint[];
     stock: RotaryStock;
     snap: boolean;
+    darkMode?: boolean;
     sel: number;
     onSelect: (i: number) => void;
     /** Live drag updates (no history). */
@@ -39,11 +39,11 @@ interface ProfileEditorViewProps {
     onDeleteKey: () => void;
     onNudge: (dx: number, dr: number) => void;
 }
-
 export function ProfileEditorView({
     points,
     stock,
     snap,
+    darkMode = false,
     sel,
     onSelect,
     onLive,
@@ -55,6 +55,23 @@ export function ProfileEditorView({
     const [zoom, setZoom] = useState(1);
     const [panX, setPanX] = useState(0);
     const panXRef = useRef(0);
+    const [panY, setPanY] = useState(0);
+    const panYRef = useRef(0);
+    const navigation = useRef({ zoom, panX, panY });
+    navigation.current = { zoom, panX, panY };
+    const theme = darkMode ? DARK_CANVAS_THEME : LIGHT_CANVAS_THEME;
+    const setNavigation = (view: {
+        zoom: number;
+        panX: number;
+        panY: number;
+    }) => {
+        navigation.current = view;
+        panXRef.current = view.panX;
+        panYRef.current = view.panY;
+        setZoom(view.zoom);
+        setPanX(view.panX);
+        setPanY(view.panY);
+    };
     const drag = useRef<DragState | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width: W, height: H } = useProfileViewport(svgRef);
@@ -68,35 +85,57 @@ export function ProfileEditorView({
     const gestures = useProfileGestures({
         svg: svgRef,
         viewWidth: W,
+        viewHeight: H,
+        panY,
         zoom,
         pan: panX,
         onInterrupt: stopDrag,
-        onView: (nextZoom, nextPan) => {
-            setZoom(nextZoom);
-            panXRef.current = nextPan;
-            setPanX(nextPan);
-        },
+        onView: (nextZoom, nextPan, nextPanY) =>
+            setNavigation({ zoom: nextZoom, panX: nextPan, panY: nextPanY }),
     });
-
-    const view = useMemo(() => {
-        const maxR = Math.max(stock.diameter / 2 + 2, 8);
-        const maxX = Math.max(
-            stock.length,
-            ...points.map((p) => p.x),
-            ...points.map((p) => p.h1.x),
-            ...points.map((p) => p.h2.x),
-        );
-        return { maxR, maxX: maxX + 4 };
-    }, [points, stock]);
-
-    const X = (x: number): number =>
-        ML + (x / view.maxX) * (W - ML - MR) * zoom - panXRef.current;
-    const Y = (r: number): number => H - MB - (r / view.maxR) * (H - MT - MB);
-    const invX = (px: number): number =>
-        ((px - ML + panXRef.current) / ((W - ML - MR) * zoom)) * view.maxX;
-    const invR = (py: number): number =>
-        ((H - MB - py) / (H - MT - MB)) * view.maxR;
-
+    const camera = profileCamera(
+        W,
+        H,
+        stock.length,
+        stock.diameter,
+        zoom,
+        panX,
+        panY,
+    );
+    const { x: X, r: Y, invX, invR } = camera;
+    useEffect(() => {
+        const svg = svgRef.current;
+        if (!svg) return;
+        const wheel = (event: WheelEvent) => {
+            event.preventDefault();
+            if (drag.current) stopDrag();
+            const rect = svg.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const current = navigation.current;
+            setNavigation(
+                zoomProfileAt(
+                    current.zoom,
+                    current.panX,
+                    current.panY,
+                    current.zoom *
+                        Math.exp(
+                            -event.deltaY *
+                                (event.deltaMode === 1
+                                    ? 16
+                                    : event.deltaMode === 2
+                                      ? H
+                                      : 1) *
+                                0.0015,
+                        ),
+                    ((event.clientX - rect.left) * W) / rect.width,
+                    ((event.clientY - rect.top) * H) / rect.height,
+                    H,
+                ),
+            );
+        };
+        svg.addEventListener('wheel', wheel, { passive: false });
+        return () => svg.removeEventListener('wheel', wheel);
+    }, [W, H]);
     const toLocal = (
         clientX: number,
         clientY: number,
@@ -110,7 +149,6 @@ export function ProfileEditorView({
             py: ((clientY - rect.top) * H) / rect.height,
         };
     };
-
     const curvePath = useMemo(() => {
         const s = sampleProfile(points, 16);
         return s
@@ -119,8 +157,7 @@ export function ProfileEditorView({
                     `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.r).toFixed(1)}`,
             )
             .join(' ');
-    }, [points, view, zoom, panX, W, H]);
-
+    }, [points, stock, zoom, panX, panY, W, H]);
     const nearCurve = (px: number, py: number): boolean => {
         const s = sampleProfile(points, 16);
         for (const p of s) {
@@ -130,7 +167,6 @@ export function ProfileEditorView({
         }
         return false;
     };
-
     const nearPoint = (px: number, py: number): number => {
         let bi = -1;
         let bd = 10;
@@ -143,8 +179,8 @@ export function ProfileEditorView({
         });
         return bi;
     };
-
     const onPointerDown = (e: React.PointerEvent): void => {
+        if (e.button !== 0) e.preventDefault();
         svgRef.current?.setPointerCapture(e.pointerId);
         if (gestures.begin(e)) return;
         if (activePointer.current !== null) return;
@@ -153,7 +189,7 @@ export function ProfileEditorView({
         const target = e.target as SVGGElement;
         const di = target.dataset?.i;
         const dh = target.dataset?.h;
-        if (di !== undefined && dh === undefined) {
+        if (e.button === 0 && di !== undefined && dh === undefined) {
             const i = Number(di);
             onSelect(i);
             drag.current = {
@@ -162,9 +198,10 @@ export function ProfileEditorView({
                 x0: e.clientX,
                 y0: e.clientY,
                 pan: panXRef.current,
+                panY: panYRef.current,
                 moved: false,
             };
-        } else if (di !== undefined) {
+        } else if (e.button === 0 && di !== undefined) {
             const i = Number(di);
             onSelect(i);
             drag.current = {
@@ -174,6 +211,7 @@ export function ProfileEditorView({
                 x0: e.clientX,
                 y0: e.clientY,
                 pan: panXRef.current,
+                panY: panYRef.current,
                 moved: false,
             };
         } else {
@@ -182,11 +220,11 @@ export function ProfileEditorView({
                 x0: e.clientX,
                 y0: e.clientY,
                 pan: panXRef.current,
+                panY: panYRef.current,
                 moved: false,
             };
         }
     };
-
     const onPointerMove = (e: React.PointerEvent): void => {
         if (gestures.move(e) || activePointer.current !== e.pointerId) return;
         const d = drag.current;
@@ -242,13 +280,15 @@ export function ProfileEditorView({
         } else if (d.kind === 'bg') {
             if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > 6) {
                 d.moved = true;
-                const nx = Math.max(0, d.pan - (e.clientX - d.x0));
-                panXRef.current = nx;
-                setPanX(nx);
+                const rect = svgRef.current!.getBoundingClientRect();
+                setNavigation({
+                    zoom: navigation.current.zoom,
+                    panX: d.pan - ((e.clientX - d.x0) * W) / rect.width,
+                    panY: d.panY + ((e.clientY - d.y0) * H) / rect.height,
+                });
             }
         }
     };
-
     const onPointerUp = (e: React.PointerEvent): void => {
         if (gestures.end(e) || activePointer.current !== e.pointerId) return;
         activePointer.current = null;
@@ -271,8 +311,12 @@ export function ProfileEditorView({
             }
         }
     };
-
     const onKeyDown = (e: React.KeyboardEvent): void => {
+        if (e.key === 'Home') {
+            e.preventDefault();
+            setNavigation({ zoom: 1, panX: 0, panY: 0 });
+            return;
+        }
         const p = points[sel];
         if (!p) {
             return;
@@ -302,24 +346,33 @@ export function ProfileEditorView({
             onDeleteKey();
         }
     };
-
-    const selPt = points[sel];
     const stockR = stock.diameter / 2;
-    const gridX: number[] = [];
-    for (let gx = 0; gx <= view.maxX; gx += 10) {
-        gridX.push(gx);
-    }
-    const gridR: number[] = [];
-    for (let gr = 5; gr <= view.maxR; gr += 5) {
-        gridR.push(gr);
-    }
-
+    const rawStep = 30 / camera.scale;
+    const power = 10 ** Math.floor(Math.log10(rawStep));
+    const step =
+        [1, 2, 5, 10].find((value) => value * power >= rawStep)! * power;
+    const gridX: number[] = [],
+        gridR: number[] = [];
+    for (
+        let x = Math.ceil(invX(ML) / step) * step;
+        x <= invX(W - MR);
+        x += step
+    )
+        gridX.push(x);
+    for (
+        let r = Math.ceil(invR(H - MB) / step) * step;
+        r <= invR(MT);
+        r += step
+    )
+        gridR.push(r);
     return (
         <div className="rotary-profile-editor">
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${W} ${H}`}
-                className="block w-full cursor-crosshair touch-none bg-slate-950"
+                className="block w-full cursor-crosshair touch-none"
+                style={{ background: theme.bg }}
+                onContextMenu={(event) => event.preventDefault()}
                 tabIndex={0}
                 role="application"
                 aria-label="Profile editor"
@@ -336,6 +389,9 @@ export function ProfileEditorView({
                 }}
                 onKeyDown={onKeyDown}
             >
+                <title>
+                    Scroll to zoom. Drag background to pan. Home to fit.
+                </title>
                 {gridX.map((gx) => (
                     <line
                         key={`gx${gx}`}
@@ -343,7 +399,7 @@ export function ProfileEditorView({
                         y1={MT}
                         x2={X(gx)}
                         y2={H - MB}
-                        stroke="#1d2732"
+                        stroke={theme.grid}
                         strokeWidth={1}
                     />
                 ))}
@@ -354,7 +410,7 @@ export function ProfileEditorView({
                         y1={Y(gr)}
                         x2={W - MR}
                         y2={Y(gr)}
-                        stroke="#1d2732"
+                        stroke={theme.grid}
                         strokeWidth={1}
                     />
                 ))}
@@ -364,7 +420,7 @@ export function ProfileEditorView({
                     width={Math.max(2, X(stock.length) - X(0))}
                     height={Y(0) - Y(stockR)}
                     fill="none"
-                    stroke="#3d4c5c"
+                    stroke={theme.rulerEdge}
                     strokeDasharray="4 3"
                 />
                 <rect
@@ -383,7 +439,7 @@ export function ProfileEditorView({
                     y1={Y(0)}
                     x2={W - MR}
                     y2={Y(0)}
-                    stroke="#55606c"
+                    stroke={theme.rulerTick}
                     strokeWidth={1}
                 />
                 {gridX.map((gx) => (
@@ -393,11 +449,16 @@ export function ProfileEditorView({
                             y1={2}
                             x2={X(gx)}
                             y2={7}
-                            stroke="#55606c"
+                            stroke={theme.rulerTick}
                             strokeWidth={1}
                         />
-                        <text x={X(gx) + 2} y={14} fill="#8fa1b1" fontSize={8}>
-                            {gx}
+                        <text
+                            x={X(gx) + 2}
+                            y={14}
+                            fill={theme.rulerLabel}
+                            fontSize={8}
+                        >
+                            {Number(gx.toFixed(3))}
                         </text>
                     </g>
                 ))}
@@ -408,24 +469,34 @@ export function ProfileEditorView({
                             y1={Y(gr)}
                             x2={ML - 1}
                             y2={Y(gr)}
-                            stroke="#55606c"
+                            stroke={theme.rulerTick}
                             strokeWidth={1}
                         />
-                        <text x={2} y={Y(gr) + 3} fill="#8fa1b1" fontSize={8}>
-                            {gr}
+                        <text
+                            x={2}
+                            y={Y(gr) + 3}
+                            fill={theme.rulerLabel}
+                            fontSize={8}
+                        >
+                            {Number(gr.toFixed(3))}
                         </text>
                     </g>
                 ))}
                 <path
                     d={curvePath}
                     fill="none"
-                    stroke="#e8862e"
+                    stroke={theme.vector}
                     strokeWidth={2.5}
                 />
-                <text x={W - MR - 40} y={H - 8} fill="#8fa1b1" fontSize={10}>
+                <text
+                    x={W - MR - 40}
+                    y={H - 8}
+                    fill={theme.rulerLabel}
+                    fontSize={10}
+                >
                     X → tailstock
                 </text>
-                <text x={4} y={MT + 8} fill="#8fa1b1" fontSize={10}>
+                <text x={4} y={MT + 8} fill={theme.rulerLabel} fontSize={10}>
                     R
                 </text>
                 {points.map((p, i) => (
@@ -437,7 +508,7 @@ export function ProfileEditorView({
                                     y1={Y(p.r)}
                                     x2={X(p.h1.x)}
                                     y2={Y(p.h1.r)}
-                                    stroke="#5aa9e6"
+                                    stroke={theme.selected}
                                     strokeWidth={1}
                                 />
                                 <line
@@ -445,7 +516,7 @@ export function ProfileEditorView({
                                     y1={Y(p.r)}
                                     x2={X(p.h2.x)}
                                     y2={Y(p.h2.r)}
-                                    stroke="#5aa9e6"
+                                    stroke={theme.selected}
                                     strokeWidth={1}
                                 />
                                 {(['h1', 'h2'] as const).map((h) => (
@@ -454,8 +525,8 @@ export function ProfileEditorView({
                                         cx={X(p[h].x)}
                                         cy={Y(p[h].r)}
                                         r={4}
-                                        fill="#0d1319"
-                                        stroke="#5aa9e6"
+                                        fill={theme.bg}
+                                        stroke={theme.selected}
                                         strokeWidth={1.5}
                                         data-i={i}
                                         data-h={h}
@@ -468,8 +539,8 @@ export function ProfileEditorView({
                             cx={X(p.x)}
                             cy={Y(p.r)}
                             r={6}
-                            fill={i === sel ? '#e8862e' : '#0d1319'}
-                            stroke={i === sel ? '#fff' : '#e8862e'}
+                            fill={i === sel ? theme.selected : theme.bg}
+                            stroke={i === sel ? theme.selected : theme.vector}
                             strokeWidth={2}
                             data-i={i}
                             style={{ cursor: 'grab' }}
@@ -477,41 +548,6 @@ export function ProfileEditorView({
                     </g>
                 ))}
             </svg>
-            <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-1 px-2 py-1">
-                <span className="mr-auto text-xs text-slate-500 dark:text-slate-400">
-                    {selPt
-                        ? `Point ${sel + 1} · ${selPt.type}`
-                        : `${points.length} points · select a point to edit`}
-                </span>
-                <button
-                    type="button"
-                    aria-label="Zoom out"
-                    className="min-h-11 min-w-11 rounded border border-slate-300 px-2.5 py-0.5 text-sm dark:border-robin-900"
-                    onClick={() => setZoom((z) => Math.max(0.5, z * 0.8))}
-                >
-                    −
-                </button>
-                <button
-                    type="button"
-                    aria-label="Zoom in"
-                    className="min-h-11 min-w-11 rounded border border-slate-300 px-2.5 py-0.5 text-sm dark:border-robin-900"
-                    onClick={() => setZoom((z) => Math.min(3, z * 1.25))}
-                >
-                    +
-                </button>
-                <button
-                    type="button"
-                    aria-label="Reset zoom"
-                    className="min-h-11 min-w-11 rounded border border-slate-300 px-2.5 py-0.5 text-sm dark:border-robin-900"
-                    onClick={() => {
-                        setZoom(1);
-                        panXRef.current = 0;
-                        setPanX(0);
-                    }}
-                >
-                    Fit
-                </button>
-            </div>
         </div>
     );
 }

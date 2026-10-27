@@ -37,6 +37,7 @@ import {
 import type { CanvasToolbarProps, ToolbarAction } from './types';
 
 interface ToolbarMenusProps {
+    latheProfile?: { import(): void; export(): void };
     props: CanvasToolbarProps;
     openAction: (action: Exclude<ToolbarAction, null>) => void;
     close: () => void;
@@ -49,6 +50,7 @@ export function ToolbarMenus({
     openAction,
     close,
     group = 'all',
+    latheProfile,
 }: ToolbarMenusProps) {
     return (
         <>
@@ -65,6 +67,21 @@ export function ToolbarMenus({
                         onClick={() => props.onImportFile?.()}
                     />
                     <ToolbarMenuSeparator />
+                    {latheProfile && (
+                        <>
+                            <ToolbarMenuItem
+                                label="Import Lathe Profile"
+                                icon={<FileUp size={16} />}
+                                onClick={latheProfile.import}
+                            />
+                            <ToolbarMenuItem
+                                label="Export Lathe Profile"
+                                icon={<Download size={16} />}
+                                onClick={latheProfile.export}
+                            />
+                            <ToolbarMenuSeparator />
+                        </>
+                    )}
                     <ToolbarMenuItem
                         label="Import Project"
                         icon={<FolderOpen size={16} />}

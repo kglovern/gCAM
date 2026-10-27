@@ -4,6 +4,7 @@
 import { Box, Cylinder, Layers, Settings } from 'lucide-react';
 import cx from 'classnames';
 import toolpathsIconUrl from '../../assets/Toolpaths.svg';
+import rotaryIconUrl from '../../assets/Rotary.svg';
 
 export type SideTab = 'toolpaths' | 'preview' | 'config' | 'rotary';
 
@@ -14,9 +15,9 @@ interface SidebarProps {
 
 const tabs = [
     { id: 'toolpaths', label: 'Toolpaths', icon: Layers },
+    { id: 'rotary', label: 'Rotary', icon: Cylinder },
     { id: 'preview', label: 'Simulation', icon: Box },
     { id: 'config', label: 'Config', icon: Settings },
-    { id: 'rotary', label: 'Rotary', icon: Cylinder },
 ] as const;
 
 /**
@@ -56,9 +57,13 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                             aria-current={isActive ? 'page' : undefined}
                             aria-label={tab.label}
                         >
-                            {tab.id === 'toolpaths' ? (
+                            {tab.id === 'toolpaths' || tab.id === 'rotary' ? (
                                 <img
-                                    src={toolpathsIconUrl}
+                                    src={
+                                        tab.id === 'rotary'
+                                            ? rotaryIconUrl
+                                            : toolpathsIconUrl
+                                    }
                                     alt=""
                                     aria-hidden="true"
                                     className={cx(
@@ -82,7 +87,8 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                                     )}
                                 />
                             )}
-                            {tab.id === 'toolpaths' && (
+                            {(tab.id === 'toolpaths' ||
+                                tab.id === 'rotary') && (
                                 <Icon size={24} className="md:hidden" />
                             )}
                             <span className="text-[10px] lg:text-xs font-medium leading-none">

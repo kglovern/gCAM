@@ -48,3 +48,19 @@ test('rejects malformed slices', () => {
     expect(isRotaryProjectSlice({ ...good, stock: null })).toBe(false);
     expect(isRotaryProjectSlice({ ...good, stlKey: 42 })).toBe(false);
 });
+
+test('validates optional draft restoration fields without rejecting legacy projects', () => {
+    expect(
+        isRotaryProjectSlice({
+            ...good,
+            operation: 'finish',
+            toolpathEditorOpen: true,
+            editingToolpathId: null,
+        }),
+    ).toBe(true);
+    expect(isRotaryProjectSlice({ ...good, operation: 'mystery' })).toBe(false);
+    expect(isRotaryProjectSlice({ ...good, toolpathEditorOpen: 'yes' })).toBe(
+        false,
+    );
+    expect(isRotaryProjectSlice({ ...good, editingToolpathId: 3 })).toBe(false);
+});

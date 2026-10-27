@@ -1,82 +1,89 @@
-import type { ReactElement } from 'react';
 import { UnitInput } from '../../../components/UnitInput';
-import { lengthUnit, feedUnit, type UnitSystem } from '../../../lib/units';
-import { panel, h2, hint, num, check, Row, Label } from './FieldLayout';
+import { MATERIAL_RECIPES } from '../../../cutting-parameters/recipes';
+import type { MaterialId } from '../../../cutting-parameters/types';
+import { lengthUnit, type UnitSystem } from '../../../lib/units';
 import type { RotaryStock } from '../../engine/types';
+import { RotarySettingsBoundary } from '../RotarySettingsBoundary';
+
 export function StockFields({
     stock,
     units,
+    material,
     onPatch,
+    onMaterialChange,
+    onBeforeChange,
 }: {
     stock: RotaryStock;
     units: UnitSystem;
-    onPatch: (patch: Partial<RotaryStock>) => void;
-}): ReactElement {
+    material: MaterialId;
+    onPatch(patch: Partial<RotaryStock>): void;
+    onMaterialChange(material: MaterialId): void;
+    onBeforeChange(): void;
+}) {
+    const unit = lengthUnit(units);
+    const input =
+        'mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-robin-900 dark:bg-dark';
     return (
-        <section className={panel} aria-label="Stock">
-            <h2 className={h2}>Stock</h2>
-            <Row>
-                <Label>
-                    Length
-                    <UnitInput
-                        units={units}
-                        kind="length"
-                        valueMm={stock.length}
-                        onChangeMm={(v) => onPatch({ length: v })}
-                        minMm={10}
-                        maxMm={1003}
-                        stepMm={0.5}
-                        className={num}
-                        aria-label="Stock length"
-                    />
-                    {lengthUnit(units)}
-                </Label>
-                <Label>
-                    Ø
-                    <UnitInput
-                        units={units}
-                        kind="length"
-                        valueMm={stock.diameter}
-                        onChangeMm={(v) => onPatch({ diameter: v })}
-                        minMm={6}
-                        maxMm={101.6}
-                        stepMm={0.5}
-                        className={num}
-                        aria-label="Stock diameter"
-                    />
-                    {lengthUnit(units)}
-                </Label>
-            </Row>
-            <Row>
-                <Label>
-                    Grip
-                    <UnitInput
-                        units={units}
-                        kind="length"
-                        valueMm={stock.grip}
-                        onChangeMm={(v) => onPatch({ grip: v })}
-                        minMm={0}
-                        maxMm={100}
-                        stepMm={1}
-                        className={num}
-                        aria-label="Chuck grip length"
-                        title="Length held in chuck jaws — no cutting here"
-                    />
-                    {lengthUnit(units)}
-                </Label>
-                <label className={check}>
-                    <input
-                        type="checkbox"
-                        checked={stock.ext}
-                        onChange={(e) => onPatch({ ext: e.target.checked })}
-                    />
-                    Ext. track (39.5&Prime;)
-                </label>
-            </Row>
-            <p className={hint}>
-                Max Ø 101.6mm (4&Prime;), max length 546mm (21.5&Prime;) —
-                1003mm with extension. Min 19mm grip in jaws.
+        <section
+            aria-label="Rotary job stock"
+            className="space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50"
+        >
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Job stock
+            </h3>
+            <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Enter your measured round blank size, including the end held in
+                the chuck. These are wood dimensions, not model dimensions.
             </p>
+            <RotarySettingsBoundary onBeforeChange={onBeforeChange}>
+                <div className="grid grid-cols-2 gap-2">
+                    <label className="text-xs text-slate-600 dark:text-slate-300">
+                        Length ({unit})
+                        <UnitInput
+                            units={units}
+                            kind="length"
+                            valueMm={stock.length}
+                            onChangeMm={(length) => onPatch({ length })}
+                            minMm={10}
+                            maxMm={1003}
+                            stepMm={0.5}
+                            className={input}
+                            aria-label="Stock length"
+                        />
+                    </label>
+                    <label className="text-xs text-slate-600 dark:text-slate-300">
+                        Diameter ({unit})
+                        <UnitInput
+                            units={units}
+                            kind="length"
+                            valueMm={stock.diameter}
+                            onChangeMm={(diameter) => onPatch({ diameter })}
+                            minMm={6}
+                            maxMm={101.6}
+                            stepMm={0.5}
+                            className={input}
+                            aria-label="Stock diameter"
+                        />
+                    </label>
+                </div>
+            </RotarySettingsBoundary>
+            <label className="block text-xs text-slate-600 dark:text-slate-300">
+                Material
+                <select
+                    aria-label="Rotary stock material"
+                    value={material}
+                    onChange={(event) =>
+                        onMaterialChange(event.target.value as MaterialId)
+                    }
+                    className={`${input} text-slate-900 dark:text-white`}
+                >
+                    {Object.values(MATERIAL_RECIPES).map((recipe) => (
+                        <option key={recipe.id} value={recipe.id}>
+                            {recipe.label}
+                        </option>
+                    ))}
+                </select>
+            </label>
         </section>
     );
 }

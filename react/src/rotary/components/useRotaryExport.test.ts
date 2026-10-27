@@ -14,14 +14,17 @@ function model() {
         snapshotProject: () => ({ name: 'test', stock: { length: 90 } }),
     } as unknown as UseRotaryState;
 }
-test('export becomes stale when the stock or geometry changes', () => {
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => jest.useRealTimers());
+
+test('generates automatically after edits settle and never exposes stale output', () => {
     const rotary = model();
     const { result, rerender } = renderHook(
         ({ state }) => useRotaryExport(state),
         { initialProps: { state: rotary } },
     );
     expect(result.current.ready).toBe(false);
-    act(() => result.current.generate());
+    act(() => jest.advanceTimersByTime(400));
     expect(rotary.generate).toHaveBeenCalledTimes(1);
     rerender({ state: { ...rotary, gcode: 'G21' } });
     expect(result.current.ready).toBe(true);
@@ -43,7 +46,7 @@ test('missing STL and blocking checks prevent generation', () => {
         ({ state }) => useRotaryExport(state),
         { initialProps: { state: { ...rotary, mode: 'stl' as const } } },
     );
-    act(() => result.current.generate());
+    act(() => jest.advanceTimersByTime(400));
     expect(result.current.needsModel).toBe(true);
     expect(rotary.generate).not.toHaveBeenCalled();
     rerender({

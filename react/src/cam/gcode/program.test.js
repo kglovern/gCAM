@@ -89,3 +89,26 @@ test('helical contour entry descends on the compensated path before its finish l
     expect(gcode).toContain('G1 X0 Y0 Z-2');
     expect(gcode).not.toContain('G1 Z-2');
 });
+
+function toolChangeLine(overrides) {
+    const toolpath = { ...makeToolpath('pocket'), ...overrides };
+    return buildGcode({ toolpaths: [toolpath], forcePolylineArcs: true })
+        .split('\n')
+        .filter((line) => /\bM6\b/.test(line));
+}
+
+test('tool change puts T and M6 on one line with the tool name and diameter', () => {
+    expect(toolChangeLine({ libraryToolName: '1/4in Flat' })).toEqual([
+        'T1 M6 (1/4in Flat - 3mm)',
+    ]);
+});
+
+test('tool change falls back to the tool size when no name is selected', () => {
+    expect(toolChangeLine({})).toEqual(['T1 M6 (3mm tool)']);
+});
+
+test('tool change comment strips parentheses from the tool name', () => {
+    expect(toolChangeLine({ libraryToolName: 'Bit (6mm)' })).toEqual([
+        'T1 M6 (Bit 6mm - 3mm)',
+    ]);
+});

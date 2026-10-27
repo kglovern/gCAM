@@ -86,8 +86,8 @@ test('shows stock, the committed list, tabs and G-code export when nothing is se
     expect(jobToolpathsHeading).toBeInTheDocument();
     expect(jobToolpathsHeading.closest('section')).toHaveClass('mt-1');
     expect(
-        screen.getByRole('button', { name: 'Add a Tab' }),
-    ).toBeInTheDocument();
+        screen.queryByRole('button', { name: 'Add a Tab' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Export G-code' })).toBeEnabled();
     expect(
         screen.getByText('Ready to make your first toolpath?'),
@@ -136,11 +136,13 @@ test('keeps Clear Tabs visible but disabled with an explanation when no tabs exi
     );
 });
 
-test('hides job stock and removes the setup title while configuring selected geometry', () => {
+test('keeps stock editable while hiding export during toolpath editing', () => {
     render(<ToolpathRail {...makeProps({ selected: ['vector-1'] })} />);
 
     expect(screen.getByText('Toolpath editor')).toBeInTheDocument();
-    expect(screen.queryByText('Stock setup')).not.toBeInTheDocument();
+    expect(screen.getByText('Stock setup')).not.toBeVisible();
+    fireEvent.click(screen.getByText(/Job stock ·/));
+    expect(screen.getByText('Stock setup')).toBeVisible();
     expect(screen.queryByText('Toolpath Setup')).not.toBeInTheDocument();
     expect(
         screen.queryByRole('heading', { name: 'Start with a design' }),
@@ -236,7 +238,7 @@ test('shows only the edited toolpath and hides the created list while editing', 
 
     expect(screen.getByText('Toolpath editor')).toBeInTheDocument();
     expect(screen.queryByText('Edit Outside Profile')).not.toBeInTheDocument();
-    expect(screen.queryByText('Stock setup')).not.toBeInTheDocument();
+    expect(screen.getByText('Stock setup')).not.toBeVisible();
     expect(
         screen.queryByRole('heading', { name: /Job toolpaths/ }),
     ).not.toBeInTheDocument();

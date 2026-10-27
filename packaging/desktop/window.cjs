@@ -1,6 +1,7 @@
 const { join } = require('node:path');
 const { BrowserWindow, shell, app } = require('electron');
 const { APP_URL, isAppUrl, isExternalUrl } = require('./app-protocol.cjs');
+const { join } = require('node:path');
 
 function createWindow() {
     const window = new BrowserWindow({
@@ -13,11 +14,11 @@ function createWindow() {
         backgroundColor: '#0f172a',
         autoHideMenuBar: true,
         webPreferences: {
+            preload: join(__dirname, 'preload.cjs'),
             nodeIntegration: false,
             contextIsolation: true,
             sandbox: true,
             webSecurity: true,
-            preload: join(__dirname, 'preload.cjs'),
         },
     });
     window.once('ready-to-show', () => {

@@ -1,9 +1,10 @@
-/**
- * Purpose: Rotary toolpath planner in XZA (Vortex convention, grblHAL).
- * Profile mode cuts the drawn envelope at tooltip Z = r; STL mode cuts the
- * ballnose-tooltip envelope (exact on flats, tangent on slopes). A
- * oscillates within one turn — it never winds up. Ported from VortexCAM.
- */
+import { planProfilePaths } from './profilePaths';
+import {
+    profileChuckMinX,
+    profileTailMaxX,
+    profileFixtureConflict,
+} from './fixtureClearance';
+/** Profile facing, groove and part-off moves, with shared native rotary roughing/finishing. */
 import type {
     ProfileSample,
     RotaryOps,
@@ -81,6 +82,7 @@ export function planToolpath(
     stock: RotaryStock,
     tool: RotaryTool,
     ops: RotaryOps,
+    onProgress: (fraction: number) => void = () => {},
 ): ToolpathMove[] {
     const S = ops.compR > 0 ? offsetEnvelope(samples, ops.compR) : samples;
     const moves: ToolpathMove[] = [];
@@ -102,35 +104,18 @@ export function planToolpath(
         }
         return S[S.length - 1].r;
     };
-    const x0 = Math.max(stock.grip + 1, S[0].x);
+    const chuckMinX = profileChuckMinX(stock, tool, ops);
+    if (
+        profileFixtureConflict(
+            S,
+            stock,
+            ops,
+            chuckMinX,
+            profileTailMaxX(stock, tool, ops),
+        )
+    )
+        return [];
     const x1 = Math.min(stock.length, S[S.length - 1].x);
-    // Pommel keep-out: square sections are never cut.
-    const zones = (ops.pommels || [])
-        .map((p) => ({ a: Math.min(p.x0, p.x1), b: Math.max(p.x0, p.x1) }))
-        .filter((z) => z.b > x0 && z.a < x1)
-        .sort((m, n) => m.a - n.a);
-    const inZone = (x: number): boolean =>
-        zones.some((z) => x >= z.a - 1e-9 && x <= z.b + 1e-9);
-    const freeSegs = ((): Array<[number, number]> => {
-        const cuts = [x0, x1];
-        for (const z of zones) {
-            if (z.a > x0 && z.a < x1) {
-                cuts.push(z.a);
-            }
-            if (z.b > x0 && z.b < x1) {
-                cuts.push(z.b);
-            }
-        }
-        cuts.sort((a, b) => a - b);
-        const segs: Array<[number, number]> = [];
-        for (let i = 0; i < cuts.length - 1; i++) {
-            if (!inZone((cuts[i] + cuts[i + 1]) / 2)) {
-                segs.push([cuts[i], cuts[i + 1]]);
-            }
-        }
-        return segs;
-    })();
-
     let aCur = 0;
     let spinDir = 1;
 
@@ -162,147 +147,35 @@ export function planToolpath(
         spinDir *= -1;
     }
 
-    /**
-     * Zigzag helix from xa to xb: A oscillates within one turn of aCur
-     * while X glides and Z follows zFn. stepsPerRev=12 for finish, 4 rough.
-     */
-    function helixRun(
-        xa: number,
-        xb: number,
-        zFn: (x: number) => number,
-        lead: number,
-        op: string,
-        feed: number,
-        stepsPerRev = 12,
-    ): void {
-        const len = Math.abs(xb - xa);
-        const nRev = Math.max(1, Math.round(len / lead));
-        const up = aCur < 360 - 1e-9;
-        const lo = up ? aCur : aCur - 360;
-        const phase = up ? 0 : 1;
-        const totalSteps = nRev * stepsPerRev;
-        for (let k = 1; k <= totalSteps; k++) {
-            const rev = Math.floor((k - 1) / stepsPerRev) + phase;
-            const f = (((k - 1) % stepsPerRev) + 1) / stepsPerRev;
-            const aOff = rev % 2 === 0 ? f * 360 : (1 - f) * 360;
-            const x = xa + ((xb - xa) * k) / totalSteps;
-            moves.push({
-                x,
-                z: Math.max(0.15, zFn(x)),
-                a: lo + aOff,
-                f: feed,
-                op,
-            });
-        }
-        aCur = lo + ((nRev + phase) % 2 === 1 ? 360 : 0);
-    }
-
     if (ops.face) {
         const zf = Math.max(0.2, prof(x1));
         retract('face');
         gotoXA(x1, aCur, 'face');
         plungeZ(x1, aCur, zf, 'face');
         spinOnce(x1, zf, cutF, 'face');
+        retract('face');
     }
 
-    if (ops.rough) {
-        const minR = Math.min(...S.map((s) => s.r));
-        const levels: number[] = [];
-        for (
-            let z = stockR - ops.roughStep;
-            z > minR + ops.allow;
-            z -= ops.roughStep
-        ) {
-            levels.push(z);
-        }
-        levels.push(minR + ops.allow);
-        const stepX = Math.max(0.5, tool.dia * 0.6);
-        const xs: number[] = [];
-        for (let x = x0; x <= x1; x += stepX) {
-            xs.push(x);
-        }
-        xs.push(x1);
-        let dir = 1;
-        for (const z of levels) {
-            const order = dir > 0 ? xs : [...xs].reverse();
-            let run: number[] = [];
-            const flush = (): void => {
-                if (!run.length) {
-                    return;
-                }
-                retract('rough');
-                gotoXA(run[0], aCur, 'rough');
-                plungeZ(run[0], aCur, z, 'rough');
-                helixRun(
-                    run[0],
-                    run[run.length - 1],
-                    () => z,
-                    Math.max(1.0, tool.dia * 0.8),
-                    'rough',
-                    cutF,
-                    4,
-                );
-                run = [];
-            };
-            for (const x of order) {
-                if (!inZone(x) && prof(x) + ops.allow < z - 1e-6) {
-                    run.push(x);
-                } else {
-                    flush();
-                }
-            }
-            flush();
-            dir *= -1;
-        }
-    }
-
-    if (ops.finish) {
-        if ((ops.raster ?? 270) === 0) {
-            const aStart = aCur;
-            for (let k = 0; k < 4; k++) {
-                const Aq = aStart + (k + 1) * 90;
-                const stepX = Math.max(0.3, tool.dia * 0.25);
-                const xs: number[] = [];
-                for (let x = x0; x <= x1; x += stepX) {
-                    xs.push(x);
-                }
-                xs.push(x1);
-                retract('finish');
-                gotoXA(xs[0], Aq, 'finish');
-                let zp = zSafe;
-                for (const x of xs) {
-                    if (inZone(x)) {
-                        continue;
-                    }
-                    const z = Math.max(0.15, prof(x));
-                    moves.push({
-                        x,
-                        z: Math.max(z, zp) + 1.0,
-                        rapid: true,
-                        op: 'finish',
-                    });
-                    plungeZ(x, Aq, z, 'finish');
-                    zp = z;
-                }
-                aCur = Aq;
-            }
-            retract('finish');
-            moves.push({ a: aStart, rapid: true, op: 'finish' });
-            aCur = aStart;
-        } else {
-            const lead = Math.max(0.8, tool.dia * 0.5);
-            for (const [sa, sb] of freeSegs) {
-                if (sb - sa < 0.3) {
-                    continue;
-                }
-                const zStart = Math.max(0.15, prof(sa));
-                retract('finish');
-                gotoXA(sa, aCur, 'finish');
-                plungeZ(sa, aCur, zStart, 'finish');
-                helixRun(sa, sb, (x) => prof(x), lead, 'finish', cutF, 12);
-            }
-        }
-    }
+    if (ops.rough)
+        for (const move of planProfilePaths(
+            samples,
+            stock,
+            tool,
+            ops,
+            'rough',
+            onProgress,
+        ))
+            moves.push(move);
+    if (ops.finish)
+        for (const move of planProfilePaths(
+            samples,
+            stock,
+            tool,
+            ops,
+            'finish',
+            onProgress,
+        ))
+            moves.push(move);
 
     if (ops.groove.on) {
         const gx = ops.groove.x;
@@ -343,26 +216,28 @@ export function estimate(
 ): ToolpathEstimate {
     let dist = 0;
     let cut = 0;
-    let prev: { x: number; z: number; a: number } | null = null;
+    let prev: { x: number; y: number; z: number; a: number } | null = null;
     let time = 0;
     for (const m of moves) {
         const px: number = prev === null ? 0 : (m.x ?? prev.x);
+        const py: number = prev === null ? 0 : (m.y ?? prev.y);
         const pz: number = prev === null ? 0 : (m.z ?? prev.z);
         const pa: number = prev === null ? 0 : (m.a ?? prev.a);
         if (prev) {
             const dx = (m.x ?? px) - px;
+            const dy = (m.y ?? py) - py;
             const dz = (m.z ?? pz) - pz;
             const da =
                 ((m.a ?? pa) - pa) * (Math.PI / 180) * Math.max(4, pz || 6);
-            const d = Math.hypot(dx, dz, da);
+            const d = Math.hypot(dx, dy, dz, da);
             dist += d;
             const f = m.rapid ? rapidF : m.f || 1000;
-            time += d / f;
+            time += !m.rapid && m.minutes ? m.minutes : d / f;
             if (!m.rapid) {
                 cut += d;
             }
         }
-        prev = { x: m.x ?? px, z: m.z ?? pz, a: m.a ?? pa };
+        prev = { x: m.x ?? px, y: m.y ?? py, z: m.z ?? pz, a: m.a ?? pa };
     }
     return { moves: moves.length, cutLen: cut, totalLen: dist, minutes: time };
 }

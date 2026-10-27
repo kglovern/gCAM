@@ -12,6 +12,7 @@ export function JobStockSetup({
     maxXTravelMm,
     maxYTravelMm,
     machineName,
+    embedded = false,
 }: {
     stock: JobStock;
     units: UnitSystem;
@@ -19,6 +20,7 @@ export function JobStockSetup({
     maxXTravelMm: number | null;
     maxYTravelMm: number | null;
     machineName: string;
+    embedded?: boolean;
 }) {
     const update = (next: Partial<JobStock>) => onChange({ ...stock, ...next });
     const unit = lengthUnit(units);
@@ -28,10 +30,18 @@ export function JobStockSetup({
         Math.abs(stock.widthMm - maxXTravelMm) < 0.05 &&
         Math.abs(stock.heightMm - maxYTravelMm) < 0.05;
     return (
-        <section className="mx-3 mt-3 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Job stock
-            </h3>
+        <section
+            className={
+                embedded
+                    ? 'job-stock-setup mt-2 space-y-2'
+                    : 'job-stock-setup mx-3 mt-3 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50'
+            }
+        >
+            {!embedded && (
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Job stock
+                </h3>
+            )}
             <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 {stockUsesFullTravel ? (
                     <>

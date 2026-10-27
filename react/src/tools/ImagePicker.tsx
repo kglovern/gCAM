@@ -9,6 +9,7 @@ export interface ImagePickerOption {
     label: string;
     detail?: string;
     image?: string;
+    disabled?: boolean;
 }
 
 export interface ImagePickerGroup {
@@ -63,7 +64,10 @@ export function ImagePicker({
                 className={`${className} flex items-center gap-2 text-start`}
             >
                 <ToolImage image={selected?.image} alt="" />
-                <span className="min-w-0 flex-1 truncate">
+                <span
+                    className="min-w-0 flex-1 whitespace-normal"
+                    title={selected?.label}
+                >
                     {selected?.label ?? placeholder}
                 </span>
                 <ChevronDown size={16} className="shrink-0 opacity-70" />
@@ -89,22 +93,23 @@ export function ImagePicker({
                                         type="button"
                                         role="option"
                                         aria-selected={active}
+                                        disabled={option.disabled}
                                         onClick={() => {
                                             onChange(option.id);
                                             setOpen(false);
                                         }}
-                                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-start hover:bg-slate-100 dark:hover:bg-robin-900/50"
+                                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-start hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-robin-900/50"
                                     >
                                         <ToolImage
                                             image={option.image}
                                             alt=""
                                         />
                                         <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm text-slate-900 dark:text-white">
+                                            <span className="block whitespace-normal text-sm text-slate-900 dark:text-white">
                                                 {option.label}
                                             </span>
                                             {option.detail && (
-                                                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                                                <span className="block whitespace-normal text-xs text-slate-600 dark:text-slate-300">
                                                     {option.detail}
                                                 </span>
                                             )}

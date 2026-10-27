@@ -19,8 +19,8 @@ describe('Mobile editing workflow', () => {
         ),
     );
 
-    it('fits a single toolbar row and bottom navigation, including a small phone', () => {
-        for (const width of [320, 390, 800, 1024]) {
+    it('fits the toolbar and permanent canvas/settings split at supported tablet sizes', () => {
+        for (const width of [768, 800, 1024]) {
             cy.viewport(width, 844);
             cy.get('header')
                 .first()
@@ -32,9 +32,9 @@ describe('Mobile editing workflow', () => {
             cy.get('[data-testid="gcam-canvas"]').should(($canvas) => {
                 const rect = $canvas[0].getBoundingClientRect();
                 expect(rect.bottom).to.be.at.most(844);
-                expect(rect.height).to.be.greaterThan(600);
+                expect(rect.height).to.be.greaterThan(250);
                 expect(rect.width).to.be.greaterThan(
-                    width - (width < 768 ? 60 : 130),
+                    width - (width > 844 ? 450 : 130),
                 );
             });
         }
@@ -86,9 +86,8 @@ describe('Mobile editing workflow', () => {
         );
     });
 
-    it('keeps tool editor actions visible at keyboard height and returns to the open drawer', () => {
+    it('keeps tool editor actions visible at keyboard height and returns to the settings panel', () => {
         cy.worldClick(20, 50);
-        cy.get('[aria-label="Toolpath settings"]').click();
         cy.get('[aria-label="Open tool library"]').click();
         cy.get('[aria-label="Edit tool T1"]').click();
         cy.viewport(1024, 360);
@@ -133,7 +132,7 @@ describe('Mobile editing workflow', () => {
             .should('be.visible')
             .parent()
             .should('not.have.attr', 'open');
-        cy.get('[aria-label^="3D stock simulation"]').should(($canvas) =>
+        cy.get('[aria-label="G-code preview"] canvas').should(($canvas) =>
             expect($canvas[0].getBoundingClientRect().height).to.be.greaterThan(
                 400,
             ),

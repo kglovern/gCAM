@@ -2,6 +2,10 @@ name: Desktop installers
 
 on:
   workflow_call:
+    inputs:
+      release_tag:
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -23,8 +27,6 @@ jobs:
             arch: arm64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
@@ -32,6 +34,10 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: packaging/desktop/package-lock.json
+      - name: Set release version
+        run: node packaging/scripts/release-version.mjs
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
       - run: corepack enable
       - run: yarn install --frozen-lockfile
         working-directory: react
@@ -51,7 +57,20 @@ jobs:
         run: xvfb-run -a node_modules/.bin/electron --no-sandbox smoke.cjs
         working-directory: packaging/desktop
       - name: Build installer
-        run: npm run package -- --${{ matrix.target }} --${{ matrix.arch }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ inputs.release_tag != '' && 'true' || 'false' }}
+          CSC_LINK: ${{ inputs.release_tag != '' && (runner.os == 'macOS' && secrets.MAC_CERTIFICATE_BASE64 || runner.os == 'Windows' && secrets.WINDOWS_CERTIFICATE_BASE64) || '' }}
+          CSC_KEY_PASSWORD: ${{ inputs.release_tag != '' && (runner.os == 'macOS' && secrets.MAC_CERTIFICATE_PASSWORD || runner.os == 'Windows' && secrets.WINDOWS_CERTIFICATE_PASSWORD) || '' }}
+          APPLE_ID: ${{ inputs.release_tag != '' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ inputs.release_tag != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ inputs.release_tag != '' && secrets.APPLE_TEAM_ID || '' }}
+        shell: bash
+        run: |
+          if [[ -z "$CSC_LINK" ]]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          npm run package -- --${{ matrix.target }} --${{ matrix.arch }}
         working-directory: packaging/desktop
       - uses: actions/upload-artifact@v4
         with:
@@ -62,5 +81,7 @@ jobs:
             packaging/desktop/dist/*.zip
             packaging/desktop/dist/*.AppImage
             packaging/desktop/dist/*.deb
+            packaging/desktop/dist/latest*.yml
+            packaging/desktop/dist/*.blockmap
           if-no-files-found: error
           retention-days: 14

@@ -1,33 +1,46 @@
-/**
- * Purpose: Rotary STL tab pane — import a Z-up mesh as the rotary surface
- * and show its stats. The 3D view shows the mesh triangles directly.
- */
-import { useRef, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
+import { SurfaceUnitsModal } from '../../document/SurfaceUnitsModal';
+import { meshBounds, parseSTL } from '../engine/stl';
 import type { StlInfo } from '../useRotaryState';
 
-interface StlPaneProps {
-    stlName: string | null;
-    stlInfo: StlInfo | null;
-    compR: number;
-    onImportStl: (file: File) => void;
-}
-
+type Axis = 'auto' | 'x' | 'y' | 'z';
 export function StlPane({
     stlName,
     stlInfo,
-    compR,
     onImportStl,
-}: StlPaneProps): ReactElement {
+}: {
+    stlName: string | null;
+    stlInfo: StlInfo | null;
+    compR: number;
+    onImportStl(file: File, axis: Axis, center: boolean, scale: number): void;
+}): ReactElement {
     const fileRef = useRef<HTMLInputElement>(null);
+    const [axis, setAxis] = useState<Axis>('auto');
+    const [center, setCenter] = useState(true);
+    const [error, setError] = useState('');
+    const [pending, setPending] = useState<{
+        file: File;
+        size: { x: number; y: number; z: number };
+    } | null>(null);
+    const chooseFile = async (file: File) => {
+        setError('');
+        try {
+            const { mn, mx } = meshBounds(parseSTL(await file.arrayBuffer()));
+            setPending({
+                file,
+                size: { x: mx[0] - mn[0], y: mx[1] - mn[1], z: mx[2] - mn[2] },
+            });
+        } catch (failure) {
+            setError(
+                failure instanceof Error
+                    ? failure.message
+                    : 'Could not read this STL.',
+            );
+        }
+    };
     return (
-        <div className="p-3">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                STL{' '}
-                <small className="font-normal text-slate-500 dark:text-slate-400">
-                    Imported 3D model
-                </small>
-            </h2>
-            <div className="mt-2 flex items-center gap-2">
+        <div id="rotary-model-setup" className="space-y-3 p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
                 <button
                     type="button"
                     onClick={() => fileRef.current?.click()}
@@ -43,49 +56,87 @@ export function StlPane({
                     aria-label="Import STL file"
                     onChange={(event) => {
                         const file = event.currentTarget.files?.[0];
-                        if (file) {
-                            onImportStl(file);
-                        }
+                        if (file) void chooseFile(file);
                         event.currentTarget.value = '';
                     }}
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {stlName ?? 'no file loaded'}
+                <span className="break-words text-slate-700 dark:text-slate-200">
+                    {stlName ??
+                        'Open a model to place it between the chuck and tailstock.'}
                 </span>
             </div>
             {stlInfo && (
-                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[13px]">
-                    <dt className="text-slate-500 dark:text-slate-400">
-                        Triangles
-                    </dt>
-                    <dd>{stlInfo.tris.toLocaleString()}</dd>
-                    <dt className="text-slate-500 dark:text-slate-400">
-                        Mesh X / Y / Z
-                    </dt>
-                    <dd>
-                        {stlInfo.sx} / {stlInfo.sy} / {stlInfo.sz} mm
-                    </dd>
-                    <dt className="text-slate-500 dark:text-slate-400">
-                        Work length
-                    </dt>
-                    <dd>{stlInfo.len} mm</dd>
-                    <dt className="text-slate-500 dark:text-slate-400">
-                        Max Ø
-                    </dt>
-                    <dd>{stlInfo.maxDia} mm</dd>
-                    <dt className="text-slate-500 dark:text-slate-400">
-                        Toolpath from
-                    </dt>
-                    <dd>
-                        silhouette envelope, tooltip comp R{compR.toFixed(2)}
-                    </dd>
-                </dl>
+                <p className="text-slate-600 dark:text-slate-300">
+                    Model: {stlInfo.len} mm long · maximum diameter{' '}
+                    {stlInfo.maxDia} mm
+                </p>
             )}
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Machining follows the model's radial silhouette; the preview
-                shows the original mesh. Choose Draw a profile to edit the
-                fitted outline as a profile job. STL coordinates are read in mm.
-            </p>
+            <details className="text-slate-600 dark:text-slate-300">
+                <summary className="cursor-pointer">
+                    Model details and orientation
+                </summary>
+                <div className="mt-3 space-y-3">
+                    <label className="block">
+                        Model length direction
+                        <select
+                            aria-label="STL longitudinal axis"
+                            value={axis}
+                            onChange={(event) =>
+                                setAxis(event.target.value as Axis)
+                            }
+                            className="ml-2 rounded border bg-transparent p-2"
+                        >
+                            <option value="auto">
+                                Automatic (longest side)
+                            </option>
+                            <option value="z">Upright (Z)</option>
+                            <option value="x">Left to right (X)</option>
+                            <option value="y">Front to back (Y)</option>
+                        </select>
+                    </label>
+                    <label className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            checked={center}
+                            onChange={(event) =>
+                                setCenter(event.target.checked)
+                            }
+                        />
+                        Centre the model on the rotary axis
+                    </label>
+                    <p className="text-xs">
+                        Orientation applies when importing. Reimport to change
+                        it.
+                    </p>
+                    {stlInfo && (
+                        <p className="text-xs">
+                            {stlInfo.tris.toLocaleString()} triangles ·{' '}
+                            {stlInfo.sx} × {stlInfo.sy} × {stlInfo.sz} mm
+                        </p>
+                    )}
+                </div>
+            </details>
+            {error && (
+                <p role="alert" className="text-red-700 dark:text-red-300">
+                    {error}
+                </p>
+            )}
+            {pending && (
+                <SurfaceUnitsModal
+                    fileName={pending.file.name}
+                    sizeMm={pending.size}
+                    onCancel={() => setPending(null)}
+                    onApply={(units) => {
+                        onImportStl(
+                            pending.file,
+                            axis,
+                            center,
+                            units === 'inch' ? 25.4 : 1,
+                        );
+                        setPending(null);
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -8,6 +8,7 @@ import type { ViewLoop } from './canvas/types';
 import { useConfirmation } from './components/ConfirmDialog';
 import { useToasts } from './components/Toasts';
 import { useAppKeyboardShortcuts } from './interactions/useAppKeyboardShortcuts';
+import { useRotaryExport } from './rotary/components/useRotaryExport';
 import { useRotaryState } from './rotary/useRotaryState';
 import { useGuideCommands } from './interactions/useGuideCommands';
 import { useFileLoading } from './document/useFileLoading';
@@ -28,6 +29,7 @@ import { useSelectionFrame } from './interactions/useSelectionFrame';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { AppWorkspace } from './app/AppWorkspace';
 import { AppHeader } from './app/AppHeader';
+import { UpdateControls } from './platform/updates/UpdateControls';
 import { AppModalLayer } from './app/AppModalLayer';
 import { useAppPreferences } from './app/useAppPreferences';
 import { useDrawingWorkspaceState } from './app/useDrawingWorkspaceState';
@@ -141,8 +143,6 @@ export default function App() {
         setGrid,
         sideTab,
         setSideTab,
-        previewControls,
-        setPreviewControls,
         configActions,
         setConfigActions,
         darkMode,
@@ -224,6 +224,11 @@ export default function App() {
     const { expandedSelectedIds, selectedLoops, offsetSource, booleanLoops } =
         useVisibleSelection(loops, selected, hidden);
     const rotary = useRotaryState();
+    const rotaryOutput = useRotaryExport(rotary);
+    const [newRotaryProject] = useState(() => rotary.snapshotProject());
+    const [simulationSource, setSimulationSource] = useState<
+        'toolpaths' | 'rotary'
+    >('toolpaths');
 
     const undo = () => {
         if (sideTab === 'rotary') {
@@ -453,6 +458,14 @@ export default function App() {
 
     useAppKeyboardShortcuts({
         hasSelection: selected.length > 0,
+        canNudge:
+            sideTab !== 'rotary' &&
+            activeTool === 'select' &&
+            (!transformMode || transformMode === 'move') &&
+            !guidePlacement,
+        nudgeStep: units === 'imperial' ? 0.254 : 1,
+        nudgeSelected: (dx, dy) =>
+            handleTransformCommit({ type: 'move', dx, dy }, true),
         setActiveTool: () => setActiveTool('select'),
         clearTransform: () => setTransformMode(null),
         clearGuidePlacement: () => {
@@ -605,7 +618,6 @@ export default function App() {
         fileName,
         darkMode,
         stock,
-        onPreviewControlsChange: setPreviewControls,
     };
     const handleMachineProfileChange = (id: string) => {
         const next = machineProfileById(id);
@@ -664,7 +676,12 @@ export default function App() {
     };
     const workspaceModel = createWorkspaceModel({
         activeTab: sideTab,
-        onTabChange: setSideTab,
+        onTabChange: (tab) => {
+            if (tab === 'toolpaths' || tab === 'rotary')
+                setSimulationSource(tab);
+            setSideTab(tab);
+        },
+        simulationSource,
         drawing,
         transforms,
         arrange,
@@ -732,16 +749,49 @@ export default function App() {
         toolpathRailProps,
         previewWorkspaceProps,
         configPanelProps,
-        rotaryPanelProps: { units, rotary },
+        rotaryPanelProps: {
+            output: rotaryOutput,
+            units,
+            rotary,
+            darkMode,
+            onPreview: () => {
+                setSimulationSource('rotary');
+                setSideTab('preview');
+            },
+            material: stock.material,
+            machineProfileId,
+            onMaterialChange: (material) =>
+                setStock((previous) => ({ ...previous, material })),
+        },
     });
 
     return (
         <ErrorBoundary>
             <div className="h-screen [height:var(--app-height,100dvh)] w-full overflow-hidden [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)] flex flex-col bg-slate-100 text-slate-900 dark:bg-dark-darker dark:text-slate-200">
+                <UpdateControls notice />
                 <AppHeader
                     activeTab={sideTab}
-                    toolbarProps={toolbarProps}
-                    previewControls={previewControls}
+                    rotary={rotary}
+                    toolbarProps={
+                        sideTab === 'rotary'
+                            ? {
+                                  ...toolbarProps,
+                                  onNewCanvas: async () => {
+                                      if (
+                                          await confirm({
+                                              title: 'New rotary project?',
+                                              message:
+                                                  'Reset the rotary setup? You can undo this change.',
+                                              confirmLabel: 'New project',
+                                          })
+                                      )
+                                          rotary.restoreProject(
+                                              newRotaryProject,
+                                          );
+                                  },
+                              }
+                            : toolbarProps
+                    }
                     configActions={configActions}
                 />
 
@@ -805,6 +855,30 @@ export default function App() {
                     surfaceUnitImportChoice={surfaceUnitImportChoice}
                     resolveSurfaceModelUnits={resolveSurfaceModelUnits}
                     cancelSurfaceModelUnits={cancelSurfaceModelUnits}
+                    onImportRotaryModel={async (file, modelUnits) => {
+                        cancelSurfaceModelUnits();
+                        try {
+                            await rotary.importStlFile(
+                                file,
+                                'auto',
+                                true,
+                                modelUnits === 'inch' ? 25.4 : 1,
+                            );
+                            setSimulationSource('rotary');
+                            setSideTab('rotary');
+                        } catch (error) {
+                            setStatus(
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Could not import this STL.',
+                            );
+                            showToast(
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Could not import this STL.',
+                            );
+                        }
+                    }}
                 />
             </div>
         </ErrorBoundary>

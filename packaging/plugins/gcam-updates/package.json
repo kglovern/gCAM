@@ -1,0 +1,12 @@
+{
+  "name": "gcam-updates",
+  "version": "1.0.0",
+  "private": true,
+  "cordova": {
+    "id": "gcam-updates",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  }
+}

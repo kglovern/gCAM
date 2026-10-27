@@ -12,12 +12,11 @@ import type { ViewLoop } from '../canvas/types';
 import type { PlacedTab, ProfileArgs, ToolpathResult } from '../lib/engine';
 import { defaultTabsForContours, operationUsesTabs } from '../lib/tabs';
 import type { UnitSystem } from '../lib/units';
+import { displayValue, lengthUnit } from '../lib/units';
 import type { JobStock } from '../job/stock';
 import type { MachineTravelLimits } from '../cutting-parameters/types';
 import { JobStockSetup } from '../job/JobStockSetup';
 import { machineProfileById } from '../cutting-parameters/machines';
-import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
-import { SendToTabletButton } from '../integrations/pendant/SendToTabletButton';
 import { GcodeExportButton } from './GcodeExportButton';
 
 type Bitmap = {
@@ -51,7 +50,7 @@ interface ToolpathRailProps {
     setTabMode: Dispatch<SetStateAction<boolean>>;
     setEditingId: Dispatch<SetStateAction<string | null>>;
     setStack: Dispatch<SetStateAction<ToolpathStackEntry[]>>;
-    setSideTab: (tab: 'toolpaths') => void;
+    setSideTab: (tab: 'toolpaths' | 'preview') => void;
     setStatus: (message: string) => void;
     setDraftPreview: Dispatch<SetStateAction<{ x: number; y: number }[][]>>;
     setDraftProgress: Dispatch<
@@ -168,9 +167,9 @@ export function ToolpathRail({
     }, [editing, selected.length, setDraftPreview, setDraftProgress]);
 
     return (
-        <aside className="w-[340px] max-w-full shrink-0 border-l border-slate-200 bg-white dark:border-robin-900 dark:bg-dark flex flex-col min-h-0">
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-                {showJobStock && (
+        <aside className="toolpath-rail w-[340px] max-w-full shrink-0 border-l border-slate-200 bg-white dark:border-robin-900 dark:bg-dark flex flex-col min-h-0">
+            <div className="toolpath-rail-content flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                {showJobStock ? (
                     <JobStockSetup
                         stock={stock}
                         units={units}
@@ -182,6 +181,27 @@ export function ToolpathRail({
                             'Custom machine'
                         }
                     />
+                ) : (
+                    <details className="mx-3 mt-3 rounded-lg border border-slate-200 p-2.5 dark:border-robin-900">
+                        <summary className="cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                            Job stock · {displayValue(stock.widthMm, units)} ×{' '}
+                            {displayValue(stock.heightMm, units)} ×{' '}
+                            {displayValue(stock.thicknessMm, units)}{' '}
+                            {lengthUnit(units)} · Edit
+                        </summary>
+                        <JobStockSetup
+                            embedded
+                            stock={stock}
+                            units={units}
+                            onChange={setStock}
+                            maxXTravelMm={machineTravelLimits.maxXTravelMm}
+                            maxYTravelMm={machineTravelLimits.maxYTravelMm}
+                            machineName={
+                                machineProfileById(machineProfileId)
+                                    ?.displayName ?? 'Custom machine'
+                            }
+                        />
+                    </details>
                 )}
                 {layerPanel && <LayerPanel {...layerPanel} />}
                 {emptyWorkspace && (
@@ -242,7 +262,7 @@ export function ToolpathRail({
                 )}
             </div>
             {!showEditor && (
-                <div className="space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
+                <div className="toolpath-rail-export space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
                     <GcodeExportButton
                         gcode={gcode}
                         fileName={fileName}
@@ -250,8 +270,6 @@ export function ToolpathRail({
                         units={units}
                         emitArcs={emitArcs}
                     />
-                    <SendToGsenderButton gcode={gcode} fileName={fileName} />
-                    <SendToTabletButton gcode={gcode} fileName={fileName} />
                 </div>
             )}
         </aside>
@@ -302,12 +320,24 @@ function CommittedToolpaths({
                         ({stack.length})
                     </span>
                 </h3>
-                <button
-                    onClick={() => setTabMode((mode) => !mode)}
-                    className={`rounded border px-2 py-0.5 text-xs ${tabMode ? 'bg-robin-500 border-robin-500 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-robin-900 dark:text-slate-300 dark:hover:bg-dark-lighter'}`}
-                >
-                    {tabMode ? 'Placing tabs…' : 'Add a Tab'}
-                </button>
+                {stack.length > 0 && (
+                    <button
+                        type="button"
+                        aria-label="Preview toolpaths"
+                        onClick={() => setSideTab('preview')}
+                        className="rounded border border-slate-300 px-2 py-0.5 text-xs dark:border-robin-900"
+                    >
+                        Preview
+                    </button>
+                )}
+                {stack.length > 0 && (
+                    <button
+                        onClick={() => setTabMode((mode) => !mode)}
+                        className={`rounded border px-2 py-0.5 text-xs ${tabMode ? 'bg-robin-500 border-robin-500 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-robin-900 dark:text-slate-300 dark:hover:bg-dark-lighter'}`}
+                    >
+                        {tabMode ? 'Placing tabs…' : 'Add a Tab'}
+                    </button>
+                )}
             </div>
             <div className="space-y-1">
                 {stack.map((entry) => {

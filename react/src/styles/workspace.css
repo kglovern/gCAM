@@ -1,0 +1,94 @@
+/* Size forms by their panel, so a wide portrait panel uses its extra width. */
+.toolpath-workspace-split {
+    grid-template-columns: minmax(0, 1fr) 340px;
+}
+.toolpath-workspace-panel {
+    container: toolpath-panel / inline-size;
+}
+.toolpath-workspace-panel > .toolpath-rail {
+    width: 100% !important;
+    flex: 1;
+}
+@media (max-width: 1099px) and (orientation: landscape) {
+    .toolpath-workspace-split {
+        grid-template-columns: minmax(0, 1fr) 320px;
+    }
+}
+@media (orientation: portrait) and (max-width: 1199px) {
+    .toolpath-workspace-split {
+        grid-template-columns: minmax(0, 1fr);
+        /* Start near 60/40, but reserve enough room to use the form. */
+        grid-template-rows: minmax(220px, 3fr) minmax(340px, 2fr);
+    }
+    .toolpath-workspace-panel > .toolpath-rail {
+        border-left: 0 !important;
+        border-top: 1px solid #e2e8f0;
+    }
+    .dark .toolpath-workspace-panel > .toolpath-rail {
+        border-top-color: #254765;
+    }
+}
+@container toolpath-panel (min-width: 600px) {
+    .toolpath-form {
+        display: grid;
+        grid-template-columns: minmax(200px, 0.9fr) minmax(0, 1.5fr);
+        gap: 12px;
+        align-items: start;
+    }
+    .toolpath-form > * {
+        min-width: 0;
+    }
+    .toolpath-form.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0 !important;
+    }
+    .toolpath-form-operation,
+    .toolpath-form-tool {
+        grid-column: 1;
+    }
+    .toolpath-form-settings {
+        grid-column: 2;
+        grid-row: 1 / span 4;
+    }
+    .toolpath-form > [role="alert"] {
+        grid-column: 1;
+    }
+    .cutting-recipe-values {
+        grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr) minmax(64px, 0.6fr)
+            ) !important;
+        align-items: center;
+    }
+    .toolpath-form-settings > label:has(> input:not([type="checkbox"])) {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(100px, 0.7fr);
+        align-items: center;
+        gap: 8px;
+    }
+    .toolpath-form-settings > label > input {
+        margin-top: 0 !important;
+        min-width: 0;
+    }
+    .toolpath-rail-content:has(> .job-stock-setup) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-content: start;
+    }
+    .toolpath-rail-content > .job-stock-setup {
+        grid-row: 1 / span 3;
+    }
+    .toolpath-rail-content:has(> .job-stock-setup) > :not(.job-stock-setup) {
+        margin-left: 0 !important;
+    }
+    .toolpath-rail-export {
+        display: flex;
+        gap: 8px;
+    }
+    .toolpath-rail-export > * {
+        flex: 1;
+        min-width: 0;
+    }
+    .toolpath-rail-export.space-y-2 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0 !important;
+    }
+}

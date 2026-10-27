@@ -80,3 +80,55 @@ test('fitHandles never lengthens and keeps sides', () => {
     // Corners untouched.
     expect(pts[0].h1).toEqual({ x: -8, r: 10 });
 });
+
+test('adaptive sampling bounds the distance to a strongly curved Bezier span', () => {
+    const points: ProfilePoint[] = [
+        {
+            x: 30,
+            r: 8,
+            type: 'smooth',
+            h1: { x: 30, r: 8 },
+            h2: { x: 31, r: 30 },
+        },
+        {
+            x: 70,
+            r: 8,
+            type: 'smooth',
+            h1: { x: 69, r: 0 },
+            h2: { x: 70, r: 8 },
+        },
+    ];
+    const poly = sampleProfile(points, 16, 0.005);
+    expect(poly.length).toBeGreaterThan(16);
+    let error = 0;
+    for (let i = 0; i <= 1000; i++) {
+        const t = i / 1000,
+            u = 1 - t,
+            x =
+                u * u * u * 30 +
+                3 * u * u * t * 31 +
+                3 * u * t * t * 69 +
+                t * t * t * 70,
+            r = u * u * u * 8 + 3 * u * u * t * 30 + t * t * t * 8;
+        let nearest = Infinity;
+        for (let j = 1; j < poly.length; j++) {
+            const p = poly[j - 1],
+                q = poly[j],
+                dx = q.x - p.x,
+                dr = q.r - p.r;
+            const v = Math.max(
+                0,
+                Math.min(
+                    1,
+                    ((x - p.x) * dx + (r - p.r) * dr) / (dx * dx + dr * dr),
+                ),
+            );
+            nearest = Math.min(
+                nearest,
+                Math.hypot(x - p.x - v * dx, r - p.r - v * dr),
+            );
+        }
+        error = Math.max(error, nearest);
+    }
+    expect(error).toBeLessThanOrEqual(0.005);
+});

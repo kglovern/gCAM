@@ -559,12 +559,16 @@ export function cutterContactHeight(
     cutter: SurfacePathOptions['cutter'],
     diameterMm: number,
     stockToLeaveMm = 0,
+    guardMm = 0,
+    verticalGuardMm = guardMm,
 ): number {
     const radius = diameterMm / 2;
     const ball = cutter === 'ball' || cutter === 'ballnose';
     let contact = Number.NEGATIVE_INFINITY;
     const halfCell = field.cellSize / 2;
-    const reach = Math.ceil((radius + halfCell * Math.SQRT2) / field.cellSize);
+    const reach = Math.ceil(
+        (radius + guardMm + halfCell * Math.SQRT2) / field.cellSize,
+    );
     const centerX = Math.round((x - field.bounds.minX) / field.cellSize);
     const centerY = Math.round((y - field.bounds.minY) / field.cellSize);
     for (let dy = -reach; dy <= reach; dy += 1) {
@@ -581,11 +585,15 @@ export function cutterContactHeight(
             const index = indexY * field.columns + indexX;
             if (!field.covered[index]) continue;
             const nearestX = Math.max(
-                Math.abs(dx * field.cellSize) - halfCell,
+                Math.abs(field.bounds.minX + indexX * field.cellSize - x) -
+                    halfCell -
+                    guardMm,
                 0,
             );
             const nearestY = Math.max(
-                Math.abs(dy * field.cellSize) - halfCell,
+                Math.abs(field.bounds.minY + indexY * field.cellSize - y) -
+                    halfCell -
+                    guardMm,
                 0,
             );
             const radial = Math.hypot(nearestX, nearestY);
@@ -605,7 +613,7 @@ export function cutterContactHeight(
         throw new Error(
             'Toolpath sample is outside the supported mesh surface.',
         );
-    return contact + stockToLeaveMm;
+    return contact + stockToLeaveMm + verticalGuardMm;
 }
 
 /** Scan regular stepover rows and always include the far projected boundary. */

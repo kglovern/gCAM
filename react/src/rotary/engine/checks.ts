@@ -1,3 +1,8 @@
+import {
+    profileChuckMinX,
+    profileTailMaxX,
+    profileFixtureConflict,
+} from './fixtureClearance';
 /**
  * Purpose: Machinability checks for Vortex rotary work (stock limits, chuck
  * and tailstock rules, tool fit, pommel keep-out). Ported from VortexCAM.
@@ -73,12 +78,15 @@ export function runChecks(
     if (ops.part.on && ops.part.x > stock.length - 1) {
         out.push({ level: 'e', msg: 'Part-off X beyond stock end.' });
     }
-    if (ops.part.on && ops.part.x < stock.grip + 2) {
-        out.push({
-            level: 'e',
-            msg: 'Part-off inside chuck grip — will crash.',
-        });
-    }
+    const chuckMinX = profileChuckMinX(stock, tool, ops);
+    const chuckConflict = profileFixtureConflict(
+        samples,
+        stock,
+        ops,
+        chuckMinX,
+        profileTailMaxX(stock, tool, ops),
+    );
+    if (chuckConflict) out.push({ level: 'e', msg: chuckConflict });
     const inPom = (x: number): boolean =>
         (ops.pommels || []).some(
             (p) => x >= Math.min(p.x0, p.x1) && x <= Math.max(p.x0, p.x1),

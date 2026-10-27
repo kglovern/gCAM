@@ -19,6 +19,7 @@ interface ToolSelectionFieldsProps {
     onSelectSlot(slotNumber: number): void;
     onCloseLibrary(): void;
     onConfiguredSlot(slot: ToolSlot): void;
+    slotIssue?: (slot: ToolSlot) => string | null;
 }
 
 /** Tool rack selection and its editor modal, independent of operation fields. */
@@ -34,6 +35,7 @@ export function ToolSelectionFields({
     onSelectSlot,
     onCloseLibrary,
     onConfiguredSlot,
+    slotIssue,
 }: ToolSelectionFieldsProps) {
     return (
         <>
@@ -45,6 +47,7 @@ export function ToolSelectionFields({
                 onOpenLibrary={onOpenLibrary}
                 onSetupTools={onSetupTools}
                 onSelect={onSelectSlot}
+                slotIssue={slotIssue}
             />
             <ToolLibraryModal
                 isOpen={libraryOpen}

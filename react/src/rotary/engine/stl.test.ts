@@ -5,7 +5,16 @@ import {
     meshBounds,
     parseSTL,
     silhouette,
+    orientRotaryImport,
 } from './stl';
+
+test('automatic orientation puts the longest source dimension along the chuck axis', () => {
+    const source = new Float32Array([0, 0, 0, 30, 8, 14, 15, 3, 7]);
+    const { mn, mx } = meshBounds(orientRotaryImport(source, 'auto', true));
+    expect(mx[2] - mn[2]).toBe(30);
+    expect((mx[0] + mn[0]) / 2).toBe(0);
+    expect((mx[1] + mn[1]) / 2).toBe(0);
+});
 
 // 20 x 20 x 40 box, base at z=0: radial section is constant hypot(10,10).
 function boxStl(): string {

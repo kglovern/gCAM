@@ -76,7 +76,11 @@ export function UnitInput({
             onBlur={(event) => {
                 setEditing(false);
                 const next = Number(event.target.value);
-                if (event.target.value !== '' && Number.isFinite(next)) {
+                if (
+                    event.target.value !== '' &&
+                    Number.isFinite(next) &&
+                    next !== Number(display)
+                ) {
                     onChangeMm(convert(next, units));
                 }
                 props.onBlur?.(event);

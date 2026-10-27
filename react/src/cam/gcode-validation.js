@@ -93,13 +93,9 @@ export function validateToolpaths(toolpaths) {
         if (isDepthless) continue;
         const passDepth = Number(toolpath.passDepth);
         const cutDepth = Number(toolpath.cutDepth);
-        if (
-            !Number.isFinite(passDepth) ||
-            passDepth <= 0 ||
-            passDepth > cutDepth
-        ) {
+        if (!Number.isFinite(passDepth) || passDepth <= 0) {
             throw new Error(
-                `Pass depth must be greater than zero and no deeper than final depth for ${toolpath.label || 'each toolpath'}.`,
+                `Pass depth must be greater than zero for ${toolpath.label || 'each toolpath'}.`,
             );
         }
         if (operationUsesTabs(toolpath)) {

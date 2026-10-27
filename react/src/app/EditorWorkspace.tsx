@@ -10,6 +10,7 @@ import { EmptyCanvasPrompt } from '../canvas/EmptyCanvasPrompt';
 import { CadInspector } from '../components/CadInspector';
 import { ConfigPanel } from '../components/ConfigPanel';
 import { ObjectTree } from '../components/ObjectTree';
+import { RotarySimulation } from '../rotary/components/RotarySimulation';
 import { RotaryPanel } from '../rotary/components/RotaryPanel';
 import { Sidebar } from '../components/Sidebar';
 import { OutputWorkspace } from '../toolpaths/OutputWorkspace';
@@ -18,6 +19,7 @@ import { ToolpathRail } from '../toolpaths/ToolpathRail';
 type SidebarProps = ComponentProps<typeof Sidebar>;
 
 interface EditorWorkspaceProps {
+    simulationSource: 'toolpaths' | 'rotary';
     activeTab: SidebarProps['activeTab'];
     onTabChange: SidebarProps['onTabChange'];
     canvasProps: ComponentProps<typeof CanvasStage>;
@@ -42,6 +44,7 @@ interface EditorWorkspaceProps {
 /** The editor's tabbed work area, isolated from document and command wiring. */
 export function EditorWorkspace({
     activeTab,
+    simulationSource,
     onTabChange,
     canvasProps,
     objectTreeProps,
@@ -68,7 +71,6 @@ export function EditorWorkspace({
             <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
             {activeTab === 'toolpaths' && (
                 <ToolpathWorkspace
-                    selectedCount={canvasProps.selected.length}
                     rail={<ToolpathRail {...toolpathRailProps} />}
                     actions={
                         touchLayout && (
@@ -116,6 +118,10 @@ export function EditorWorkspace({
                                     onImport={onImport}
                                     onLoadSample={onLoadSample}
                                     loadingSample={loadingSample}
+                                    onRotary={() => {
+                                        rotaryPanelProps.rotary.setMode('stl');
+                                        onTabChange('rotary');
+                                    }}
                                 />
                             )}
                             {inspector && !treeOpen && (
@@ -128,8 +134,11 @@ export function EditorWorkspace({
                     </main>
                 </ToolpathWorkspace>
             )}
-            {activeTab === 'preview' && (
-                <OutputWorkspace mode="preview" {...previewWorkspaceProps} />
+            {activeTab === 'preview' && simulationSource === 'rotary' && (
+                <RotarySimulation {...rotaryPanelProps} />
+            )}
+            {activeTab === 'preview' && simulationSource !== 'rotary' && (
+                <OutputWorkspace {...previewWorkspaceProps} />
             )}
             {activeTab === 'config' && (
                 <main className="relative flex-1 min-w-0 bg-slate-100 dark:bg-slate-800 min-h-0">

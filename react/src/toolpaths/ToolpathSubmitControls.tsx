@@ -3,6 +3,7 @@
  */
 interface ToolpathSubmitControlsProps {
     busy: boolean;
+    progress?: number;
     hasActiveGeometry: boolean;
     editEntry: boolean;
     submitLabel: string;
@@ -16,6 +17,7 @@ interface ToolpathSubmitControlsProps {
 /** Submit, edit-cancel and status footer for the active toolpath form. */
 export function ToolpathSubmitControls({
     busy,
+    progress,
     hasActiveGeometry,
     editEntry,
     submitLabel,
@@ -26,13 +28,18 @@ export function ToolpathSubmitControls({
     onCancelEdit,
 }: ToolpathSubmitControlsProps) {
     return (
-        <div className="sticky bottom-0 z-10 space-y-2 border-t border-slate-200 bg-white py-3 dark:border-robin-900 dark:bg-dark">
+        <div className="toolpath-form-submit sticky bottom-0 z-10 space-y-2 border-t border-slate-200 bg-white py-3 dark:border-robin-900 dark:bg-dark">
             <button
+                aria-busy={busy}
                 onClick={onGenerate}
                 disabled={!hasActiveGeometry || busy}
                 className="w-full rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-40 text-white px-3 py-3 text-base font-medium touch-manipulation"
             >
-                {busy ? 'Building…' : editEntry ? 'Save Toolpath' : submitLabel}
+                {busy
+                    ? `Building…${progress === undefined ? '' : ` ${progress}%`}`
+                    : editEntry
+                      ? 'Save Toolpath'
+                      : submitLabel}
                 {!editEntry && selectedCount > 0
                     ? ` (${selectedCount} selected)`
                     : ''}
