@@ -1,3 +1,4 @@
+const { join } = require('node:path');
 const { BrowserWindow, shell, app } = require('electron');
 const { APP_URL, isAppUrl, isExternalUrl } = require('./app-protocol.cjs');
 
@@ -16,6 +17,7 @@ function createWindow() {
             contextIsolation: true,
             sandbox: true,
             webSecurity: true,
+            preload: join(__dirname, 'preload.cjs'),
         },
     });
     window.once('ready-to-show', () => {

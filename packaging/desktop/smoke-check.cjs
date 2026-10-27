@@ -23,6 +23,7 @@ app.on('browser-window-created', (_event, window) => {
                 if (!document.querySelector('[aria-label="Main tabs"]')) throw new Error('App did not render');
                 if (document.getElementById('gcam-startup')) throw new Error('Startup screen did not clear');
                 if (document.body.textContent.includes('Add gCAM to your Home Screen')) throw new Error('PWA controls remain');
+                if (typeof window.gcamPendant?.discover !== 'function') throw new Error('Tablet pairing bridge missing');
                 const catalogue = await fetch('library/tools/sienci/tools.json');
                 if (!catalogue.ok || !(await catalogue.text()).includes('tool')) throw new Error('Local tool catalogue unavailable');
                 return await new Promise((resolve, reject) => {

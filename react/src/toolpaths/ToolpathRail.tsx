@@ -17,6 +17,7 @@ import type { MachineTravelLimits } from '../cutting-parameters/types';
 import { JobStockSetup } from '../job/JobStockSetup';
 import { machineProfileById } from '../cutting-parameters/machines';
 import { SendToGsenderButton } from '../integrations/gsender/SendToGsenderButton';
+import { SendToTabletButton } from '../integrations/pendant/SendToTabletButton';
 import { GcodeExportButton } from './GcodeExportButton';
 
 type Bitmap = {
@@ -250,6 +251,7 @@ export function ToolpathRail({
                         emitArcs={emitArcs}
                     />
                     <SendToGsenderButton gcode={gcode} fileName={fileName} />
+                    <SendToTabletButton gcode={gcode} fileName={fileName} />
                 </div>
             )}
         </aside>

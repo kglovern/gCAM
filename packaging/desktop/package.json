@@ -6,11 +6,14 @@
   "homepage": "https://petervanderwalt.github.io/gCAM/",
   "author": "gCAM contributors",
   "main": "main.cjs",
+  "packageManager": "npm@11.19.0",
   "scripts": {
     "start": "electron .",
+    "dev": "node ../scripts/desktop.mjs start",
     "test": "node --test *.test.cjs",
     "smoke": "electron smoke.cjs",
-    "package": "electron-builder --publish never"
+    "package": "electron-builder --publish never",
+    "dist": "node ../scripts/desktop.mjs package"
   },
   "devDependencies": {
     "electron": "45.0.0",
@@ -59,5 +62,8 @@
   },
   "engines": {
     "node": "^24.0.0"
+  },
+  "dependencies": {
+    "bonjour-service": "^1.4.4"
   }
 }
