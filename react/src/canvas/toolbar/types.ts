@@ -67,6 +67,7 @@ export interface CanvasToolbarProps {
     onSheetW: (v: number) => void;
     onSheetH: (v: number) => void;
     onApplyNest: () => void;
+    onMandala?: () => void;
     onAddGuide: () => void;
     onDeleteGuide: (id: string) => void;
     guides: Guide[];

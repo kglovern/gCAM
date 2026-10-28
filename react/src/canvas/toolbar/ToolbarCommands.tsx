@@ -182,6 +182,16 @@ export function ToolbarCommands({
                             }}
                         />
                     ))}
+                    {props.onMandala && (
+                        <ToolbarMenuItem
+                            label="Mandala"
+                            icon={<Circle size={16} />}
+                            onClick={() => {
+                                props.onMandala?.();
+                                close();
+                            }}
+                        />
+                    )}
                     <ToolbarMenuItem
                         label="Guide"
                         icon={<Ruler size={16} />}

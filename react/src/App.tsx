@@ -1,3 +1,4 @@
+import { MandalaModal } from './draw/MandalaModal';
 import { useVisualViewportHeight } from './hooks/useVisualViewportHeight';
 /**
  * Purpose: Implementation module for App in the react domain.
@@ -56,6 +57,7 @@ type PlacedBitmap = PlacedBitmapRecord;
  */
 export default function App() {
     useVisualViewportHeight();
+    const [mandalaOpen, setMandalaOpen] = useState(false);
     const drawing = useDrawingWorkspaceState();
     const transforms = useTransformWorkspaceState();
     const arrange = useArrangeWorkspaceState();
@@ -509,6 +511,7 @@ export default function App() {
         setOffsetPreview,
         setBooleanPreview,
         actions: {
+            mandala: () => setMandalaOpen(true),
             applyMove: applyAbsoluteMove,
             applyRotate: applyAbsoluteRotate,
             applyScale: applyAbsoluteSize,
@@ -776,6 +779,36 @@ export default function App() {
 
     return (
         <ErrorBoundary>
+            {mandalaOpen && (
+                <MandalaModal
+                    units={units}
+                    onClose={() => setMandalaOpen(false)}
+                    onAdd={(raw) => {
+                        document.pushHistory();
+                        const groupId = document.newLoopId();
+                        const added = document
+                            .withIds(
+                                raw.map((loop) => ({
+                                    points: loop.points.map((p) => ({
+                                        x: p.x + document.stock.widthMm / 2,
+                                        y: p.y + document.stock.heightMm / 2,
+                                    })),
+                                })),
+                            )
+                            .map((loop) => ({ ...loop, groupId }));
+                        const next = [...loops, ...added];
+                        setLoops(next);
+                        setSelected(added.map((loop) => loop.id));
+                        document.refreshBounds(next);
+                        setActiveTool('select');
+                        setDrawTool(null);
+                        setTransformMode(null);
+                        setMandalaOpen(false);
+                        setViewportCommand({ type: 'fit', token: Date.now() });
+                    }}
+                />
+            )}
+
             <div className="h-screen [height:var(--app-height,100dvh)] w-full overflow-hidden [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)] flex flex-col bg-slate-100 text-slate-900 dark:bg-dark-darker dark:text-slate-200">
                 <UpdateControls notice />
                 <AppHeader
