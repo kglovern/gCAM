@@ -47,8 +47,12 @@ export function StockFields({
                         }
                         className={input}
                     >
-                        <option value="standard">Standard — 546 mm usable</option>
-                        <option value="extended">Extended — 1003 mm usable</option>
+                        <option value="standard">
+                            Standard — 546 mm usable
+                        </option>
+                        <option value="extended">
+                            Extended — 1003 mm usable
+                        </option>
                     </select>
                 </label>
                 <div className="grid grid-cols-2 gap-2">

@@ -20,6 +20,7 @@ export function RotaryShapePane({
     darkMode?: boolean;
 }) {
     const [snap, setSnap] = useState(true);
+    const [profileViewKey, setProfileViewKey] = useState(0);
     const [importError, setImportError] = useState('');
     const [importing, setImporting] = useState(false);
     const importModel = async (
@@ -118,6 +119,7 @@ export function RotaryShapePane({
                 {R.mode === 'profile' ? (
                     <>
                         <ProfileEditorView
+                            key={`${profileViewKey}:${R.stock.length}:${R.stock.diameter}`}
                             points={R.points}
                             stock={R.stock}
                             snap={snap}
@@ -183,10 +185,22 @@ export function RotaryShapePane({
                                         aria-label="Load template"
                                         value=""
                                         onChange={(event) => {
-                                            if (event.target.value)
+                                            if (!event.target.value) return;
+                                            try {
                                                 R.loadTemplate(
                                                     event.target.value,
                                                 );
+                                                setImportError('');
+                                                setProfileViewKey(
+                                                    (value) => value + 1,
+                                                );
+                                            } catch (error) {
+                                                setImportError(
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : 'Template stock sizing failed.',
+                                                );
+                                            }
                                         }}
                                         className={`${action} min-w-0 bg-transparent`}
                                     >

@@ -101,6 +101,8 @@ describe('Canvas selection and editing', () => {
     });
     it('edits position and dimensions through shape properties', () => {
         cy.worldClick(20, 50);
+        cy.get('[aria-label="Selected shape properties"]').should('not.exist');
+        cy.worldProperties(20, 50);
         cy.field('X (mm)', 25);
         cy.field('Y (mm)', 45);
         cy.field('Width (mm)', 30);

@@ -68,10 +68,7 @@ describe('Movable canvas windows', () => {
 
     it('moves shape properties without changing the selected geometry', () => {
         cy.worldClick(20, 50);
-        cy.get('body').then(($body) => {
-            if (!$body.find('[aria-label="Selected shape properties"]').length)
-                cy.contains('button', /^Properties$/).click();
-        });
+        cy.worldProperties(20, 50);
         cy.snapshot().then((before) => {
             cy.get('[aria-label="Move selected shape properties"]')
                 .focus()

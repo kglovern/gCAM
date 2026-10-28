@@ -103,6 +103,35 @@ test('tailstock tweens through intermediate positions even when reduced motion i
     fireEvent.click(view.getByRole('button', { name: 'Fit machine' }));
     act(() => jest.advanceTimersByTime(16));
     expect(renderer.render.mock.calls.at(-1)[1].isPerspectiveCamera).toBe(true);
+    const perspectivePosition = renderer.render.mock.calls
+        .at(-1)[1]
+        .position.clone();
+    view.rerender(
+        <RotaryViewport
+            {...props}
+            stock={{ ...stock, length: 150, diameter: 30 }}
+        />,
+    );
+    act(() => jest.advanceTimersByTime(400));
+    expect(renderer.render.mock.calls.at(-1)[1].isOrthographicCamera).toBe(
+        true,
+    );
+    expect(
+        renderer.render.mock.calls
+            .at(-1)[1]
+            .position.distanceTo(perspectivePosition),
+    ).toBeLessThan(0.1);
+    act(() => jest.advanceTimersByTime(225));
+    expect(
+        renderer.render.mock.calls
+            .at(-1)[1]
+            .position.distanceTo(perspectivePosition),
+    ).toBeGreaterThan(0.1);
+    expect(tail.position.x).toBeGreaterThan(0.12);
+    expect(tail.position.x).toBeLessThan(0.15);
+    act(() => jest.advanceTimersByTime(300));
+    expect(renderer.render.mock.calls.at(-1)[1].position.x).toBeCloseTo(75);
+    expect(tail.position.x).toBeCloseTo(0.15);
     fireEvent.click(view.getByRole('button', { name: 'Side-on stock view' }));
     act(() => jest.advanceTimersByTime(16));
     expect(renderer.render.mock.calls.at(-1)[1].isOrthographicCamera).toBe(

@@ -25,7 +25,13 @@ describe('Rotary workspace', () => {
             });
         cy.get('[aria-label="Stock length"]').clear().type('100').blur();
         cy.get('[aria-label="Load template"]').select('handle');
-        cy.get('[aria-label="Stock length"]').should('have.value', '100');
+        cy.get('[aria-label="Stock length"]')
+            .invoke('val')
+            .should((value) => {
+                expect(Number(value)).to.be.at.most(100);
+                expect(Number(value)).to.be.greaterThan(55);
+            });
+        cy.get('[aria-label="Stock diameter"]').should('have.value', '24');
         cy.get('[aria-label="Profile editor"]').should('be.visible');
         footer().should('not.exist');
         cy.get('[aria-label="Rotary design"]').should('be.visible');
@@ -48,6 +54,27 @@ describe('Rotary workspace', () => {
         addRoughing();
         footer().find('button').should('have.length', 3);
         cy.screenshot('rotary-shape-landscape', { capture: 'viewport' });
+    });
+    it('fits stock and resets profile zoom when loading a template', () => {
+        cy.get('[aria-label="Profile editor"]').then(($svg) => {
+            const old = $svg[0];
+            const rect = old.getBoundingClientRect();
+            cy.wrap($svg).trigger('wheel', {
+                deltaY: -500,
+                clientX: rect.left + 100,
+                clientY: rect.top + 100,
+            });
+            cy.get('[aria-label="Load template"]').select('bat');
+            cy.get('[aria-label="Stock length"]')
+                .invoke('val')
+                .should((value) =>
+                    expect(Number(value)).to.be.within(510, 546),
+                );
+            cy.get('[aria-label="Stock diameter"]').should('have.value', '50');
+            cy.get('[aria-label="Profile editor"]').should(($next) =>
+                expect($next[0]).not.to.equal(old),
+            );
+        });
     });
     it('picks points accurately and keeps point fields visible while editing', () => {
         cy.viewport(1280, 800);

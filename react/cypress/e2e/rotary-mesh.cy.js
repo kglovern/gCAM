@@ -9,7 +9,9 @@ describe('Independent XYZA mesh machining', () => {
         );
         cy.get('[aria-label="Model units"]').select('mm');
         cy.contains('button', 'Continue to model setup').click();
-        cy.get('[aria-label="XYZA mesh settings"]').should('be.visible');
+        cy.get('[aria-label="XYZA mesh settings"]')
+            .scrollIntoView()
+            .should('be.visible');
         cy.get('[aria-label="Tool library slot"]').click();
         cy.contains('[role="option"]', 'Test flat').click();
     });

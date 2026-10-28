@@ -26,7 +26,20 @@ jobs:
           cache: yarn
           cache-dependency-path: react/yarn.lock
       - run: corepack enable
+      - uses: actions/cache@v4
+        with:
+          path: react/.cache/Cypress
+          key: ${{ runner.os }}-cypress-${{ hashFiles('react/yarn.lock') }}
       - run: yarn install --frozen-lockfile
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - name: Install Cypress
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 180s yarn cypress install; then exit 0; fi
+            sleep 5
+          done
+          exit 1
       - name: Run browser tests
         env:
           TEST_SHARD: ${{ matrix.shard }}

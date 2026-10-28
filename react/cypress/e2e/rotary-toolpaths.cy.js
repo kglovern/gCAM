@@ -23,6 +23,9 @@ describe('Rotary operation toolpaths', () => {
             },
             { force: true },
         );
+        // Keep supports enabled on this short lifecycle fixture.
+        cy.get('[aria-label="Chuck end overlap"]').clear().type('1').blur();
+        cy.get('[aria-label="Tailstock end overlap"]').clear().type('1').blur();
         // Lifecycle coverage does not need the dense production finish sampling.
         cy.contains('summary', 'Advanced machining settings').click();
         cy.get('[aria-label="Finish tolerance"]').clear().type('0.5').blur();

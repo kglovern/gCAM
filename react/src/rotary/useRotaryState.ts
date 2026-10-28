@@ -1,5 +1,6 @@
 import { validateRotaryMesh } from './engine/meshCoordinates';
 import { defaultSupports } from './engine/supports';
+import { fitTemplateStock } from './engine/templateStock';
 import {
     defaultMeshSettings,
     meshSettingsForTool,
@@ -498,11 +499,19 @@ export function useRotaryState(): RotaryStateApi {
 
     const loadTemplate = useCallback(
         (templateName: string) => {
+            const fitted = fitTemplateStock(
+                templateProfile(templateName),
+                stock,
+                [{ tool, ops: opsBase }, ...toolpaths],
+            );
             pushHistory();
-            setPoints(templateProfile(templateName));
+            setPoints(fitted.points);
+            setStock(fitted.stock);
+            stockMeasured.current = false;
+            setSel(-1);
             setModeState('profile');
         },
-        [pushHistory],
+        [pushHistory, stock, tool, opsBase, toolpaths],
     );
 
     const importStlFile = useCallback(

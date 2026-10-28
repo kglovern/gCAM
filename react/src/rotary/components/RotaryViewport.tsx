@@ -161,6 +161,39 @@ export function RotaryViewport({
             new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, 5000);
         const aspect = () =>
             (mount.clientWidth || 400) / (mount.clientHeight || 440);
+        const resetSide =
+            from.length !== target.length || from.diameter !== target.diameter;
+        let sideBlend = resetSide ? 0 : 1;
+        if (resetSide) {
+            if (cam instanceof THREE.PerspectiveCamera) {
+                const previous = cam;
+                const distance = previous.position.distanceTo(
+                    savedView.current?.target ?? new THREE.Vector3(),
+                );
+                const halfHeight =
+                    (distance * Math.tan((previous.fov * Math.PI) / 360)) /
+                    previous.zoom;
+                cam = new THREE.OrthographicCamera(
+                    -halfHeight * aspect(),
+                    halfHeight * aspect(),
+                    halfHeight,
+                    -halfHeight,
+                    0.5,
+                    5000,
+                );
+                cam.position.copy(previous.position);
+                cam.quaternion.copy(previous.quaternion);
+            }
+            followSideView.current = true;
+        }
+        const sideOrigin = {
+            position: cam.position.clone(),
+            target: savedView.current?.target.clone() ?? new THREE.Vector3(),
+            halfHeight:
+                cam instanceof THREE.OrthographicCamera
+                    ? (cam.top - cam.bottom) / (2 * cam.zoom)
+                    : 1,
+        };
         const ren =
             rendererRef.current ?? new THREE.WebGLRenderer({ antialias: true });
         rendererRef.current = ren;
@@ -222,19 +255,28 @@ export function RotaryViewport({
             }
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
-            const halfHeight =
+            const desiredHalfHeight =
                 Math.max(size.y / 2, size.x / (2 * aspect()), 1) * 1.16;
+            const halfHeight =
+                sideOrigin.halfHeight +
+                (desiredHalfHeight - sideOrigin.halfHeight) * sideBlend;
             cam.left = -halfHeight * aspect();
             cam.right = halfHeight * aspect();
             cam.top = halfHeight;
             cam.bottom = -halfHeight;
             cam.zoom = 1;
-            ctl.target.copy(center);
-            cam.position.copy(center).add(new THREE.Vector3(0, 0, 1000));
-            cam.lookAt(center);
+            ctl.target.copy(sideOrigin.target).lerp(center, sideBlend);
+            cam.position
+                .copy(sideOrigin.position)
+                .lerp(
+                    center.clone().add(new THREE.Vector3(0, 0, 1000)),
+                    sideBlend,
+                );
+            cam.lookAt(ctl.target);
             cam.updateProjectionMatrix();
         };
         const side = () => {
+            sideBlend = 1;
             followSideView.current = true;
             cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, 5000);
             ctl.object = cam;
@@ -474,6 +516,18 @@ export function RotaryViewport({
                         pose.diameter / 2,
                         pose.diameter / 2,
                     );
+            }
+            if (resetSide && sideBlend < 1) {
+                const t = Math.min(
+                    1,
+                    Math.max(
+                        0,
+                        (started === null ? 0 : performance.now() - started) /
+                            450,
+                    ),
+                );
+                sideBlend = t * t * (3 - 2 * t);
+                needsSideFrame = true;
             }
             ctl.update();
             if (followSideView.current && needsSideFrame) {

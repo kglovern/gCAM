@@ -230,3 +230,16 @@ Cypress.Commands.add('addOperation', (label, options = {}) => {
         }
     });
 });
+
+Cypress.Commands.add('worldProperties', (x, y) => {
+    cy.get('[data-testid="gcam-canvas"]').then(($canvas) => {
+        const camera = JSON.parse($canvas[0].dataset.camera);
+        const rect = $canvas[0].getBoundingClientRect();
+        cy.wrap($canvas).trigger('contextmenu', {
+            eventConstructor: 'MouseEvent',
+            clientX: rect.left + camera.tx + x * camera.scale,
+            clientY: rect.top + camera.ty - y * camera.scale,
+        });
+    });
+    cy.contains('[role="menuitem"]', /^Properties$/).click();
+});
