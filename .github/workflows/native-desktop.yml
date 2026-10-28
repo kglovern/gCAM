@@ -22,7 +22,7 @@ jobs:
           - os: ubuntu-24.04
             target: linux
             arch: x64
-          - os: macos-15
+          - os: macos-15-intel
             target: mac
             arch: arm64
     runs-on: ${{ matrix.os }}
@@ -74,6 +74,9 @@ jobs:
           fi
           npm run package -- --${{ matrix.target }} --${{ matrix.arch }}
         working-directory: packaging/desktop
+      - name: Verify Apple Silicon installer architecture
+        if: runner.os == 'macOS'
+        run: xcrun lipo -verify_arch arm64 packaging/desktop/dist/mac-arm64/gCAM.app/Contents/MacOS/gCAM
       - uses: actions/upload-artifact@v7
         with:
           name: gCAM-${{ matrix.target }}-${{ matrix.arch }}
