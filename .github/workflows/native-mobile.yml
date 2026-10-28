@@ -112,7 +112,7 @@ jobs:
           --buildFlag="ARCHS=arm64 x86_64"
         working-directory: packaging/mobile
       - name: Verify simulator architectures
-        run: xcrun lipo -verify_arch arm64 x86_64 platforms/ios/build/Debug-iphonesimulator/gCAM.app/gCAM
+        run: xcrun lipo platforms/ios/build/Debug-iphonesimulator/gCAM.app/gCAM -verify_arch arm64 x86_64
         working-directory: packaging/mobile
       - name: Archive simulator application with permissions intact
         working-directory: packaging/mobile

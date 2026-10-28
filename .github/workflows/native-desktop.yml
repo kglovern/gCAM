@@ -76,7 +76,7 @@ jobs:
         working-directory: packaging/desktop
       - name: Verify Apple Silicon installer architecture
         if: runner.os == 'macOS'
-        run: xcrun lipo -verify_arch arm64 packaging/desktop/dist/mac-arm64/gCAM.app/Contents/MacOS/gCAM
+        run: xcrun lipo packaging/desktop/dist/mac-arm64/gCAM.app/Contents/MacOS/gCAM -verify_arch arm64
       - uses: actions/upload-artifact@v7
         with:
           name: gCAM-${{ matrix.target }}-${{ matrix.arch }}
