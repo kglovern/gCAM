@@ -14,6 +14,7 @@ import type {
 } from './types';
 import { planToolpath } from './toolpath';
 import { runChecks } from './checks';
+import { supportZones } from './supports';
 import { toGcode } from './gcode';
 
 export const ROTARY_OPERATIONS: { value: RotaryOperation; label: string }[] = [
@@ -109,7 +110,14 @@ export function planRotaryEntry(
                 throw new Error(
                     'Mesh paths do not support pommel exclusions yet. Remove them before planning.',
                 );
-            const flags: RotaryCheck[] = [];
+            const flags: RotaryCheck[] = stock.supports?.enabled
+                ? [
+                      {
+                          level: 'w',
+                          msg: 'Stock supports remain on the part. Remove and finish them manually after machining.',
+                      },
+                  ]
+                : [];
             return {
                 entry,
                 compR: 0,
@@ -148,6 +156,12 @@ export function planRotaryEntry(
     const ops = { ...operationOps(entry.operation, entry.ops), compR, pommels };
     const flags = runChecks(samples, stock, entry.tool, ops);
     try {
+        supportZones(stock, samples[0].x, samples[samples.length - 1].x);
+        if (stock.supports?.enabled)
+            flags.push({
+                level: 'w',
+                msg: 'Stock supports remain on the part. Remove and finish them manually after machining.',
+            });
         return {
             entry,
             compR,

@@ -27,13 +27,22 @@ export interface ProfileSample {
 }
 
 export interface RotaryStock {
+    supports?: RotarySupports;
     /** Total bar length including the gripped part, mm. */
     length: number;
     diameter: number;
     /** Length held in the chuck jaws (no cutting here), mm. */
     grip: number;
-    /** Extended track fitted (39.5" capacity instead of 21.5"). */
+    /** Extended track fitted (1003 mm usable capacity instead of 546 mm). */
     ext: boolean;
+}
+
+export interface RotarySupports {
+    enabled: boolean;
+    coreDiameter: number;
+    endDiameter: number;
+    chuckOverlap: number;
+    tailOverlap: number;
 }
 
 export type RotaryToolType = 'flat' | 'ball' | 'taper' | 'vbit';
@@ -198,6 +207,19 @@ export function isRotaryProjectSlice(v: unknown): v is RotaryProjectSlice {
     if (!isRecord(v['stock']) || !isRecord(v['tool']) || !isRecord(v['ops'])) {
         return false;
     }
+    const supports = v.stock.supports;
+    if (
+        supports !== undefined &&
+        (!isRecord(supports) ||
+            typeof supports.enabled !== 'boolean' ||
+            ![
+                'coreDiameter',
+                'endDiameter',
+                'chuckOverlap',
+                'tailOverlap',
+            ].every((key) => finite(supports[key])))
+    )
+        return false;
     if (v['stlKey'] !== undefined && typeof v['stlKey'] !== 'string') {
         return false;
     }

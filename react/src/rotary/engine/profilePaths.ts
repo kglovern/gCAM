@@ -1,4 +1,5 @@
 import { PROFILE_SAMPLE_TOLERANCE } from './profileModel';
+import { protectSupports, supportZones } from './supports';
 import { defaultMeshSettings, meshSettingsForTool } from './meshToolpath';
 import { planRotaryPaths, rotaryMotionBudget } from './rotaryPaths';
 import {
@@ -226,5 +227,10 @@ export function planProfilePaths(
                 'Profile toolpath exceeds 500,000 moves. Use a coarser quality or larger stepover.',
             );
     });
-    return moves;
+    return protectSupports(
+        moves,
+        supportZones(stock, samples[0].x, samples[samples.length - 1].x),
+        tool,
+        settings,
+    );
 }

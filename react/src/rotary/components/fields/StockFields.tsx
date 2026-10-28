@@ -1,4 +1,5 @@
 import { UnitInput } from '../../../components/UnitInput';
+import { ROTARY_MAX_DIAMETER, rotaryMaxLength } from '../../engine/stockLimits';
 import { MATERIAL_RECIPES } from '../../../cutting-parameters/recipes';
 import type { MaterialId } from '../../../cutting-parameters/types';
 import { lengthUnit, type UnitSystem } from '../../../lib/units';
@@ -36,6 +37,20 @@ export function StockFields({
                 the chuck. These are wood dimensions, not model dimensions.
             </p>
             <RotarySettingsBoundary onBeforeChange={onBeforeChange}>
+                <label className="block text-xs text-slate-600 dark:text-slate-300">
+                    Machine capacity
+                    <select
+                        aria-label="Rotary machine capacity"
+                        value={stock.ext ? 'extended' : 'standard'}
+                        onChange={(event) =>
+                            onPatch({ ext: event.target.value === 'extended' })
+                        }
+                        className={input}
+                    >
+                        <option value="standard">Standard — 546 mm usable</option>
+                        <option value="extended">Extended — 1003 mm usable</option>
+                    </select>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                     <label className="text-xs text-slate-600 dark:text-slate-300">
                         Length ({unit})
@@ -45,7 +60,7 @@ export function StockFields({
                             valueMm={stock.length}
                             onChangeMm={(length) => onPatch({ length })}
                             minMm={10}
-                            maxMm={1003}
+                            maxMm={rotaryMaxLength(stock.ext)}
                             stepMm={0.5}
                             className={input}
                             aria-label="Stock length"
@@ -59,7 +74,7 @@ export function StockFields({
                             valueMm={stock.diameter}
                             onChangeMm={(diameter) => onPatch({ diameter })}
                             minMm={6}
-                            maxMm={101.6}
+                            maxMm={ROTARY_MAX_DIAMETER}
                             stepMm={0.5}
                             className={input}
                             aria-label="Stock diameter"

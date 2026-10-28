@@ -1,3 +1,4 @@
+import { ROTARY_MAX_DIAMETER, rotaryMaxLength } from './stockLimits';
 import {
     profileChuckMinX,
     profileTailMaxX,
@@ -23,8 +24,8 @@ export function runChecks(
 ): RotaryCheck[] {
     const out: RotaryCheck[] = [];
     const stockR = stock.diameter / 2;
-    const maxLen = stock.ext ? 1003 : 546;
-    if (stock.diameter > 101.6) {
+    const maxLen = rotaryMaxLength(stock.ext);
+    if (stock.diameter > ROTARY_MAX_DIAMETER) {
         out.push({
             level: 'e',
             msg: `Stock Ø ${stock.diameter}mm exceeds Vortex 4" (101.6mm) capacity.`,

@@ -47,6 +47,10 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
             '(Mesh cutter envelope; independent Y and A axes required. Use 4th Axis Mode, not Y-to-A substitution.)',
         );
     L.push(`(Stock L${stock.length} D${stock.diameter} grip${stock.grip})`);
+    if (stock.supports?.enabled)
+        L.push(
+            `(Protected core D${stock.supports.coreDiameter}; end supports D${stock.supports.endDiameter}. Remove supports manually.)`,
+        );
     L.push(
         `(Tool ${tool.type} D${tool.dia} S${tool.spindle} F${tool.feed}/${tool.plunge})`,
     );

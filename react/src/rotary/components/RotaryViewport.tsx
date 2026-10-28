@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { Box, Scan, PanelTop, Settings2, X } from 'lucide-react';
 import { rotaryViewFit } from './viewportFit';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { supportZones } from '../engine/supports';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DARK_CANVAS_THEME, LIGHT_CANVAS_THEME } from '../../canvas/theme';
@@ -176,8 +177,15 @@ export function RotaryViewport({
             followSideView.current = false;
             const camera = perspectiveView();
             const view = rotaryViewFit(
-                stock.length,
-                stock.diameter,
+                mode === 'profile'
+                    ? Math.max(stock.length, ...samples.map((point) => point.x))
+                    : stock.length,
+                mode === 'profile'
+                    ? Math.max(
+                          stock.diameter,
+                          ...samples.map((point) => point.r * 2),
+                      )
+                    : stock.diameter,
                 camera.aspect,
             );
             ctl.target.set(view.centerX, 0, 0);
@@ -279,6 +287,33 @@ export function RotaryViewport({
             part = new THREE.Mesh(revolveGeometry(samples, 96), partMat);
         }
         scene.add(part);
+        try {
+            part.geometry.computeBoundingBox();
+            const zones = supportZones(
+                stock,
+                part.geometry.boundingBox?.min.x ?? NaN,
+                part.geometry.boundingBox?.max.x ?? NaN,
+            );
+            const supportMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf59e0b,
+                roughness: 0.7,
+            });
+            for (const zone of zones) {
+                const geometry = new THREE.CylinderGeometry(
+                    zone.radius,
+                    zone.radius,
+                    zone.x1 - zone.x0,
+                    48,
+                );
+                geometry.rotateZ(Math.PI / 2);
+                geometry.translate((zone.x0 + zone.x1) / 2, 0, 0);
+                const support = new THREE.Mesh(geometry, supportMaterial);
+                scene.add(support);
+            }
+            if (!zones.length) supportMaterial.dispose();
+        } catch {
+            // Invalid support settings are reported by the planner; do not draw misleading supports.
+        }
 
         let stockMesh: THREE.Mesh | null = null;
         if (showStock) {

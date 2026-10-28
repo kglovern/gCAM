@@ -114,6 +114,9 @@ test('project roundtrip preserves entries and old operation toggles migrate', ()
 });
 test('part-off before another operation blocks output until reordered', () => {
     const { result } = renderHook(() => useRotaryState());
+    act(() =>
+        result.current.setStock((stock) => ({ ...stock, supports: undefined })),
+    );
     add(result, 'part');
     add(result, 'finish', 2);
     expect(
@@ -126,6 +129,39 @@ test('part-off before another operation blocks output until reordered', () => {
     act(() => result.current.moveToolpath(result.current.toolpaths[0].id, 1));
     act(() => result.current.generate());
     expect(result.current.gcode).toContain('(part)');
+});
+
+test('supports block new and previously saved part-off toolpaths', () => {
+    const { result } = renderHook(() => useRotaryState());
+    const supports = result.current.stock.supports!;
+    add(result, 'part');
+    expect(result.current.toolpaths).toHaveLength(0);
+    expect(
+        result.current.draftFlags.some(
+            (flag) =>
+                flag.level === 'e' && flag.msg.includes('Part-off is blocked'),
+        ),
+    ).toBe(true);
+    act(() =>
+        result.current.setStock((stock) => ({
+            ...stock,
+            supports: { ...supports, enabled: false },
+        })),
+    );
+    add(result, 'part');
+    expect(result.current.toolpaths).toHaveLength(1);
+    act(() => result.current.generate());
+    expect(result.current.gcode).toContain('(part)');
+    act(() => result.current.setStock((stock) => ({ ...stock, supports })));
+    act(() => result.current.generate());
+    expect(result.current.gcode).toBe('');
+    expect(
+        result.current.flags.some(
+            (flag) =>
+                flag.level === 'e' && flag.msg.includes('Part-off is blocked'),
+        ),
+    ).toBe(true);
+    expect(result.current.snapshotProject().stock.supports).toEqual(supports);
 });
 
 test('invalid pass depth cannot add a toolpath or enter the planner', () => {

@@ -4,6 +4,7 @@
  * exact (de Casteljau) node insertion. Ported from VortexCAM.
  */
 import type { ProfilePoint, ProfilePointType, ProfileSample } from './types';
+import { PRACTICAL_TEMPLATES } from './practicalProfiles';
 
 /** Work starts clear of the chuck (X=0 is the chuck face). */
 export const CHUCK_CLEARANCE = 20;
@@ -42,14 +43,144 @@ export function defaultProfile(): ProfilePoint[] {
     ]);
 }
 
-type TemplateDef = {
+export const TEMPLATE_GROUPS = [
+    'Furniture',
+    'Kitchen',
+    'Holidays',
+    'Home decor',
+    'Toys & games',
+    'Workshop',
+    'Basics',
+    'Simplified chess set',
+] as const;
+
+export type TemplateDef = {
     label: string;
+    group: (typeof TEMPLATE_GROUPS)[number];
     pts: Array<[number, number, ProfilePointType]>;
 };
 
 export const TEMPLATES: Record<string, TemplateDef> = {
+    ...PRACTICAL_TEMPLATES,
+    taperedChairLeg: {
+        label: 'Chair leg — tapered · 450 mm',
+        group: 'Furniture',
+        pts: [
+            [0, 20, 'corner'],
+            [70, 20, 'corner'],
+            [90, 18, 'smooth'],
+            [420, 11, 'corner'],
+            [440, 11, 'corner'],
+            [450, 9, 'corner'],
+        ],
+    },
+    turnedChairLeg: {
+        label: 'Chair leg — turned · 450 mm',
+        group: 'Furniture',
+        pts: [
+            [0, 22, 'corner'],
+            [65, 22, 'corner'],
+            [75, 18, 'corner'],
+            [88, 23, 'smooth'],
+            [102, 18, 'smooth'],
+            [120, 15, 'smooth'],
+            [160, 21, 'smooth'],
+            [205, 16, 'smooth'],
+            [255, 13, 'smooth'],
+            [340, 11, 'smooth'],
+            [400, 10, 'smooth'],
+            [420, 14, 'smooth'],
+            [440, 12, 'smooth'],
+            [450, 10, 'corner'],
+        ],
+    },
+    plainChairSpindle: {
+        label: 'Chair-back spindle — tapered · 360 mm',
+        group: 'Furniture',
+        pts: [
+            [0, 6, 'corner'],
+            [20, 6, 'corner'],
+            [28, 9, 'corner'],
+            [65, 9, 'smooth'],
+            [180, 7.5, 'smooth'],
+            [320, 6.5, 'corner'],
+            [332, 5, 'corner'],
+            [360, 5, 'corner'],
+        ],
+    },
+    turnedChairSpindle: {
+        label: 'Chair-back spindle — turned · 360 mm',
+        group: 'Furniture',
+        pts: [
+            [0, 6, 'corner'],
+            [20, 6, 'corner'],
+            [28, 9, 'corner'],
+            [42, 10, 'smooth'],
+            [58, 7, 'smooth'],
+            [85, 6, 'smooth'],
+            [135, 10, 'smooth'],
+            [180, 11, 'smooth'],
+            [225, 10, 'smooth'],
+            [280, 6, 'smooth'],
+            [300, 7, 'smooth'],
+            [318, 9, 'smooth'],
+            [330, 5, 'corner'],
+            [360, 5, 'corner'],
+        ],
+    },
+    ballFinial: {
+        label: 'Curtain finial — ball · 85 mm',
+        group: 'Furniture',
+        pts: [
+            [0, 14, 'corner'],
+            [18, 14, 'corner'],
+            [24, 18, 'smooth'],
+            [32, 12, 'smooth'],
+            [40, 19, 'smooth'],
+            [55, 25, 'smooth'],
+            [70, 21, 'smooth'],
+            [80, 12, 'smooth'],
+            [85, 3, 'corner'],
+        ],
+    },
+    acornFinial: {
+        label: 'Curtain finial — acorn · 100 mm',
+        group: 'Furniture',
+        pts: [
+            [0, 14, 'corner'],
+            [20, 14, 'corner'],
+            [28, 18, 'smooth'],
+            [36, 12, 'smooth'],
+            [44, 22, 'corner'],
+            [54, 22, 'corner'],
+            [60, 19, 'smooth'],
+            [72, 20, 'smooth'],
+            [86, 15, 'smooth'],
+            [96, 8, 'smooth'],
+            [100, 3, 'corner'],
+        ],
+    },
+    rollingPin: {
+        label: 'Rolling pin — handled · 420 mm',
+        group: 'Kitchen',
+        pts: [
+            [0, 10, 'corner'],
+            [12, 13, 'smooth'],
+            [45, 13, 'smooth'],
+            [62, 9, 'smooth'],
+            [72, 9, 'corner'],
+            [82, 25, 'corner'],
+            [338, 25, 'corner'],
+            [348, 9, 'corner'],
+            [358, 9, 'smooth'],
+            [375, 13, 'smooth'],
+            [408, 13, 'smooth'],
+            [420, 10, 'corner'],
+        ],
+    },
     dowel: {
         label: 'Dowel Ø25',
+        group: 'Basics',
         pts: [
             [0, 12.5, 'corner'],
             [60, 12.5, 'corner'],
@@ -57,6 +188,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     },
     pin: {
         label: 'Pin + collar',
+        group: 'Basics',
         pts: [
             [0, 9, 'corner'],
             [8, 9, 'corner'],
@@ -69,6 +201,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     },
     bat: {
         label: 'Mini bat',
+        group: 'Toys & games',
         pts: [
             [0, 8, 'corner'],
             [6, 8, 'corner'],
@@ -82,6 +215,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     },
     queen: {
         label: 'Queen (pawn)',
+        group: 'Basics',
         pts: [
             [0, 11, 'corner'],
             [6, 11, 'corner'],
@@ -95,6 +229,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     },
     vase: {
         label: 'Vase',
+        group: 'Home decor',
         pts: [
             [0, 12, 'corner'],
             [4, 12, 'corner'],
@@ -107,6 +242,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     },
     handle: {
         label: 'Handle',
+        group: 'Workshop',
         pts: [
             [0, 11, 'corner'],
             [10, 11, 'corner'],

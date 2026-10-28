@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Spline, Box } from 'lucide-react';
 import { UnitInput } from '../../components/UnitInput';
 import { lengthUnit, type UnitSystem } from '../../lib/units';
-import { TEMPLATES } from '../engine/profileModel';
+import { TEMPLATES, TEMPLATE_GROUPS } from '../engine/profileModel';
 import type { ProfilePointType } from '../engine/types';
 import type { UseRotaryState } from '../useRotaryState';
 import { ProfileEditorView } from './ProfileEditorView';
@@ -193,13 +193,24 @@ export function RotaryShapePane({
                                         <option value="">
                                             Choose a starting shape
                                         </option>
-                                        {Object.entries(TEMPLATES).map(
-                                            ([key, template]) => (
-                                                <option value={key} key={key}>
-                                                    {template.label}
-                                                </option>
-                                            ),
-                                        )}
+                                        {TEMPLATE_GROUPS.map((group) => (
+                                            <optgroup label={group} key={group}>
+                                                {Object.entries(TEMPLATES)
+                                                    .filter(
+                                                        ([, template]) =>
+                                                            template.group ===
+                                                            group,
+                                                    )
+                                                    .map(([key, template]) => (
+                                                        <option
+                                                            value={key}
+                                                            key={key}
+                                                        >
+                                                            {template.label}
+                                                        </option>
+                                                    ))}
+                                            </optgroup>
+                                        ))}
                                     </select>
                                 </label>
                                 {point && (

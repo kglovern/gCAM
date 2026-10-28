@@ -1,4 +1,5 @@
 import { validateRotaryMesh } from './engine/meshCoordinates';
+import { defaultSupports } from './engine/supports';
 import {
     defaultMeshSettings,
     meshSettingsForTool,
@@ -123,6 +124,7 @@ export function useRotaryState(): RotaryStateApi {
         diameter: 25.4,
         grip: 19,
         ext: false,
+        supports: { ...defaultSupports },
     });
     const stockMeasured = useRef(false);
     const updateMeasuredStock = useCallback<

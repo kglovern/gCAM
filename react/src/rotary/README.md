@@ -8,6 +8,25 @@ using the same field styling as the main job stock card.
 
 ## Workspace
 
+### Stock supports
+
+Enable **Keep stock supports** to leave a continuous axial core and cylindrical
+supports at both stock ends. Set the core and end diameters, and how far each
+end support overlaps the part. Supports appear orange in the profile and 3D
+previews. Their diameters are minimum remaining material; unmachined stock
+outside the model may remain larger.
+
+Support protection applies to the whole job, including profile and STL paths,
+facing and grooves. It checks the cutter envelope over complete motion segments
+and preserves inverse-time feed limits after raising a path. Part-off is blocked
+while supports are enabled. Remove the supports and finish their attachment
+points manually after machining. Choose dimensions for the material, overhang
+and cutting load; the software does not calculate support strength. An off-axis
+or disconnected STL may need additional bridges to connect every feature.
+
+New jobs start with supports enabled. Older projects retain their saved setup;
+enable supports explicitly when opening a project without support settings.
+
 The preview starts in orthographic side view; part and machine perspective fits
 remain available. Stock, toolpath and machine visibility live in the header.
 The gear button opens preview-only CAD alignment controls.

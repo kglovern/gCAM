@@ -40,6 +40,28 @@ test('accepts a well-formed rotary slice', () => {
     expect(isRotaryProjectSlice({ ...good, stlKey: 'q:123' })).toBe(true);
 });
 
+test('support settings survive project validation while malformed settings are rejected', () => {
+    const supports = {
+        enabled: true,
+        coreDiameter: 6,
+        endDiameter: 10,
+        chuckOverlap: 5,
+        tailOverlap: 5,
+    };
+    expect(
+        isRotaryProjectSlice({ ...good, stock: { ...good.stock, supports } }),
+    ).toBe(true);
+    expect(
+        isRotaryProjectSlice({
+            ...good,
+            stock: {
+                ...good.stock,
+                supports: { ...supports, coreDiameter: '6' },
+            },
+        }),
+    ).toBe(false);
+});
+
 test('rejects malformed slices', () => {
     expect(isRotaryProjectSlice(null)).toBe(false);
     expect(isRotaryProjectSlice({})).toBe(false);

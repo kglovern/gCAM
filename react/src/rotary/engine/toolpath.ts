@@ -1,4 +1,5 @@
 import { planProfilePaths } from './profilePaths';
+import { protectSupports, supportZones } from './supports';
 import {
     profileChuckMinX,
     profileTailMaxX,
@@ -84,6 +85,15 @@ export function planToolpath(
     ops: RotaryOps,
     onProgress: (fraction: number) => void = () => {},
 ): ToolpathMove[] {
+    const supports = supportZones(
+        stock,
+        samples[0].x,
+        samples[samples.length - 1].x,
+    );
+    if (supports.length && ops.part.on)
+        throw new Error(
+            'Part-off is blocked while stock supports are enabled. Remove supports manually after machining.',
+        );
     const S = ops.compR > 0 ? offsetEnvelope(samples, ops.compR) : samples;
     const moves: ToolpathMove[] = [];
     const stockR = stock.diameter / 2;
@@ -200,7 +210,7 @@ export function planToolpath(
             spinOnce(px, z, cutF, 'part');
         }
     }
-    return moves;
+    return protectSupports(moves, supports, tool, ops.mesh);
 }
 
 export interface ToolpathEstimate {

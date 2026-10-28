@@ -5,6 +5,7 @@ import {
     meshSettingsForTool,
 } from '../engine/meshToolpath';
 import { StockFields } from './fields/StockFields';
+import { SupportFields } from './fields/SupportFields';
 import { formatLength } from '../../lib/units';
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { ComponentProps } from 'react';
@@ -58,6 +59,14 @@ export function RotaryToolpathSidebar({
                     R.setStock((stock) => ({ ...stock, ...patch }))
                 }
                 onMaterialChange={onMaterialChange}
+                onBeforeChange={R.pushHistory}
+            />
+            <SupportFields
+                stock={R.stock}
+                units={units}
+                onPatch={(patch) =>
+                    R.setStock((stock) => ({ ...stock, ...patch }))
+                }
                 onBeforeChange={R.pushHistory}
             />
             {!R.toolpathEditorOpen && (
@@ -202,7 +211,14 @@ export function RotaryToolpathSidebar({
                                     }));
                             }}
                             images={images}
-                            descriptions={descriptions}
+                            descriptions={
+                                R.stock.supports?.enabled
+                                    ? {
+                                          ...descriptions,
+                                          part: 'Blocked while stock supports are enabled. Remove supports manually after machining.',
+                                      }
+                                    : descriptions
+                            }
                         />
                     </section>
                     <RotaryCuttingFields

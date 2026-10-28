@@ -34,6 +34,23 @@ const base: RotaryOps = {
     compR: 0,
 };
 
+test.each([false, true])(
+    'machine capacity boundaries are inclusive (extended=%s)',
+    (ext) => {
+        const limit = ext ? 1003 : 546;
+        const capacityErrors = (length: number, diameter: number) =>
+            runChecks(
+                queenSamples(),
+                { ...stock, ext, length, diameter },
+                tool,
+                base,
+            ).filter((check) => /exceeds.*(capacity|track)/.test(check.msg));
+        expect(capacityErrors(limit, 101.6)).toEqual([]);
+        expect(capacityErrors(limit + 0.1, 101.6)).toHaveLength(1);
+        expect(capacityErrors(limit, 101.7)).toHaveLength(1);
+    },
+);
+
 function queenSamples(): ProfileSample[] {
     const pts = templateProfile('queen');
     return sampleProfile(pts, 16);

@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { clonePoints, fitHandles, sampleProfile } from '../engine/profileModel';
+import { supportZones } from '../engine/supports';
 import { DARK_CANVAS_THEME, LIGHT_CANVAS_THEME } from '../../canvas/theme';
 import { profileCamera, zoomProfileAt } from './profileCamera';
 import { useProfileViewport } from './useProfileViewport';
@@ -96,13 +97,23 @@ export function ProfileEditorView({
     const camera = profileCamera(
         W,
         H,
-        stock.length,
-        stock.diameter,
+        Math.max(stock.length, ...points.map((point) => point.x)),
+        Math.max(stock.diameter, ...points.map((point) => point.r * 2)),
         zoom,
         panX,
         panY,
     );
     const { x: X, r: Y, invX, invR } = camera;
+    let supports: ReturnType<typeof supportZones> = [];
+    try {
+        supports = supportZones(
+            stock,
+            Math.min(...points.map((point) => point.x)),
+            Math.max(...points.map((point) => point.x)),
+        );
+    } catch {
+        /* Planner reports invalid support settings. */
+    }
     useEffect(() => {
         const svg = svgRef.current;
         if (!svg) return;
@@ -481,6 +492,25 @@ export function ProfileEditorView({
                             {Number(gr.toFixed(3))}
                         </text>
                     </g>
+                ))}
+                {supports.map((zone, index) => (
+                    <rect
+                        key={index}
+                        aria-label={
+                            index === 0
+                                ? 'Protected core'
+                                : 'Protected end support'
+                        }
+                        x={X(zone.x0)}
+                        y={Y(zone.radius)}
+                        width={Math.max(0, X(zone.x1) - X(zone.x0))}
+                        height={Math.max(0, Y(0) - Y(zone.radius))}
+                        fill="#f59e0b"
+                        fillOpacity={0.25}
+                        stroke="#d97706"
+                        strokeDasharray="4 3"
+                        pointerEvents="none"
+                    />
                 ))}
                 <path
                     d={curvePath}

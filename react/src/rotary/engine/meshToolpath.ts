@@ -1,3 +1,5 @@
+import { ROTARY_MAX_DIAMETER, rotaryMaxLength } from './stockLimits';
+import { protectSupports, supportZones } from './supports';
 import { fixtureXClearance, defaultFixtureSettings } from './fixtureClearance';
 import { meshResidual } from './meshResidual';
 import { planRotarySurface } from './rotaryPaths';
@@ -138,8 +140,8 @@ export function planMeshToolpath(
         typeof stock.ext !== 'boolean' ||
         !Number.isFinite(stock.grip) ||
         stock.grip < 19 ||
-        stock.diameter > 101.6 ||
-        stock.length > (stock.ext ? 1003 : 546)
+        stock.diameter > ROTARY_MAX_DIAMETER ||
+        stock.length > rotaryMaxLength(stock.ext)
     )
         throw new Error(
             'Stock must fit the configured Vortex track/capacity and have at least 19 mm grip.',
@@ -216,6 +218,7 @@ export function planMeshToolpath(
             'Rotary mesh planner currently supports at most 100,000 triangles. Simplify the mesh.',
         );
     const zero = rotarySurfaceMesh(mesh, 0);
+    const supports = supportZones(stock, zero.bounds.minX, zero.bounds.maxX);
     const fixtureMargin = fixtureXClearance(tool, s);
     const xmin = Math.max(zero.bounds.minX, stock.grip + fixtureMargin);
     const xmax = Math.min(
@@ -241,18 +244,23 @@ export function planMeshToolpath(
         s.strategy === 'along' ||
         s.strategy === 'helix'
     )
-        return planRotarySurface(
-            mesh,
-            stock,
+        return protectSupports(
+            planRotarySurface(
+                mesh,
+                stock,
+                tool,
+                operation,
+                stepdown,
+                allowance,
+                s,
+                xmin,
+                xmax,
+                aborted,
+                onProgress,
+            ),
+            supports,
             tool,
-            operation,
-            stepdown,
-            allowance,
             s,
-            xmin,
-            xmax,
-            aborted,
-            onProgress,
         );
     const access = createMeshAccess(mesh);
     const count = Math.ceil(360 / s.angleStep),
@@ -490,5 +498,5 @@ export function planMeshToolpath(
             );
     }
     onProgress(1);
-    return moves;
+    return protectSupports(moves, supports, tool, s);
 }

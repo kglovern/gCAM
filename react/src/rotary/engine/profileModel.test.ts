@@ -43,6 +43,9 @@ test('all templates have bounded handles and fold-free sampling', () => {
         });
         const s = sampleProfile(q, 32);
         s.forEach((p, i) => {
+            expect(Number.isFinite(p.x)).toBe(true);
+            expect(Number.isFinite(p.r)).toBe(true);
+            expect(p.r).toBeGreaterThan(0);
             if (i > 0) {
                 expect(p.x).toBeGreaterThanOrEqual(s[i - 1].x - 1e-9);
             }
