@@ -1,7 +1,7 @@
 import { defaultFixtureSettings, fixtureXClearance } from './fixtureClearance';
 /** Tests: rotary toolpath motion rules (no gouging, bounded A, keep-out). */
 import { runChecks } from './checks';
-import { sampleProfile, templateProfile } from './profileModel';
+import { sampleProfile, defaultProfile } from './profileModel';
 import { estimate, offsetEnvelope, planToolpath } from './toolpath';
 import type {
     ProfileSample,
@@ -52,7 +52,7 @@ test.each([false, true])(
 );
 
 function queenSamples(): ProfileSample[] {
-    const pts = templateProfile('queen');
+    const pts = defaultProfile();
     return sampleProfile(pts, 16);
 }
 

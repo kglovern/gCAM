@@ -221,45 +221,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
             [490, 5, 'corner'],
         ],
     },
-    queen: {
-        label: 'Queen (pawn)',
-        group: 'Basics',
-        pts: [
-            [0, 11, 'corner'],
-            [6, 11, 'corner'],
-            [10, 7, 'smooth'],
-            [22, 6, 'smooth'],
-            [34, 9, 'smooth'],
-            [44, 5, 'smooth'],
-            [52, 7.5, 'smooth'],
-            [58, 0.8, 'corner'],
-        ],
-    },
-    vase: {
-        label: 'Vase',
-        group: 'Home decor',
-        pts: [
-            [0, 12, 'corner'],
-            [4, 12, 'corner'],
-            [10, 8, 'smooth'],
-            [25, 10, 'smooth'],
-            [40, 7, 'smooth'],
-            [50, 9, 'smooth'],
-            [56, 9, 'corner'],
-        ],
-    },
-    handle: {
-        label: 'Handle',
-        group: 'Workshop',
-        pts: [
-            [0, 11, 'corner'],
-            [10, 11, 'corner'],
-            [18, 8, 'smooth'],
-            [35, 8, 'smooth'],
-            [45, 11, 'corner'],
-            [55, 11, 'corner'],
-        ],
-    },
 };
 
 export function templateProfile(name: string): ProfilePoint[] {

@@ -1,5 +1,6 @@
 /** Tests: rotary profile model — templates, handle repair, node insertion. */
 import {
+    defaultProfile,
     fitHandles,
     insertNode,
     makePoint,
@@ -80,14 +81,14 @@ test('baseball bat and mounting stubs fit standard stock with a quarter-inch cut
 });
 
 test('insertNode on a smooth span is bit-exact', () => {
-    const q = templateProfile('queen');
+    const q = defaultProfile();
     const before = sampleProfile(q, 64);
     insertNode(q, 48, 7.5);
     expect(maxDeviation(before, sampleProfile(q, 64))).toBeLessThan(1e-6);
 });
 
 test('insertNode next to a corner stays local', () => {
-    const q = templateProfile('queen');
+    const q = defaultProfile();
     const before = sampleProfile(q, 64);
     insertNode(q, 27, 10);
     expect(maxDeviation(before, sampleProfile(q, 64))).toBeLessThan(0.5);

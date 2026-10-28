@@ -69,7 +69,7 @@ export function VectorContextMenu({
                       run: () => actions.transform('transform'),
                   },
                   {
-                      label: 'Duplicate',
+                      label: 'Clone',
                       run: () => actions.duplicate(),
                   },
                   { label: 'Delete', run: () => actions.delete() },

@@ -91,14 +91,13 @@ test('right-button dragging pans without opening properties', () => {
     expect(onSelect).not.toHaveBeenCalled();
 });
 
-test.each(['Duplicate', 'Delete', 'Transform'])(
+test.each(['Clone', 'Delete', 'Transform'])(
     '%s uses the existing action without passing the click event',
     (label) => {
         const { canvas, actions } = setup();
         fireEvent.contextMenu(canvas, { clientX: 20, clientY: 0 });
         fireEvent.click(screen.getByRole('menuitem', { name: label }));
-        if (label === 'Duplicate')
-            expect(actions.duplicate).toHaveBeenCalledWith();
+        if (label === 'Clone') expect(actions.duplicate).toHaveBeenCalledWith();
         else if (label === 'Delete')
             expect(actions.delete).toHaveBeenCalledWith();
         else
@@ -112,7 +111,7 @@ test('right-click on a selected vector preserves the multi-selection', () => {
     fireEvent.contextMenu(canvas, { clientX: 20, clientY: 0 });
     expect(onSelect).not.toHaveBeenCalled();
     expect(screen.getByRole('menuitem', { name: 'Properties' })).toBeDisabled();
-    expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Clone' })).toBeEnabled();
     expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeEnabled();
 });
 
@@ -147,7 +146,7 @@ test('rotated bitmap interiors offer actions but not vector properties', () => {
         clientY: 0,
     });
     expect(screen.getByRole('menuitem', { name: 'Properties' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clone' }));
     expect(duplicate).toHaveBeenCalledTimes(1);
 });
 
@@ -156,7 +155,7 @@ test('arrow keys navigate actions and clicking outside dismisses the menu', () =
     fireEvent.contextMenu(canvas, { clientX: 20, clientY: 0 });
     expect(
         screen.getAllByRole('menuitem').map((item) => item.textContent),
-    ).toEqual(['Transform', 'Duplicate', 'Delete', 'Properties']);
+    ).toEqual(['Transform', 'Clone', 'Delete', 'Properties']);
     const transform = screen.getByRole('menuitem', { name: 'Transform' });
     expect(transform).toHaveFocus();
     fireEvent.keyDown(transform, { key: 'ArrowUp' });

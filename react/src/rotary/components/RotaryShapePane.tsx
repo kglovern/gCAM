@@ -19,6 +19,10 @@ export function RotaryShapePane({
     units: UnitSystem;
     darkMode?: boolean;
 }) {
+    const templateOptionStyle = {
+        backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+        color: darkMode ? '#e2e8f0' : '#0f172a',
+    };
     const [snap, setSnap] = useState(true);
     const [profileViewKey, setProfileViewKey] = useState(0);
     const [importError, setImportError] = useState('');
@@ -137,7 +141,7 @@ export function RotaryShapePane({
                         />
                         <div className="shrink-0 border-t border-slate-200 p-2 dark:border-robin-900 space-y-2">
                             {point && (
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-3 items-end gap-2 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto_auto]">
                                     {(
                                         [
                                             ['x', 'Position X', point.x],
@@ -166,6 +170,48 @@ export function RotaryShapePane({
                                             />
                                         </label>
                                     ))}
+                                    <select
+                                        aria-label="Point type"
+                                        style={{
+                                            colorScheme: darkMode
+                                                ? 'dark'
+                                                : 'light',
+                                        }}
+                                        value={point.type}
+                                        onChange={(event) =>
+                                            R.setPointType(
+                                                event.target
+                                                    .value as ProfilePointType,
+                                            )
+                                        }
+                                        className={`${action} bg-transparent`}
+                                    >
+                                        <option
+                                            value="corner"
+                                            style={templateOptionStyle}
+                                        >
+                                            Corner
+                                        </option>
+                                        <option
+                                            value="smooth"
+                                            style={templateOptionStyle}
+                                        >
+                                            Smooth
+                                        </option>
+                                        <option
+                                            value="sym"
+                                            style={templateOptionStyle}
+                                        >
+                                            Symmetric
+                                        </option>
+                                    </select>
+                                    <button
+                                        className={action}
+                                        disabled={R.points.length <= 2}
+                                        onClick={() => R.deletePoint(R.sel)}
+                                    >
+                                        Delete point
+                                    </button>
                                 </div>
                             )}
                             <div className="flex flex-wrap items-center gap-2">
@@ -183,6 +229,11 @@ export function RotaryShapePane({
                                     Template
                                     <select
                                         aria-label="Load template"
+                                        style={{
+                                            colorScheme: darkMode
+                                                ? 'dark'
+                                                : 'light',
+                                        }}
                                         value=""
                                         onChange={(event) => {
                                             if (!event.target.value) return;
@@ -204,11 +255,18 @@ export function RotaryShapePane({
                                         }}
                                         className={`${action} min-w-0 bg-transparent`}
                                     >
-                                        <option value="">
+                                        <option
+                                            value=""
+                                            style={templateOptionStyle}
+                                        >
                                             Choose a starting shape
                                         </option>
                                         {TEMPLATE_GROUPS.map((group) => (
-                                            <optgroup label={group} key={group}>
+                                            <optgroup
+                                                label={group}
+                                                key={group}
+                                                style={templateOptionStyle}
+                                            >
                                                 {Object.entries(TEMPLATES)
                                                     .filter(
                                                         ([, template]) =>
@@ -217,6 +275,9 @@ export function RotaryShapePane({
                                                     )
                                                     .map(([key, template]) => (
                                                         <option
+                                                            style={
+                                                                templateOptionStyle
+                                                            }
                                                             value={key}
                                                             key={key}
                                                         >
@@ -227,38 +288,6 @@ export function RotaryShapePane({
                                         ))}
                                     </select>
                                 </label>
-                                {point && (
-                                    <>
-                                        <select
-                                            aria-label="Point type"
-                                            value={point.type}
-                                            onChange={(event) =>
-                                                R.setPointType(
-                                                    event.target
-                                                        .value as ProfilePointType,
-                                                )
-                                            }
-                                            className={`${action} bg-transparent`}
-                                        >
-                                            <option value="corner">
-                                                Corner
-                                            </option>
-                                            <option value="smooth">
-                                                Smooth
-                                            </option>
-                                            <option value="sym">
-                                                Symmetric
-                                            </option>
-                                        </select>
-                                        <button
-                                            className={action}
-                                            disabled={R.points.length <= 2}
-                                            onClick={() => R.deletePoint(R.sel)}
-                                        >
-                                            Delete point
-                                        </button>
-                                    </>
-                                )}
                             </div>
                         </div>
                     </>

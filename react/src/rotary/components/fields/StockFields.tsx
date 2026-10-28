@@ -2,7 +2,7 @@ import { UnitInput } from '../../../components/UnitInput';
 import { ROTARY_MAX_DIAMETER, rotaryMaxLength } from '../../engine/stockLimits';
 import { MATERIAL_RECIPES } from '../../../cutting-parameters/recipes';
 import type { MaterialId } from '../../../cutting-parameters/types';
-import { lengthUnit, type UnitSystem } from '../../../lib/units';
+import { displayValue, lengthUnit, type UnitSystem } from '../../../lib/units';
 import type { RotaryStock } from '../../engine/types';
 import { RotarySettingsBoundary } from '../RotarySettingsBoundary';
 
@@ -38,7 +38,7 @@ export function StockFields({
             </p>
             <RotarySettingsBoundary onBeforeChange={onBeforeChange}>
                 <label className="block text-xs text-slate-600 dark:text-slate-300">
-                    Machine capacity
+                    Vortex:
                     <select
                         aria-label="Rotary machine capacity"
                         value={stock.ext ? 'extended' : 'standard'}
@@ -48,10 +48,14 @@ export function StockFields({
                         className={input}
                     >
                         <option value="standard">
-                            Standard — 546 mm usable
+                            Vortex 30&quot; -{' '}
+                            {displayValue(rotaryMaxLength(false), units, 3)}{' '}
+                            {unit} usable
                         </option>
                         <option value="extended">
-                            Extended — 1003 mm usable
+                            Vortex 48&quot; -{' '}
+                            {displayValue(rotaryMaxLength(true), units, 3)}{' '}
+                            {unit} usable
                         </option>
                     </select>
                 </label>

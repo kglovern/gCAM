@@ -24,14 +24,14 @@ describe('Rotary workspace', () => {
                 cy.get('[aria-label="Rotary stock material"]').should('exist');
             });
         cy.get('[aria-label="Stock length"]').clear().type('100').blur();
-        cy.get('[aria-label="Load template"]').select('handle');
+        cy.get('[aria-label="Load template"]').select('cabinetKnob');
         cy.get('[aria-label="Stock length"]')
             .invoke('val')
             .should((value) => {
                 expect(Number(value)).to.be.at.most(100);
-                expect(Number(value)).to.be.greaterThan(55);
+                expect(Number(value)).to.be.greaterThan(40);
             });
-        cy.get('[aria-label="Stock diameter"]').should('have.value', '24');
+        cy.get('[aria-label="Stock diameter"]').should('have.value', '50');
         cy.get('[aria-label="Profile editor"]').should('be.visible');
         footer().should('not.exist');
         cy.get('[aria-label="Rotary design"]').should('be.visible');
