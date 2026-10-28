@@ -62,7 +62,7 @@ export function paintInteractionOverlays(
     options: PaintInteractionOverlaysOptions,
 ) {
     paintTrimHover(options);
-    paintLoopHover(options);
+    if (!options.transformDrag?.moved) paintLoopHover(options);
     paintCornerHover(options);
     paintTransformHandles(options);
     paintSelectedGuide(options);
@@ -76,7 +76,7 @@ export function paintSelectionFeedback(
     options: PaintInteractionOverlaysOptions,
 ) {
     paintTrimHover(options);
-    paintLoopHover(options);
+    if (!options.transformDrag?.moved) paintLoopHover(options);
     paintCornerHover(options);
     paintTransformHandles(options);
     paintSelectedGuide(options);

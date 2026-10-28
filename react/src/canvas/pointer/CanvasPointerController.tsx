@@ -148,7 +148,7 @@ export function CanvasPointerController(props: CanvasPointerControllerProps) {
         <canvas
             ref={props.canvasRef}
             aria-label="Drawing canvas"
-            className={`w-full h-full block ${props.panMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            className={`w-full h-full block ${props.panMode ? 'cursor-grab active:cursor-grabbing' : props.viewRef.current.drawTool ? 'cursor-crosshair' : ''}`}
             data-testid="gcam-canvas"
             tabIndex={0}
             style={{ touchAction: 'none', userSelect: 'none' }}

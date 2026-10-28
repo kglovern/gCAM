@@ -6,7 +6,6 @@ import {
     ArrowUpRight,
     Circle,
     Copy,
-    Expand,
     Hexagon,
     Minus,
     MousePointer2,
@@ -14,7 +13,6 @@ import {
     PenTool,
     Redo2,
     Ruler,
-    RotateCw,
     Scissors,
     ScanLine,
     Spline,
@@ -53,6 +51,7 @@ const drawTools: {
     { value: 'bezier', label: 'Bezier', icon: <Spline size={16} /> },
     { value: 'polyline', label: 'Polyline', icon: <Minus size={16} /> },
     { value: 'text', label: 'Text', icon: <Type size={16} /> },
+    { value: 'mandala', label: 'Mandala', icon: <Circle size={16} /> },
 ];
 
 interface ToolbarCommandsProps {
@@ -75,7 +74,9 @@ export function ToolbarCommands({
             ? `${toolbarButtonBase} h-11 w-full justify-start gap-2 px-3 text-sm`
             : toolbarLabeledButton;
     const labelClass = group === 'secondary' ? '' : toolbarLabel;
-    const toggleTransform = (mode: 'move' | 'rotate' | 'scale') => {
+    const toggleTransform = (
+        mode: 'move' | 'rotate' | 'scale' | 'transform',
+    ) => {
         props.onTransformMode(props.transformMode === mode ? null : mode);
         close();
     };
@@ -86,7 +87,11 @@ export function ToolbarCommands({
                     <button
                         title="Select (V): drag right to enclose, left to cross. Touch: one finger selects; two fingers pan and pinch to zoom."
                         aria-label="Select vectors"
-                        aria-pressed={props.activeTool === 'select' && !open}
+                        aria-pressed={
+                            props.activeTool === 'select' &&
+                            !props.transformMode &&
+                            !open
+                        }
                         onClick={() => {
                             props.onSelectMode();
                             close();
@@ -94,6 +99,7 @@ export function ToolbarCommands({
                         className={cx(
                             labeledButton,
                             props.activeTool === 'select' &&
+                                !props.transformMode &&
                                 !open &&
                                 toolbarButtonActive,
                         )}
@@ -121,49 +127,17 @@ export function ToolbarCommands({
                         <span className={labelClass}>Trim</span>
                     </button>
                     <button
-                        title="Move selection"
-                        aria-label="Move selection"
-                        aria-pressed={props.transformMode === 'move'}
-                        disabled={!props.hasSelection}
-                        onClick={() => toggleTransform('move')}
+                        title="Transform selection"
+                        aria-label="Transform selection"
+                        aria-pressed={props.transformMode !== null}
+                        onClick={() => toggleTransform('transform')}
                         className={cx(
                             labeledButton,
-                            props.transformMode === 'move' &&
-                                toolbarButtonActive,
+                            props.transformMode !== null && toolbarButtonActive,
                         )}
                     >
                         <Move size={18} />
-                        <span className={labelClass}>Move</span>
-                    </button>
-                    <button
-                        title="Rotate selection"
-                        aria-label="Rotate selection"
-                        aria-pressed={props.transformMode === 'rotate'}
-                        disabled={!props.hasSelection}
-                        onClick={() => toggleTransform('rotate')}
-                        className={cx(
-                            labeledButton,
-                            props.transformMode === 'rotate' &&
-                                toolbarButtonActive,
-                        )}
-                    >
-                        <RotateCw size={18} />
-                        <span className={labelClass}>Rotate</span>
-                    </button>
-                    <button
-                        title="Scale selection"
-                        aria-label="Scale selection"
-                        aria-pressed={props.transformMode === 'scale'}
-                        disabled={!props.hasSelection}
-                        onClick={() => toggleTransform('scale')}
-                        className={cx(
-                            labeledButton,
-                            props.transformMode === 'scale' &&
-                                toolbarButtonActive,
-                        )}
-                    >
-                        <Expand size={18} />
-                        <span className={labelClass}>Resize</span>
+                        <span className={labelClass}>Transform</span>
                     </button>
                     <ToolbarSeparator />
                 </>
@@ -182,16 +156,6 @@ export function ToolbarCommands({
                             }}
                         />
                     ))}
-                    {props.onMandala && (
-                        <ToolbarMenuItem
-                            label="Mandala"
-                            icon={<Circle size={16} />}
-                            onClick={() => {
-                                props.onMandala?.();
-                                close();
-                            }}
-                        />
-                    )}
                     <ToolbarMenuItem
                         label="Guide"
                         icon={<Ruler size={16} />}

@@ -116,6 +116,7 @@ export function CanvasStage({
     onTrimAt,
     onTrimStroke,
     onCommitText,
+    onCommitMandala,
     transformMode,
     onTransformCommit,
     cornerTool,
@@ -402,6 +403,7 @@ export function CanvasStage({
                 theme: darkMode ? DARK_CANVAS_THEME : LIGHT_CANVAS_THEME,
                 darkMode,
                 selected,
+                ghostedIds: transformDragRef.current?.moved ? selected : [],
                 hidden,
                 tabMarkers,
                 tabHover,
@@ -949,6 +951,7 @@ export function CanvasStage({
                         additiveSelection={additiveSelection}
                         panMode={panMode}
                         onCommitText={onCommitText}
+                        onCommitMandala={onCommitMandala}
                         onSelect={onSelect}
                         onPlaceTab={onPlaceTab}
                         onMoveTab={onMoveTab}

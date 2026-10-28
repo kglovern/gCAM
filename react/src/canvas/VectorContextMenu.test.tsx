@@ -91,7 +91,7 @@ test('right-button dragging pans without opening properties', () => {
     expect(onSelect).not.toHaveBeenCalled();
 });
 
-test.each(['Duplicate', 'Delete', 'Move', 'Rotate', 'Resize'])(
+test.each(['Duplicate', 'Delete', 'Transform'])(
     '%s uses the existing action without passing the click event',
     (label) => {
         const { canvas, actions } = setup();
@@ -102,9 +102,7 @@ test.each(['Duplicate', 'Delete', 'Move', 'Rotate', 'Resize'])(
         else if (label === 'Delete')
             expect(actions.delete).toHaveBeenCalledWith();
         else
-            expect(actions.transform).toHaveBeenCalledWith(
-                label === 'Resize' ? 'scale' : label.toLowerCase(),
-            );
+            expect(actions.transform).toHaveBeenCalledWith(label.toLowerCase());
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     },
 );
@@ -156,10 +154,20 @@ test('rotated bitmap interiors offer actions but not vector properties', () => {
 test('arrow keys navigate actions and clicking outside dismisses the menu', () => {
     const { canvas } = setup();
     fireEvent.contextMenu(canvas, { clientX: 20, clientY: 0 });
+    expect(
+        screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual(['Transform', 'Duplicate', 'Delete', 'Properties']);
+    const transform = screen.getByRole('menuitem', { name: 'Transform' });
+    expect(transform).toHaveFocus();
+    fireEvent.keyDown(transform, { key: 'ArrowUp' });
     const properties = screen.getByRole('menuitem', { name: 'Properties' });
     expect(properties).toHaveFocus();
+    expect(properties.previousElementSibling).toHaveAttribute(
+        'role',
+        'separator',
+    );
     fireEvent.keyDown(properties, { key: 'ArrowDown' });
-    expect(screen.getByRole('menuitem', { name: 'Move' })).toHaveFocus();
+    expect(transform).toHaveFocus();
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 });

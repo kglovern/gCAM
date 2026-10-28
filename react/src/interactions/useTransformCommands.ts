@@ -112,7 +112,6 @@ export function useTransformCommands<
                 options.refreshBounds(next);
                 return next;
             });
-            options.setTransformMode(null);
             options.setStatus(note);
         } catch (error) {
             options.setStatus(
@@ -235,9 +234,9 @@ export function useTransformCommands<
 
     const handleTransformCommit = (
         commit: TransformCommit | null,
-        preserveMode = false,
+        preserveMode = true,
     ) => {
-        if (!preserveMode) options.setTransformMode(null);
+        if (!commit || !preserveMode) options.setTransformMode(null);
         if (!commit) return;
         const targets = options.selectedLoops();
         if (!targets.length) return;

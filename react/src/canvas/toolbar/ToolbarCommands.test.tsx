@@ -26,5 +26,64 @@ describe('ToolbarCommands', () => {
         );
 
         expect(calls).toEqual([[]]);
+        expect(
+            screen.getByRole('button', { name: 'Transform selection' }),
+        ).toBeInTheDocument();
+        for (const name of [
+            'Move selection',
+            'Rotate selection',
+            'Scale selection',
+        ])
+            expect(
+                screen.queryByRole('button', { name }),
+            ).not.toBeInTheDocument();
     });
+});
+
+test('Select and Transform highlighting are mutually exclusive', () => {
+    const props = {
+        activeTool: 'select',
+        drawTool: null,
+        transformMode: 'transform',
+        hasSelection: true,
+    } as CanvasToolbarProps;
+    const { rerender } = render(
+        <ToolbarCommands props={props} open={null} close={() => {}} />,
+    );
+    const select = screen.getByRole('button', { name: 'Select vectors' });
+    expect(select).toHaveAttribute('aria-pressed', 'false');
+    expect(select).not.toHaveClass('bg-robin-500');
+    expect(
+        screen.getByRole('button', { name: 'Transform selection' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    rerender(
+        <ToolbarCommands
+            props={{ ...props, transformMode: null }}
+            open={null}
+            close={() => {}}
+        />,
+    );
+    expect(select).toHaveAttribute('aria-pressed', 'true');
+    expect(
+        screen.getByRole('button', { name: 'Transform selection' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('Transform can be armed before selecting geometry', () => {
+    const modes: unknown[] = [];
+    const props = {
+        activeTool: 'select',
+        drawTool: null,
+        transformMode: null,
+        hasSelection: false,
+        hasGeometry: false,
+        onTransformMode: (mode) => {
+            modes.push(mode);
+        },
+    } as CanvasToolbarProps;
+    render(<ToolbarCommands props={props} open={null} close={() => {}} />);
+    const button = screen.getByRole('button', { name: 'Transform selection' });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(modes).toEqual(['transform']);
 });

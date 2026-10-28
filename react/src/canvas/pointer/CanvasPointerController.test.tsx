@@ -9,6 +9,7 @@ function renderPointerController(onViewportLeave: () => void) {
             <CanvasPointerController
                 {...({
                     onViewportLeave,
+                    viewRef: { current: { drawTool: null } },
                 } as unknown as CanvasPointerControllerProps)}
             />
             <label data-testid="floating-pill">

@@ -89,6 +89,7 @@ export type CanvasPointerControllerProps = {
     onGuideDraftChange: (draft: GuideDraft | null) => void;
     onCancelGuide: () => void;
     onCommitText: (at: Point) => void;
+    onCommitMandala?: (at: Point) => void;
     onSelect: (ids: string[]) => void;
     onPlaceTab: (entryId: string, contourIndex: number, along: number) => void;
     onMoveTab: (entryId: string, tabIndex: number, along: number) => void;

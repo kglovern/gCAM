@@ -62,6 +62,7 @@ export interface WorkspaceModelOptions {
         | 'onTrimAt'
         | 'onTrimStroke'
         | 'onCommitText'
+        | 'onCommitMandala'
         | 'onPolygonSidesChange'
         | 'onPolygonModeChange'
         | 'onTransformCommit'

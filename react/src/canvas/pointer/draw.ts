@@ -88,7 +88,7 @@ export function updateDrawDraft(
     deps: CanvasPointerControllerProps,
 ): boolean {
     const tool = deps.viewRef.current.drawTool;
-    if (!tool || tool === 'text') {
+    if (!tool || tool === 'text' || tool === 'mandala') {
         deps.angleSnapRef.current = null;
         return false;
     }
@@ -153,10 +153,13 @@ export function finishDraw(
     if (!tool || !down || marquee) return false;
     const dragged =
         Math.hypot(event.clientX - down.x, event.clientY - down.y) >= 4;
-    if (tool === 'text') {
+    if (tool === 'text' || tool === 'mandala') {
         const clicks = deps.clicksRef.current;
         const point = snapped(event, deps, clicks[clicks.length - 1]);
-        if (point) deps.onCommitText(point);
+        if (point) {
+            if (tool === 'mandala') deps.onCommitMandala?.(point);
+            else deps.onCommitText(point);
+        }
         deps.forceTick();
         return true;
     }

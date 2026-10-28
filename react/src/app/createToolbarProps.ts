@@ -33,7 +33,6 @@ interface ToolbarActions {
     applyOffset: () => void;
     applyBoolean: (operation: BooleanOperation) => void;
     applyNest: () => void;
-    mandala?: () => void;
     addGuide: () => void;
     deleteGuide: (id: string) => void;
     duplicate: () => void;
@@ -123,9 +122,9 @@ export function createToolbarProps({
         onSelectMode: () => {
             clearGuidePlacement();
             drawing.setActiveTool('select');
+            transforms.setTransformMode(null);
             arrange.setCornerTool(null);
         },
-        onMandala: actions.mandala,
         drawTool: drawing.drawTool,
         onDrawTool: (tool) => {
             clearGuidePlacement();
@@ -136,6 +135,9 @@ export function createToolbarProps({
         transformMode: transforms.transformMode,
         onTransformMode: (mode) => {
             clearGuidePlacement();
+            drawing.setDrawTool(null);
+            drawing.setActiveTool('select');
+            arrange.setCornerTool(null);
             transforms.setTransformMode(mode);
         },
         moveX: transforms.moveX,

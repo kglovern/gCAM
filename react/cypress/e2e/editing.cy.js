@@ -120,7 +120,7 @@ describe('Canvas selection and editing', () => {
     });
     it('moves a selection by dragging and selects with a marquee', () => {
         cy.worldClick(20, 50);
-        cy.get('[aria-label="Move selection"]').click();
+        cy.get('[aria-label="Transform selection"]').click();
         cy.worldDrag([30, 50], [40, 60]);
         cy.snapshot().then((p) => {
             const box = bounds(

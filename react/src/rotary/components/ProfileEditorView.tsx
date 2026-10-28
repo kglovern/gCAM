@@ -254,6 +254,11 @@ export function ProfileEditorView({
                 nx = Math.round(nx);
                 nr = Math.round(nr);
             }
+            nx = Math.max(loX, Math.min(nx, hiX));
+            const dx = nx - p.x,
+                dr = nr - p.r;
+            p.h1 = { x: p.h1.x + dx, r: p.h1.r + dr };
+            p.h2 = { x: p.h2.x + dx, r: p.h2.r + dr };
             p.x = nx;
             p.r = nr;
             fitHandles(
@@ -285,6 +290,18 @@ export function ProfileEditorView({
                     x: 2 * p.x - p[d.h].x,
                     r: 2 * p.r - p[d.h].r,
                 };
+            }
+            if (p.type === 'smooth') {
+                const other = d.h === 'h1' ? 'h2' : 'h1';
+                const length = Math.hypot(p[other].x - p.x, p[other].r - p.r);
+                const dx = p[d.h].x - p.x,
+                    dr = p[d.h].r - p.r;
+                const draggedLength = Math.hypot(dx, dr);
+                if (draggedLength > 0)
+                    p[other] = {
+                        x: p.x - (dx * length) / draggedLength,
+                        r: p.r - (dr * length) / draggedLength,
+                    };
             }
             fitHandles(next, [d.i]);
             onLive(next);

@@ -62,6 +62,7 @@ export interface CanvasSceneInput {
     theme: CanvasSceneTheme;
     darkMode: boolean;
     selected: string[];
+    ghostedIds?: string[];
     hidden: string[];
     tabMarkers: CanvasTabMarker[];
     tabHover: CanvasTabHover | null;
@@ -155,11 +156,17 @@ export function drawCanvasScene(input: CanvasSceneInput): void {
     drawBitmaps(ctx, bitmaps, toScreen, cam);
     for (const loop of loops) {
         if (hidden.includes(loop.id)) continue;
-        ctx.strokeStyle = selected.includes(loop.id)
-            ? theme.selected
-            : layerDisplayColor(loop.layerColor, theme.bg, theme.vector);
-        ctx.lineWidth = selected.includes(loop.id) ? 2.5 : 1.5;
+        const ghosted = input.ghostedIds?.includes(loop.id);
+        ctx.save();
+        if (ghosted) ctx.globalAlpha = 0.25;
+        ctx.strokeStyle = ghosted
+            ? '#94a3b8'
+            : selected.includes(loop.id)
+              ? theme.selected
+              : layerDisplayColor(loop.layerColor, theme.bg, theme.vector);
+        ctx.lineWidth = selected.includes(loop.id) && !ghosted ? 2.5 : 1.5;
         strokePoints(ctx, loop.points, toScreen);
+        ctx.restore();
     }
     if (inspectorPreview && inspectorPreview.points.length >= 2) {
         ctx.save();

@@ -57,7 +57,10 @@ type PlacedBitmap = PlacedBitmapRecord;
  */
 export default function App() {
     useVisualViewportHeight();
-    const [mandalaOpen, setMandalaOpen] = useState(false);
+    const [mandalaAnchor, setMandalaAnchor] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
     const drawing = useDrawingWorkspaceState();
     const transforms = useTransformWorkspaceState();
     const arrange = useArrangeWorkspaceState();
@@ -453,7 +456,6 @@ export default function App() {
         textAnchor,
         clearTextAnchor: () => setTextAnchor(null),
         loops,
-        selected,
         moveAfterCloneRef,
         setTransformMode,
     });
@@ -511,7 +513,6 @@ export default function App() {
         setOffsetPreview,
         setBooleanPreview,
         actions: {
-            mandala: () => setMandalaOpen(true),
             applyMove: applyAbsoluteMove,
             applyRotate: applyAbsoluteRotate,
             applyScale: applyAbsoluteSize,
@@ -701,7 +702,12 @@ export default function App() {
             contextActions: {
                 duplicate: handleDuplicateSelected,
                 delete: handleDeleteSelected,
-                transform: setTransformMode,
+                transform: (mode) => {
+                    setDrawTool(null);
+                    setActiveTool('select');
+                    arrange.setCornerTool(null);
+                    setTransformMode(mode);
+                },
             },
             onPlaceTab: handlePlaceTab,
             onMoveTab: handleMoveTab,
@@ -719,6 +725,7 @@ export default function App() {
             onTrimAt: handleTrimAt,
             onTrimStroke: handleTrimStroke,
             onCommitText: (at) => setTextAnchor(snapToGuides(at, guides)),
+            onCommitMandala: (at) => setMandalaAnchor(snapToGuides(at, guides)),
             onTransformCommit: handleTransformCommit,
             onFilletCorner: handleCorner,
             onAdjustStock: () => {
@@ -779,10 +786,10 @@ export default function App() {
 
     return (
         <ErrorBoundary>
-            {mandalaOpen && (
+            {mandalaAnchor && (
                 <MandalaModal
                     units={units}
-                    onClose={() => setMandalaOpen(false)}
+                    onClose={() => setMandalaAnchor(null)}
                     onAdd={(raw) => {
                         document.pushHistory();
                         const groupId = document.newLoopId();
@@ -790,8 +797,8 @@ export default function App() {
                             .withIds(
                                 raw.map((loop) => ({
                                     points: loop.points.map((p) => ({
-                                        x: p.x + document.stock.widthMm / 2,
-                                        y: p.y + document.stock.heightMm / 2,
+                                        x: p.x + mandalaAnchor.x,
+                                        y: p.y + mandalaAnchor.y,
                                     })),
                                 })),
                             )
@@ -800,11 +807,7 @@ export default function App() {
                         setLoops(next);
                         setSelected(added.map((loop) => loop.id));
                         document.refreshBounds(next);
-                        setActiveTool('select');
-                        setDrawTool(null);
-                        setTransformMode(null);
-                        setMandalaOpen(false);
-                        setViewportCommand({ type: 'fit', token: Date.now() });
+                        setMandalaAnchor(null);
                     }}
                 />
             )}

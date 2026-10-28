@@ -70,6 +70,7 @@ export type CanvasStageProps = {
     onTrimAt?: (point: Point) => void;
     onTrimStroke?: (points: Point[]) => void;
     onCommitText: (at: Point) => void;
+    onCommitMandala?: (at: Point) => void;
     transformMode: TransformMode | null;
     onTransformCommit: (t: TransformCommit | null) => void;
     cornerTool?: 'fillet' | 'dogbone' | null;

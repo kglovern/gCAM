@@ -9,7 +9,6 @@ interface EditorLifecycleOptions {
     textAnchor: { x: number; y: number } | null;
     clearTextAnchor: () => void;
     loops: unknown[];
-    selected: string[];
     moveAfterCloneRef: MutableRefObject<boolean>;
     setTransformMode: Dispatch<SetStateAction<TransformMode | null>>;
 }
@@ -19,7 +18,6 @@ export function useEditorLifecycle({
     textAnchor,
     clearTextAnchor,
     loops,
-    selected,
     moveAfterCloneRef,
     setTransformMode,
 }: EditorLifecycleOptions) {
@@ -38,10 +36,5 @@ export function useEditorLifecycle({
             setTransformMode('move');
             return;
         }
-        setTransformMode(null);
     }, [loops, moveAfterCloneRef, setTransformMode]);
-
-    useEffect(() => {
-        if (selected.length === 0) setTransformMode(null);
-    }, [selected, setTransformMode]);
 }

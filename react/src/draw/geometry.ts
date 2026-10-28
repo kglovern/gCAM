@@ -10,6 +10,7 @@ export type DrawTool =
     | 'bezier'
     | 'polyline'
     | 'text'
+    | 'mandala'
     | null;
 
 export interface Draft {

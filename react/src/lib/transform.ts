@@ -6,7 +6,7 @@ export interface TPoint {
     y: number;
 }
 
-export type TransformMode = 'move' | 'scale' | 'rotate';
+export type TransformMode = 'move' | 'scale' | 'rotate' | 'transform';
 
 export type TransformCommit =
     | { type: 'move'; dx: number; dy: number }

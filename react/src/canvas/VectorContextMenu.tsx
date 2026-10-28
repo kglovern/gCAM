@@ -1,4 +1,5 @@
 import {
+    Fragment,
     useEffect,
     useRef,
     useState,
@@ -61,6 +62,19 @@ export function VectorContextMenu({
         };
     }, []);
     const items: { label: string; run: () => void; disabled?: boolean }[] = [
+        ...(actions
+            ? [
+                  {
+                      label: 'Transform',
+                      run: () => actions.transform('transform'),
+                  },
+                  {
+                      label: 'Duplicate',
+                      run: () => actions.duplicate(),
+                  },
+                  { label: 'Delete', run: () => actions.delete() },
+              ]
+            : []),
         ...(onProperties
             ? [
                   {
@@ -73,27 +87,6 @@ export function VectorContextMenu({
                                   ?.bitmapId,
                           ),
                   },
-              ]
-            : []),
-        ...(actions
-            ? [
-                  {
-                      label: 'Move',
-                      run: () => actions.transform('move'),
-                  },
-                  {
-                      label: 'Rotate',
-                      run: () => actions.transform('rotate'),
-                  },
-                  {
-                      label: 'Resize',
-                      run: () => actions.transform('scale'),
-                  },
-                  {
-                      label: 'Duplicate',
-                      run: () => actions.duplicate(),
-                  },
-                  { label: 'Delete', run: () => actions.delete() },
               ]
             : []),
     ];
@@ -166,7 +159,10 @@ export function VectorContextMenu({
                         0,
                         Math.min(
                             event.clientY - rect.top,
-                            rect.height - (items.length * 36 + 8),
+                            rect.height -
+                                (items.length * 36 +
+                                    8 +
+                                    (onProperties && actions ? 9 : 0)),
                         ),
                     ),
                 });
@@ -203,24 +199,34 @@ export function VectorContextMenu({
                     className="absolute z-50 w-36 rounded border border-slate-300 bg-white p-1 shadow-lg max-h-full overflow-y-auto dark:border-robin-900 dark:bg-dark-lighter"
                 >
                     {items.map((item, index) => (
-                        <button
-                            key={item.label}
-                            autoFocus={
-                                index ===
-                                items.findIndex((entry) => !entry.disabled)
-                            }
-                            type="button"
-                            role="menuitem"
-                            disabled={item.disabled}
-                            className="w-full rounded px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-100 disabled:opacity-40 dark:text-white dark:hover:bg-robin-900"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={() => {
-                                setPosition(null);
-                                item.run();
-                            }}
-                        >
-                            {item.label}
-                        </button>
+                        <Fragment key={item.label}>
+                            {item.label === 'Properties' && index > 0 && (
+                                <div
+                                    role="separator"
+                                    className="my-1 border-t border-slate-200 dark:border-robin-900"
+                                />
+                            )}
+                            <button
+                                key={item.label}
+                                autoFocus={
+                                    index ===
+                                    items.findIndex((entry) => !entry.disabled)
+                                }
+                                type="button"
+                                role="menuitem"
+                                disabled={item.disabled}
+                                className="w-full rounded px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-100 disabled:opacity-40 dark:text-white dark:hover:bg-robin-900"
+                                onPointerDown={(event) =>
+                                    event.stopPropagation()
+                                }
+                                onClick={() => {
+                                    setPosition(null);
+                                    item.run();
+                                }}
+                            >
+                                {item.label}
+                            </button>
+                        </Fragment>
                     ))}
                 </div>
             )}

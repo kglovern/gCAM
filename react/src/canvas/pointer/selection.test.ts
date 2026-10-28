@@ -1,4 +1,4 @@
-import { finishSelection } from './selection';
+import { finishSelection, updateSelectionHover } from './selection';
 import { jest } from '@jest/globals';
 import type { CanvasPointerControllerProps } from './types';
 
@@ -145,4 +145,24 @@ test('touch multi-select toggles a vector without any keyboard modifier', () => 
     deps.viewRef.current.selected = ['vector-1', 'vector-2'];
     finishSelection(event, deps, { x: 55, y: 45 }, null);
     expect(onSelect).toHaveBeenLastCalledWith(['vector-1']);
+});
+
+test('Transform shares selection hover and clears it while dragging or over hidden geometry', () => {
+    const deps = selectionDeps([], jest.fn());
+    deps.activeTool = 'select';
+    deps.viewRef.current.transformMode = 'transform';
+    deps.guideHoverRef = { current: null };
+    deps.loopHoverRef = { current: null };
+    const event = {
+        clientX: 55,
+        clientY: 45,
+        buttons: 0,
+    } as React.MouseEvent<HTMLCanvasElement>;
+    updateSelectionHover(event, deps);
+    expect(deps.loopHoverRef.current?.loopId).toBe('vector-2');
+    updateSelectionHover({ ...event, buttons: 1 }, deps);
+    expect(deps.loopHoverRef.current).toBeNull();
+    deps.viewRef.current.hidden = ['vector-2'];
+    updateSelectionHover(event, deps);
+    expect(deps.loopHoverRef.current).toBeNull();
 });

@@ -25,7 +25,7 @@ export function makePoint(
 }
 
 export function defaultProfile(): ProfilePoint[] {
-    return fitHandles([
+    return templateHandles([
         {
             ...makePoint(CHUCK_CLEARANCE + 0, 11, 'corner'),
             h1: { x: CHUCK_CLEARANCE + 0, r: 11 },
@@ -264,17 +264,34 @@ export const TEMPLATES: Record<string, TemplateDef> = {
 
 export function templateProfile(name: string): ProfilePoint[] {
     const t = TEMPLATES[name];
-    // makePoint(x + CHUCK_CLEARANCE) already offsets the handles.
-    return fitHandles(
-        t.pts.map(([x, r, ty]) => {
-            const p = makePoint(x + CHUCK_CLEARANCE, r, ty);
-            if (ty === 'corner') {
-                p.h1 = { x: x + CHUCK_CLEARANCE, r };
-                p.h2 = { x: x + CHUCK_CLEARANCE, r };
-            }
-            return p;
-        }),
-    );
+    const points = t.pts.map(([x, r, ty]) => {
+        const p = makePoint(x + CHUCK_CLEARANCE, r, ty);
+        p.h1 = { x: p.x, r };
+        p.h2 = { x: p.x, r };
+        return p;
+    });
+    return templateHandles(points);
+}
+
+function templateHandles(points: ProfilePoint[]): ProfilePoint[] {
+    // Monotone harmonic tangents follow slopes, with flat tangents at extrema.
+    for (let i = 1; i < points.length - 1; i++) {
+        const p = points[i],
+            left = points[i - 1],
+            right = points[i + 1];
+        if (p.type === 'corner') continue;
+        const hl = p.x - left.x,
+            hr = right.x - p.x;
+        if (!(hl > 0 && hr > 0)) continue;
+        const dl = (p.r - left.r) / hl,
+            dr = (right.r - p.r) / hr;
+        const w1 = 2 * hr + hl,
+            w2 = hr + 2 * hl;
+        const slope = dl * dr > 0 ? (w1 + w2) / (w1 / dl + w2 / dr) : 0;
+        p.h1 = { x: p.x - hl / 3, r: p.r - (slope * hl) / 3 };
+        p.h2 = { x: p.x + hr / 3, r: p.r + (slope * hr) / 3 };
+    }
+    return fitHandles(points);
 }
 
 function cubic(
@@ -327,6 +344,25 @@ export function sampleProfile(
         const a = s[i];
         const b = s[i + 1];
         const { c1x, c1r, c2x, c2r } = spanControls(a, b);
+        const d0 = c1x - a.x,
+            d1 = c2x - c1x,
+            d2 = b.x - c2x;
+        const qa = d0 - 2 * d1 + d2,
+            qb = 2 * (d1 - d0);
+        const vertex = qa > 0 ? -qb / (2 * qa) : -1;
+        const minimum = Math.min(
+            d0,
+            d2,
+            vertex > 0 && vertex < 1
+                ? (qa * vertex + qb) * vertex + d0
+                : Infinity,
+        );
+        if (minimum < -1e-10 * Math.max(1, b.x - a.x)) {
+            throw new Error(
+                'Profile folds back along X. Shorten or reposition its handles.',
+            );
+        }
+
         if (tolerance !== undefined) {
             if (!(tolerance > 0) || !Number.isFinite(tolerance))
                 throw new Error('Use a positive profile sampling tolerance.');
@@ -387,69 +423,62 @@ export function sampleProfile(
     }
     const last = s[s.length - 1];
     out.push({ x: last.x, r: Math.max(0, last.r) });
-    out.sort((a, b) => a.x - b.x);
     return out;
 }
 
-function shrinkHandle(
-    h: { x: number; r: number },
-    p: ProfilePoint,
-    gap: number,
-): number {
-    const len = Math.hypot(h.x - p.x, h.r - p.r);
-    if (len < 1e-9) {
-        return 1;
-    }
-    const maxLen = Math.max(0.15, 0.35 * gap);
-    return len > maxLen ? maxLen / len : 1;
-}
-
 function scaleHandle(p: ProfilePoint, key: 'h1' | 'h2', factor: number): void {
-    if (factor < 1) {
-        p[key] = {
-            x: p.x + (p[key].x - p.x) * factor,
-            r: p.r + (p[key].r - p.r) * factor,
-        };
-    }
+    if (factor >= 1) return;
+    p[key] = {
+        x: p.x + (p[key].x - p.x) * factor,
+        r: p.r + (p[key].r - p.r) * factor,
+    };
 }
 
-/**
- * Shorten-only handle repair: a handle reaching past ~half the gap to a
- * neighbor folds its cubic into loops. Never lengthens, preserves direction;
- * sym points scale both sides by the limiting factor.
- */
+/** Shorten only: ordered X controls guarantee dx/dt >= 0 over the entire cubic.
+ * Radius is unrestricted above zero; no arbitrary Euclidean length limit.
+ * Check neighbouring spans too, since a moved node or symmetric handle affects both. */
 export function fitHandles(
     pts: ProfilePoint[],
-    only: number[] | null = null,
+    _only: number[] | null = null,
 ): ProfilePoint[] {
-    const idxs = only ?? pts.map((_, i) => i);
-    for (const i of idxs) {
+    const shrink = (p: ProfilePoint, key: 'h1' | 'h2', factor: number) => {
+        scaleHandle(p, key, factor);
+        if (p.type === 'sym')
+            scaleHandle(p, key === 'h1' ? 'h2' : 'h1', factor);
+    };
+    for (let i = 0; i < pts.length; i++) {
         const p = pts[i];
-        if (!p || p.type === 'corner') {
-            continue;
+        if (p.type === 'corner') continue;
+        for (const key of ['h1', 'h2'] as const) {
+            const h = p[key],
+                dx = h.x - p.x;
+            if (!Number.isFinite(h.x) || !Number.isFinite(h.r)) {
+                p[key] = { x: p.x, r: p.r };
+                if (p.type === 'sym')
+                    p[key === 'h1' ? 'h2' : 'h1'] = { x: p.x, r: p.r };
+                continue;
+            }
+            let factor = key === 'h1' ? (dx > 0 ? 0 : 1) : dx < 0 ? 0 : 1;
+            const neighbour = key === 'h1' ? pts[i - 1] : pts[i + 1];
+            if (neighbour && dx !== 0)
+                factor = Math.min(
+                    factor,
+                    Math.max(0, Math.abs(neighbour.x - p.x) / Math.abs(dx)),
+                );
+            if (h.r < 0) factor = Math.min(factor, p.r / (p.r - h.r));
+            shrink(p, key, Math.max(0, factor));
         }
-        const gl =
-            i > 0
-                ? Math.abs(p.x - pts[i - 1].x)
-                : pts.length > 1
-                  ? Math.abs(pts[1].x - pts[0].x)
-                  : 8;
-        const gr = i < pts.length - 1 ? Math.abs(pts[i + 1].x - p.x) : gl;
-        const f1 = shrinkHandle(p.h1, p, gl);
-        const f2 = shrinkHandle(p.h2, p, gr);
-        if (p.type === 'sym') {
-            const k = Math.min(f1, f2);
-            scaleHandle(p, 'h1', k);
-            scaleHandle(p, 'h2', k);
-        } else {
-            scaleHandle(p, 'h1', f1);
-            scaleHandle(p, 'h2', f2);
-        }
-        if (p.h1.x > p.x) {
-            p.h1.x = p.x;
-        }
-        if (p.h2.x < p.x) {
-            p.h2.x = p.x;
+    }
+    for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i],
+            b = pts[i + 1];
+        const left = a.type === 'corner' ? 0 : a.h2.x - a.x;
+        const right = b.type === 'corner' ? 0 : b.x - b.h1.x;
+        const gap = Math.max(0, b.x - a.x);
+        if (left + right > gap) {
+            const factor = gap / (left + right);
+            if (a.type !== 'corner') shrink(a, 'h2', factor);
+            if (b.type !== 'corner') shrink(b, 'h1', factor);
         }
     }
     return pts;

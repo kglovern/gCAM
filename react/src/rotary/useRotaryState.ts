@@ -246,7 +246,7 @@ export function useRotaryState(): RotaryStateApi {
     const commitPoints = useCallback(
         (next: ProfilePoint[]) => {
             pushHistory();
-            setPoints(next);
+            setPoints(fitHandles(clonePoints(next)));
             setModeState('profile');
         },
         [pushHistory],
@@ -306,12 +306,19 @@ export function useRotaryState(): RotaryStateApi {
                 if (!p) {
                     return next;
                 }
+                const oldX = p.x,
+                    oldR = p.r;
                 const loX = sel > 0 ? next[sel - 1].x : 0;
                 p.x = Math.min(
                     sel < next.length - 1 ? next[sel + 1].x : Infinity,
                     Math.max(loX, p.x + dx),
                 );
                 p.r = Math.max(0, p.r + dr);
+                for (const key of ['h1', 'h2'] as const)
+                    p[key] = {
+                        x: p[key].x + p.x - oldX,
+                        r: p[key].r + p.r - oldR,
+                    };
                 return next;
             });
         },
@@ -330,6 +337,8 @@ export function useRotaryState(): RotaryStateApi {
                 if (!p) {
                     return next;
                 }
+                const oldX = p.x,
+                    oldR = p.r;
                 const loX = sel > 0 ? next[sel - 1].x : 0;
                 const hiX =
                     sel < next.length - 1 ? next[sel + 1].x : stock.length;
@@ -341,6 +350,11 @@ export function useRotaryState(): RotaryStateApi {
                 } else {
                     p.x = Math.min(hiX, Math.max(loX, value));
                 }
+                for (const key of ['h1', 'h2'] as const)
+                    p[key] = {
+                        x: p[key].x + p.x - oldX,
+                        r: p[key].r + p.r - oldR,
+                    };
                 fitHandles(
                     next,
                     [sel - 1, sel, sel + 1].filter(

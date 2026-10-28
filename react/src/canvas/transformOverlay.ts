@@ -11,7 +11,7 @@ export function paintTransformOverlay(
     ctx: CanvasRenderingContext2D,
     toScreen: (x: number, y: number) => Point,
     frame: SelectionFrame,
-    mode: 'move' | 'scale' | 'rotate',
+    mode: 'move' | 'scale' | 'rotate' | 'transform',
     preview: Point[][] | null,
 ): void {
     const nw = toScreen(frame.minX, frame.maxY);
@@ -28,7 +28,8 @@ export function paintTransformOverlay(
         ctx.lineWidth = 2;
         for (const points of preview) strokePoints(ctx, points, toScreen);
     }
-    ctx.strokeStyle = '#2563eb';
+    if (preview) ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = preview ? '#94a3b8' : '#2563eb';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
@@ -39,8 +40,10 @@ export function paintTransformOverlay(
     ctx.closePath();
     ctx.stroke();
     ctx.setLineDash([]);
-    if (mode === 'scale') paintScaleHandles(ctx, [nw, ne, se, sw]);
-    if (mode === 'rotate') paintRotateHandles(ctx, [nw, ne, se, sw], center);
+    if (mode === 'scale' || mode === 'transform')
+        paintScaleHandles(ctx, [nw, ne, se, sw]);
+    if (mode === 'rotate' || mode === 'transform')
+        paintRotateHandles(ctx, [nw, ne, se, sw], center);
     ctx.restore();
 }
 

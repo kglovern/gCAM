@@ -246,7 +246,6 @@ export function updateSelectionHover(
         deps.activeTool !== 'select' ||
         view.drawTool ||
         view.guidePlacement ||
-        view.transformMode ||
         event.buttons !== 0 ||
         deps.guideHoverRef.current
     ) {

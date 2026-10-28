@@ -525,7 +525,7 @@ export function hitTransformTarget(
     const sw = toScreen(frame.minX, frame.minY);
     const cx = (nw.x + se.x) / 2;
     const cy = (nw.y + se.y) / 2;
-    if (mode === 'scale') {
+    if (mode === 'scale' || mode === 'transform') {
         for (const [key, point] of [
             ['nw', nw],
             ['ne', ne],
@@ -543,9 +543,9 @@ export function hitTransformTarget(
                 };
             }
         }
-        return null;
+        if (mode === 'scale') return null;
     }
-    if (mode === 'rotate') {
+    if (mode === 'rotate' || mode === 'transform') {
         for (const point of [nw, ne, se, sw]) {
             const dx = point.x - cx;
             const dy = point.y - cy;
@@ -558,7 +558,7 @@ export function hitTransformTarget(
             )
                 return { kind: 'rotate', key: '', cursor: 'grab' };
         }
-        return null;
+        if (mode === 'rotate') return null;
     }
     if (
         sx >= Math.min(nw.x, se.x) - 2 &&
