@@ -21,17 +21,20 @@ test('touch selection highlights without properties; explicit open, close and re
     rerender({ id: 'a' });
     expect(result.current.visible).toBe(false);
 });
-test('desktop retains auto-open and responds to input/layout changes', () => {
+test('desktop also requires explicit open after each selection change', () => {
     media = mockMediaQuery(false);
     const { result, rerender } = renderHook(
         ({ id }) => useInspectorVisibility(id),
         { initialProps: { id: 'a' } },
     );
+    expect(result.current.visible).toBe(false);
+    act(() => result.current.open());
     expect(result.current.visible).toBe(true);
     act(() => result.current.close());
     expect(result.current.visible).toBe(false);
     rerender({ id: 'b' });
-    expect(result.current.visible).toBe(true);
-    act(() => media.change(true));
     expect(result.current.visible).toBe(false);
+    act(() => result.current.open());
+    act(() => media.change(true));
+    expect(result.current.visible).toBe(true);
 });

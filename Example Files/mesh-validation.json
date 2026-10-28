@@ -1,0 +1,128 @@
+{
+  "01-dome-relief.stl": {
+    "vertices": 4482,
+    "triangles": 8960,
+    "volume_mm3": 45447.001,
+    "bounds_mm": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        100.0,
+        100.0,
+        8.0
+      ]
+    ],
+    "closed_manifold": true
+  },
+  "02-dome-relief.obj": {
+    "vertices": 4482,
+    "triangles": 8960,
+    "volume_mm3": 45447.001,
+    "bounds_mm": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        100.0,
+        100.0,
+        8.0
+      ]
+    ],
+    "closed_manifold": true
+  },
+  "03-flower-relief.stl": {
+    "vertices": 4482,
+    "triangles": 8960,
+    "volume_mm3": 26625.958,
+    "bounds_mm": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        100.0,
+        100.0,
+        7.699999999999999
+      ]
+    ],
+    "closed_manifold": true
+  },
+  "04-stepped-relief.ascii.stl": {
+    "vertices": 354,
+    "triangles": 704,
+    "volume_mm3": 24000.0,
+    "bounds_mm": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        80.0,
+        60.0,
+        8.0
+      ]
+    ],
+    "closed_manifold": true
+  },
+  "05-relief-standing-on-edge.stl": {
+    "vertices": 1218,
+    "triangles": 2432,
+    "volume_mm3": 45484.913,
+    "bounds_mm": [
+      [
+        0.0,
+        0.0,
+        -100.0
+      ],
+      [
+        100.0,
+        8.0,
+        -0.0
+      ]
+    ],
+    "closed_manifold": true
+  },
+  "06-z-up-spindle.stl": {
+    "vertices": 2626,
+    "triangles": 5248,
+    "volume_mm3": 60157.875,
+    "bounds_mm": [
+      [
+        -15.331559480312317,
+        -15.331559480312317,
+        0.0
+      ],
+      [
+        15.331559480312317,
+        15.331559480312317,
+        120.0
+      ]
+    ],
+    "closed_manifold": true
+  },
+  "07-z-up-lobed-spindle.stl": {
+    "vertices": 2626,
+    "triangles": 5248,
+    "volume_mm3": 41382.749,
+    "bounds_mm": [
+      [
+        -10.900787598245977,
+        -14.07194238169187,
+        0.0
+      ],
+      [
+        15.331559480312317,
+        14.07194238169187,
+        120.0
+      ]
+    ],
+    "closed_manifold": true
+  }
+}

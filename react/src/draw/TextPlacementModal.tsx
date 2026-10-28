@@ -1,6 +1,7 @@
 /**
  * Purpose: Implementation module for TextPlacementModal in the draw domain.
  */
+import { FontPicker } from './FontPicker';
 import { FONT_OPTIONS } from './textGeometry';
 import { lengthUnit, type UnitSystem } from '../lib/units';
 import { UnitInput } from '../components/UnitInput';
@@ -29,6 +30,7 @@ export function TextPlacementModal({
     onClose,
     onSubmit,
 }: TextPlacementModalProps) {
+    const selectedFont = FONT_OPTIONS.find((option) => option.id === font);
     return (
         <div
             className="fixed inset-0 z-[9998] grid place-items-center bg-black/50 p-4"
@@ -51,24 +53,23 @@ export function TextPlacementModal({
                         maxLength={40}
                         onChange={(event) => onTextChange(event.target.value)}
                         aria-label="Text to place"
+                        style={{
+                            fontFamily:
+                                selectedFont?.kind === 'outline'
+                                    ? `"${selectedFont.family}", sans-serif`
+                                    : undefined,
+                        }}
                         className="rounded border border-slate-300 bg-white px-2 py-1.5 dark:border-robin-900 dark:bg-dark-lighter"
                     />
                 </label>
-                <label className="grid gap-1">
+                <div className="grid gap-1">
                     <span>Font</span>
-                    <select
+                    <FontPicker
                         value={font}
-                        onChange={(event) => onFontChange(event.target.value)}
-                        aria-label="Text font"
+                        onChange={onFontChange}
                         className="rounded border border-slate-300 bg-white px-2 py-1.5 dark:border-robin-900 dark:bg-dark-lighter"
-                    >
-                        {FONT_OPTIONS.map((option) => (
-                            <option key={option.id} value={option.id}>
-                                {option.name}
-                            </option>
-                        ))}
-                    </select>
-                </label>
+                    />
+                </div>
                 <label className="grid gap-1">
                     <span>Height ({lengthUnit(units)})</span>
                     <UnitInput

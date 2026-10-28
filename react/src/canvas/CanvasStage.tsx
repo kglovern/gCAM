@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { CanvasNavigationControls } from './CanvasNavigationControls';
+import { VectorContextMenu } from './VectorContextMenu';
 import {
     getMinimumTabWidth,
     getTabCenterlineSpan,
@@ -76,6 +77,8 @@ export type {
 export type { DrawTool } from './types';
 
 export function CanvasStage({
+    onShowProperties,
+    contextActions,
     activeTool,
     additiveSelection = false,
     loops,
@@ -914,8 +917,17 @@ export function CanvasStage({
                     className="block shrink-0 self-stretch"
                     style={{ width: RULER }}
                 />
-                <div
-                    className="relative flex-1 min-w-0"
+                <VectorContextMenu
+                    canvasRef={canvasRef}
+                    cameraRef={cameraRef}
+                    loops={loops}
+                    bitmaps={bitmaps}
+                    hidden={hidden}
+                    selected={selected}
+                    onSelect={onSelect}
+                    onProperties={onShowProperties}
+                    actions={contextActions}
+                    enabled={!tabMode && !guidePlacement}
                     onMouseLeave={clearViewportInteraction}
                 >
                     <CanvasViewport
@@ -1000,7 +1012,7 @@ export function CanvasStage({
                         onZoom={zoomBy}
                         onFit={fitToBounds}
                     />
-                </div>
+                </VectorContextMenu>
             </div>
         </div>
     );

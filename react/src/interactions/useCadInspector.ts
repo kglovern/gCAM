@@ -60,8 +60,7 @@ export function useCadInspector({
         inspectorLoop !== null &&
         Array.isArray(inspectorLoop.points) &&
         inspectorLoop.points.length > 0 &&
-        !inspectorLoop.bitmapId &&
-        transformMode === null;
+        !inspectorLoop.bitmapId;
     const visibility = useInspectorVisibility(
         eligible ? inspectorLoop.id : null,
     );
@@ -81,7 +80,7 @@ export function useCadInspector({
         });
 
     const inspector: ComponentProps<typeof CadInspector> | null =
-        visibility.visible && inspectorLoop
+        visibility.visible && inspectorLoop && transformMode === null
             ? {
                   loop: inspectorLoop,
                   angle: Math.round(orientRef.current.angle * 10) / 10,

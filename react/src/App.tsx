@@ -691,6 +691,15 @@ export default function App() {
         preview,
         tabMarkers,
         canvasActions: {
+            onShowProperties: () => {
+                setTransformMode(null);
+                showInspector();
+            },
+            contextActions: {
+                duplicate: handleDuplicateSelected,
+                delete: handleDeleteSelected,
+                transform: setTransformMode,
+            },
             onPlaceTab: handlePlaceTab,
             onMoveTab: handleMoveTab,
             onDeleteTab: handleDeleteTab,

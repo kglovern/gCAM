@@ -50,6 +50,8 @@ export interface WorkspaceModelOptions {
     canvasActions: Pick<
         CanvasProps,
         | 'onPlaceTab'
+        | 'onShowProperties'
+        | 'contextActions'
         | 'onMoveTab'
         | 'onDeleteTab'
         | 'onPlaceGuide'

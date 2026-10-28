@@ -18,6 +18,8 @@ import type { Guide, GuideDraft, GuidePlacement } from '../lib/guides';
 export type Point = { x: number; y: number };
 
 export type CanvasStageProps = {
+    onShowProperties?: () => void;
+    contextActions?: import('./VectorContextMenu').VectorContextActions;
     activeTool: Tool;
     additiveSelection?: boolean;
     loops: ViewLoop[];

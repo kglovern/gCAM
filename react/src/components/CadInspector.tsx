@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { FloatingPanel } from './floating/FloatingPanel';
 import cx from 'classnames';
 import type { ViewLoop } from '../canvas/types';
+import { FontPicker } from '../draw/FontPicker';
 import { FONT_OPTIONS } from '../draw/textGeometry';
 import { lengthUnit, type UnitSystem } from '../lib/units';
 import { objectLayerId, type DrawingLayer } from '../layers/model';
@@ -69,6 +70,7 @@ export function CadInspector({
     );
     const [text, setText] = useState(loop.text ?? 'TEXT');
     const [fontId, setFontId] = useState(loop.fontId ?? 'single-line');
+    const selectedFont = FONT_OPTIONS.find((font) => font.id === fontId);
     const [fontSize, setFontSize] = useState(loop.fontSize ?? h);
     const [dirty, setDirty] = useState(false);
     const currentPatch = (): InspectorPatch => ({
@@ -282,6 +284,12 @@ export function CadInspector({
                             </span>
                             <input
                                 value={text}
+                                style={{
+                                    fontFamily:
+                                        selectedFont?.kind === 'outline'
+                                            ? `"${selectedFont.family}", sans-serif`
+                                            : undefined,
+                                }}
                                 onChange={(e) => {
                                     setDirty(true);
                                     setText(e.target.value);
@@ -289,25 +297,19 @@ export function CadInspector({
                                 className={numCls}
                             />
                         </label>
-                        <label className="space-y-1 col-span-2">
+                        <div className="space-y-1 col-span-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400">
                                 Font
                             </span>
-                            <select
+                            <FontPicker
                                 value={fontId}
-                                onChange={(e) => {
+                                onChange={(value) => {
                                     setDirty(true);
-                                    setFontId(e.target.value);
+                                    setFontId(value);
                                 }}
                                 className={numCls}
-                            >
-                                {FONT_OPTIONS.map((font) => (
-                                    <option key={font.id} value={font.id}>
-                                        {font.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                            />
+                        </div>
                         <label className="space-y-1 col-span-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400">
                                 Font size ({lengthUnit(units)})

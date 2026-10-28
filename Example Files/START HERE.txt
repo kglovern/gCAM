@@ -1,0 +1,10 @@
+gCAM example files - 28 October 2026
+
+01 Heightmaps: actual grayscale elevation data, with no baked lighting. Black=low, white=high, except the named inverted example. Suggested size 100 x 100 mm; suggested relief height 6 mm. PNG/TIFF do not define a machining size or Z depth.
+02 Bitmaps: tracing and image-effect examples. The shaded dome is deliberately NOT a heightmap.
+03 Vectors: metric/inch SVG and metric DXF checks.
+04 Models: closed, consistently wound meshes. Choose millimetres at import. The standing model needs orientation; the full spindle is not a single-sided relief.
+
+MANIFEST.csv lists purpose, dimensions, expected result, licence and SHA-256 for every example. A valid file does not mean gCAM supports its workflow: heightmap conversion and TIFF precision are capability probes.
+
+Start with 03 Vectors/01-sign-mm.svg for 2D or 04 Models/01-dome-relief.stl for 3D. Preview every job and set actual stock/cutter values before cutting. No machine-ready G-code is supplied.

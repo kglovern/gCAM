@@ -1,0 +1,93 @@
+[
+  {
+    "file": "01-dome-relief.stl",
+    "triangles": 8960,
+    "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "minZ": 0,
+      "maxX": 100,
+      "maxY": 100,
+      "maxZ": 8
+    },
+    "result": "Parsed by current gCAM surface importer"
+  },
+  {
+    "file": "02-dome-relief.obj",
+    "triangles": 8960,
+    "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "minZ": 0,
+      "maxX": 100,
+      "maxY": 100,
+      "maxZ": 8
+    },
+    "result": "Parsed by current gCAM surface importer"
+  },
+  {
+    "file": "03-flower-relief.stl",
+    "triangles": 8960,
+    "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "minZ": 0,
+      "maxX": 100,
+      "maxY": 100,
+      "maxZ": 7.699999809265137
+    },
+    "result": "Parsed by current gCAM surface importer"
+  },
+  {
+    "file": "04-stepped-relief.ascii.stl",
+    "triangles": 704,
+    "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "minZ": 0,
+      "maxX": 80,
+      "maxY": 60,
+      "maxZ": 8
+    },
+    "result": "Parsed by current gCAM surface importer"
+  },
+  {
+    "file": "05-relief-standing-on-edge.stl",
+    "triangles": 2432,
+    "bounds": {
+      "minX": 0,
+      "minY": 0,
+      "minZ": -100,
+      "maxX": 100,
+      "maxY": 8,
+      "maxZ": 0
+    },
+    "result": "Parsed by current gCAM surface importer"
+  },
+  {
+    "file": "06-z-up-spindle.stl",
+    "triangles": 5248,
+    "bounds": {
+      "minX": -15.331559181213379,
+      "minY": -15.331559181213379,
+      "minZ": 0,
+      "maxX": 15.331559181213379,
+      "maxY": 15.331559181213379,
+      "maxZ": 120
+    },
+    "result": "Parsed by current gCAM surface importer"
+  },
+  {
+    "file": "07-z-up-lobed-spindle.stl",
+    "triangles": 5248,
+    "bounds": {
+      "minX": -10.900787353515625,
+      "minY": -14.071942329406738,
+      "minZ": 0,
+      "maxX": 15.331559181213379,
+      "maxY": 14.071942329406738,
+      "maxZ": 120
+    },
+    "result": "Parsed by current gCAM surface importer"
+  }
+]

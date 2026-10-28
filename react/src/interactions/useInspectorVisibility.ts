@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 
-/** Touch/small screens open properties explicitly; desktop retains auto-open. */
+/** Selection highlights items; properties open only on request. */
 export function useInspectorVisibility(selectionId: string | null) {
-    const explicit = useMediaQuery('(pointer: coarse), (max-width: 1023px)');
     const [openedId, setOpenedId] = useState<string | null>(null);
     const [dismissedId, setDismissedId] = useState<string | null>(null);
     useEffect(() => {
@@ -14,7 +12,7 @@ export function useInspectorVisibility(selectionId: string | null) {
         visible:
             selectionId !== null &&
             selectionId !== dismissedId &&
-            (!explicit || openedId === selectionId),
+            openedId === selectionId,
         open: () => {
             setDismissedId(null);
             setOpenedId(selectionId);

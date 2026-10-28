@@ -1,0 +1,3 @@
+The original example images, vectors and meshes in this folder are dedicated to the public domain under CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+No third-party decorative model assets are included.

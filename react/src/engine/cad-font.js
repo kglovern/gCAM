@@ -175,18 +175,19 @@ export const FONT_OPTIONS = [
 const outlineFontCache = new Map();
 
 function registerCatalogFontFaces() {
-    if (
-        typeof document === 'undefined' ||
-        document.getElementById('cad-font-catalog')
-    ) {
+    if (typeof document === 'undefined') {
         return;
     }
-    const style = document.createElement('style');
+    const style =
+        document.getElementById('cad-font-catalog') ||
+        document.createElement('style');
     style.id = 'cad-font-catalog';
-    style.textContent = EXTRA_FONT_OPTIONS.map(
-        ({ family, asset }) =>
-            `@font-face { font-family: "${family}"; src: url("${publicAssetUrl(asset)}") format("truetype"); font-display: swap; }`,
-    ).join('\n');
+    style.textContent = FONT_OPTIONS.filter((option) => option.asset)
+        .map(
+            ({ family, asset }) =>
+                `@font-face { font-family: "${family}"; src: url("${publicAssetUrl(asset)}") format("truetype"); font-display: swap; }`,
+        )
+        .join('\n');
     document.head.append(style);
 }
 

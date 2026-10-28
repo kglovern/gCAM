@@ -1,0 +1,21 @@
+[
+  {
+    "file": "01-sign-mm.svg",
+    "widthMm": 160,
+    "heightMm": 100,
+    "result": "XML and current gCAM physical-unit parser verified; browser path sampling not tested"
+  },
+  {
+    "file": "02-inch-square.svg",
+    "widthMm": 50.8,
+    "heightMm": 50.8,
+    "result": "XML and current gCAM physical-unit parser verified; browser path sampling not tested"
+  },
+  {
+    "file": "03-plate-mm.dxf",
+    "loops": 3,
+    "widthMm": 100,
+    "heightMm": 60,
+    "result": "Parsed by current gCAM vector importer with expected unit scale"
+  }
+]
