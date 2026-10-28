@@ -8,6 +8,8 @@ import {
     TEMPLATES,
 } from './profileModel';
 import type { ProfilePoint } from './types';
+import { runChecks } from './checks';
+import { defaultSupports } from './supports';
 
 function maxDeviation(
     a: Array<{ x: number; r: number }>,
@@ -51,6 +53,44 @@ test('all templates have bounded handles and fold-free sampling', () => {
             }
         });
     }
+});
+
+test('baseball bat and mounting stubs fit standard stock with a quarter-inch cutter', () => {
+    const samples = sampleProfile(templateProfile('bat'), 32);
+    expect(
+        Math.max(...samples.map((point) => point.r)) * 2,
+    ).toBeLessThanOrEqual(50);
+    const flags = runChecks(
+        samples,
+        {
+            length: 546,
+            diameter: 50,
+            grip: 19,
+            ext: false,
+            supports: { ...defaultSupports },
+        },
+        {
+            type: 'ball',
+            dia: 6.35,
+            feed: 1000,
+            plunge: 200,
+            spindle: 16000,
+            slotNum: 1,
+        },
+        {
+            face: false,
+            rough: true,
+            finish: false,
+            allow: 0.5,
+            roughStep: 2,
+            raster: 0,
+            groove: { on: false, x: 100, w: 5 },
+            part: { on: false, x: 500 },
+            pommels: [],
+            compR: 0,
+        },
+    );
+    expect(flags.filter((flag) => flag.level === 'e')).toEqual([]);
 });
 
 test('insertNode on a smooth span is bit-exact', () => {
