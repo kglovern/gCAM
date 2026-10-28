@@ -4,6 +4,7 @@ const { pathToFileURL } = require('node:url');
 const { assetPath } = require('./app-protocol.cjs');
 const { createWindow } = require('./window.cjs');
 const { createPendantService } = require('./pendant.cjs');
+const { createGsenderClient } = require('./gsender.cjs');
 if (app.commandLine.hasSwitch('smoke-test')) require('./smoke-check.cjs');
 
 protocol.registerSchemesAsPrivileged([
@@ -35,6 +36,7 @@ else {
                 : new Response('Not found', { status: 404 });
         });
         registerPendant();
+        registerGsender();
         const updates = require('./updates.cjs').setupUpdates({
             app,
             ipcMain: require('electron').ipcMain,
@@ -71,4 +73,10 @@ function registerPendant() {
     ipcMain.handle('pendant:forget', (_event, id) => pendant.forget(id));
     ipcMain.handle('pendant:send', (_event, request) => pendant.send(request));
     app.on('will-quit', () => pendant.dispose());
+}
+
+function registerGsender() {
+    const gsender = createGsenderClient();
+    ipcMain.handle('gsender:ping', (_event, port) => gsender.ping(port));
+    ipcMain.handle('gsender:send', (_event, request) => gsender.send(request));
 }
