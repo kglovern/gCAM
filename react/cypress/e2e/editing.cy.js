@@ -174,6 +174,20 @@ describe('Boolean and trim operations', () => {
             ).to.be.closeTo(20, 0.1);
         });
     });
+    it('trims an unsegmented crossing with a Ctrl brush and supports undo', () => {
+        cy.importDesign('trim.svg');
+        cy.get('[aria-label="Trim vectors"]').click();
+        cy.worldDrag([40, 45], [40, 55], { ctrlKey: true });
+        cy.snapshot().then((p) => expect(p.loops).to.have.length(4));
+        cy.get('[aria-label="Undo"]').click();
+        cy.snapshot().then((p) => {
+            expect(p.loops).to.have.length(3);
+            const horizontal = p.loops.find((l) =>
+                l.points.every((point) => Math.abs(point.y - 50) < 0.01),
+            );
+            expect(horizontal.points).to.have.length(2);
+        });
+    });
     it('offsets a selected closed shape', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);

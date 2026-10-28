@@ -83,7 +83,11 @@ export type CanvasPointerControllerProps = {
     onTrimStroke?: (points: Point[]) => void;
     trimBrushRef: { current: { points: Point[] } | null };
     onTrimHover: (
-        hover: { loopId: string; segmentIndex: number } | null,
+        hover: {
+            loopId: string;
+            segmentIndex: number;
+            removed?: Point[];
+        } | null,
     ) => void;
     onPlaceGuide: (guide: GuidePlacement) => void;
     onGuideDraftChange: (draft: GuideDraft | null) => void;
@@ -103,7 +107,13 @@ export type CanvasPointerControllerProps = {
     angleSnapRef: { current: number | null };
     selectedGuideRef: { current: string | null };
     guideHoverRef: { current: string | null };
-    loopHoverRef: { current: { loopId: string; segmentIndex: number } | null };
+    loopHoverRef: {
+        current: {
+            loopId: string;
+            segmentIndex: number;
+            removed?: Point[];
+        } | null;
+    };
     onDeleteGuide: (id: string) => void;
     progressPointerRef: { current: Point | null };
     transformDragRef: { current: TransformDragState | null };

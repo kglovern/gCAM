@@ -1,7 +1,7 @@
 /**
  * Purpose: Implementation module for trim in the canvas domain.
  */
-import { trimNearestSegment } from '../../lib/trim';
+import { findTrimTarget } from '../../lib/trim';
 import { worldAtEvent } from './helpers';
 import type { CanvasMouseEvent, CanvasPointerControllerProps } from './types';
 
@@ -47,27 +47,14 @@ export function updateTrimHover(
     const canvas = deps.canvasRef.current;
     if (!canvas) return false;
     const world = worldAtEvent(event, canvas, deps.cameraRef.current);
-    const candidates = deps.viewRef.current.loops.filter(
-        (loop) =>
-            !deps.viewRef.current.hidden.includes(loop.id) &&
-            !loop.bitmapId &&
-            (deps.viewRef.current.selected.length === 0 ||
-                deps.viewRef.current.selected.includes(loop.id)),
+    const view = deps.viewRef.current;
+    const best = findTrimTarget(
+        view.loops,
+        world,
+        8,
+        view.selected,
+        view.hidden,
     );
-    let best: {
-        loopId: string;
-        segmentIndex: number;
-        distance: number;
-    } | null = null;
-    for (const loop of candidates) {
-        const hit = trimNearestSegment(loop.points, world, 8);
-        if (hit && (!best || hit.distance < best.distance))
-            best = {
-                loopId: loop.id,
-                segmentIndex: hit.segmentIndex,
-                distance: hit.distance,
-            };
-    }
     deps.onTrimHover(best);
     canvas.style.cursor = best ? 'crosshair' : '';
     deps.forceTick();

@@ -56,7 +56,6 @@ import type {
     ViewBounds,
     ViewLoop,
 } from './types';
-import { trimNearestSegment } from '../lib/trim';
 import { MM_PER_INCH } from '../lib/units';
 
 /**
@@ -169,6 +168,7 @@ export function CanvasStage({
     const trimHoverRef = useRef<{
         loopId: string;
         segmentIndex: number;
+        removed?: { x: number; y: number }[];
     } | null>(null);
     const trimBrushRef = useRef<{ points: { x: number; y: number }[] } | null>(
         null,

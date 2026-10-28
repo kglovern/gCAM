@@ -117,6 +117,7 @@ export function useDocumentEditingCommands({
     const trim = useTrimCommands<ViewLoop, ToolpathStackEntry>({
         loops,
         selected,
+        hidden,
         newLoopId,
         pushHistory,
         refreshBounds,

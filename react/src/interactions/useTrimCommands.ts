@@ -2,7 +2,7 @@
  * Purpose: React hook that owns the TrimCommands workflow.
  */
 import type { Dispatch, SetStateAction } from 'react';
-import { trimNearestSegment } from '../lib/trim';
+import { findTrimTarget } from '../lib/trim';
 
 interface Point {
     x: number;
@@ -18,6 +18,7 @@ interface TrimLoop {
 interface UseTrimCommandsOptions<TLoop extends TrimLoop, TStack> {
     loops: TLoop[];
     selected: string[];
+    hidden: string[];
     newLoopId(): string;
     pushHistory(): void;
     refreshBounds(loops: TLoop[]): void;
@@ -31,84 +32,82 @@ interface UseTrimCommandsOptions<TLoop extends TrimLoop, TStack> {
 export function useTrimCommands<TLoop extends TrimLoop, TStack>(
     options: UseTrimCommandsOptions<TLoop, TStack>,
 ) {
-    const candidates = () =>
-        options.loops.filter(
-            (loop) =>
-                options.selected.length === 0 ||
-                options.selected.includes(loop.id),
-        );
+    const replace = (
+        loop: TLoop,
+        result: NonNullable<ReturnType<typeof findTrimTarget>>,
+    ) =>
+        [result.before, result.after]
+            .filter((shape) => shape.length >= 2)
+            .map(
+                (shape) =>
+                    ({
+                        ...loop,
+                        id: options.newLoopId(),
+                        points: shape,
+                        sourceType: undefined,
+                        exportGeometry: undefined,
+                        radius: undefined,
+                        sides: undefined,
+                        polygonMode: undefined,
+                        text: undefined,
+                        fontId: undefined,
+                        fontSize: undefined,
+                    }) as TLoop,
+            );
 
     const handleTrimAt = (point: Point) => {
-        const targetLoops = candidates();
-        if (targetLoops.some((loop) => loop.bitmapId)) {
-            options.setStatus('Trim not available for bitmaps.');
-            return;
-        }
-        let hit: {
-            id: string;
-            result: NonNullable<ReturnType<typeof trimNearestSegment>>;
-        } | null = null;
-        for (const loop of targetLoops) {
-            const result = trimNearestSegment(loop.points, point, 8);
-            if (result && (!hit || result.distance < hit.result.distance)) {
-                hit = { id: loop.id, result };
-            }
-        }
+        const hit = findTrimTarget(
+            options.loops,
+            point,
+            8,
+            options.selected,
+            options.hidden,
+        );
         if (!hit) {
-            options.setStatus('Click a vector segment to trim it.');
+            options.setStatus('Click a vector section to trim it.');
             return;
         }
         options.pushHistory();
         options.setLoops((current) => {
             const next = current.flatMap((loop) => {
-                if (loop.id !== hit?.id) return [loop];
-                return [hit.result.before, hit.result.after]
-                    .filter((shape) => shape.length >= 2)
-                    .map(
-                        (shape) =>
-                            ({
-                                ...loop,
-                                id: options.newLoopId(),
-                                points: shape,
-                            }) as TLoop,
-                    );
+                if (loop.id !== hit.loopId) return [loop];
+                return replace(loop, hit);
             });
             options.setSelected(
-                options.selected.filter((id) => id !== hit?.id),
+                options.selected.filter((id) => id !== hit.loopId),
             );
             options.setStack([]);
             options.refreshBounds(next);
             return next;
         });
-        options.setStatus('Trimmed vector segment.');
+        options.setStatus('Trimmed vector section.');
     };
 
     const handleTrimStroke = (points: Point[]) => {
-        const targetLoops = candidates();
-        if (targetLoops.some((loop) => loop.bitmapId)) {
-            options.setStatus('Trim not available for bitmaps.');
-            return;
-        }
         const hits = new Map<
             string,
-            NonNullable<ReturnType<typeof trimNearestSegment>>
+            NonNullable<ReturnType<typeof findTrimTarget>>
         >();
         for (const point of points) {
-            let best: {
-                id: string;
-                result: NonNullable<ReturnType<typeof trimNearestSegment>>;
-            } | null = null;
-            for (const loop of targetLoops) {
-                if (hits.has(loop.id)) continue;
-                const result = trimNearestSegment(loop.points, point, 8);
-                if (
-                    result &&
-                    (!best || result.distance < best.result.distance)
-                ) {
-                    best = { id: loop.id, result };
-                }
-            }
-            if (best) hits.set(best.id, best.result);
+            const targets = options.loops
+                .filter(
+                    (loop) =>
+                        !hits.has(loop.id) &&
+                        !loop.bitmapId &&
+                        !options.hidden.includes(loop.id) &&
+                        (!options.selected.length ||
+                            options.selected.includes(loop.id)),
+                )
+                .map((loop) => loop.id);
+            if (!targets.length) break;
+            const hit = findTrimTarget(
+                options.loops,
+                point,
+                8,
+                targets,
+                options.hidden,
+            );
+            if (hit) hits.set(hit.loopId, hit);
         }
         if (!hits.size) {
             options.setStatus(
@@ -121,16 +120,7 @@ export function useTrimCommands<TLoop extends TrimLoop, TStack>(
             const next = current.flatMap((loop) => {
                 const result = hits.get(loop.id);
                 if (!result) return [loop];
-                return [result.before, result.after]
-                    .filter((shape) => shape.length >= 2)
-                    .map(
-                        (shape) =>
-                            ({
-                                ...loop,
-                                id: options.newLoopId(),
-                                points: shape,
-                            }) as TLoop,
-                    );
+                return replace(loop, result);
             });
             options.setSelected([]);
             options.setStack([]);

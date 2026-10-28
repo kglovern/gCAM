@@ -32,7 +32,11 @@ interface PaintInteractionOverlaysOptions {
     hidden: string[];
     darkMode: boolean;
     camera: Camera;
-    trimHover: { loopId: string; segmentIndex: number } | null;
+    trimHover: {
+        loopId: string;
+        segmentIndex: number;
+        removed?: Point[];
+    } | null;
     cornerTool: 'fillet' | 'dogbone' | null;
     cornerHover: CornerHover | null;
     cornerRadius: number;
@@ -146,16 +150,13 @@ function paintTrimHover({
     const a = loop?.points[trimHover.segmentIndex];
     const b = loop?.points[trimHover.segmentIndex + 1];
     if (!a || !b) return;
-    const start = toScreen(camera, a);
-    const end = toScreen(camera, b);
     ctx.save();
     ctx.strokeStyle = darkMode ? '#fbbf24' : '#dc2626';
     ctx.lineWidth = Math.max(4, 3 * camera.scale);
     ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
-    ctx.stroke();
+    strokePoints(ctx, trimHover.removed ?? [a, b], (x, y) =>
+        toScreen(camera, { x, y }),
+    );
     ctx.restore();
 }
 
