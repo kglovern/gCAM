@@ -5,6 +5,9 @@
  * from the hosted web build and from a local dev server alike. Browsers treat
  * loopback as potentially trustworthy, so an https page may call it (Chrome
  * may show a one-time local network access prompt).
+ *
+ * The desktop app's renderer runs on gcam://app, so it goes through the
+ * main-process bridge (packaging/desktop/gsender.cjs) instead of fetch.
  */
 
 const DEFAULT_TIMEOUT_MS = 4000;
@@ -31,9 +34,30 @@ export type GsenderSendResult =
           message: string;
       };
 
+/** Raw listener reply; status 0 means gSender could not be reached. */
+export type GsenderReply = { status: number; body: unknown };
+
+export interface GsenderBridge {
+    ping(port: number): Promise<GsenderReply>;
+    send(request: {
+        port: number;
+        name: string;
+        gcode: string;
+    }): Promise<GsenderReply>;
+}
+
+type GsenderWindow = Window & { gcamGsender?: GsenderBridge };
+
+function gsenderBridge(): GsenderBridge | null {
+    if (typeof window === 'undefined') return null;
+    return (window as GsenderWindow).gcamGsender ?? null;
+}
+
 interface ClientOptions {
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
+    /** Defaults to the desktop bridge when present, else fetch is used. */
+    bridge?: GsenderBridge | null;
 }
 
 function baseUrl(port: number) {
@@ -44,11 +68,17 @@ async function fetchWithTimeout(
     url: string,
     init: RequestInit,
     { fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }: ClientOptions,
-) {
+): Promise<GsenderReply> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        return await fetchImpl(url, { ...init, signal: controller.signal });
+        const res = await fetchImpl(url, {
+            ...init,
+            signal: controller.signal,
+        });
+        return { status: res.status, body: await res.json().catch(() => null) };
+    } catch {
+        return { status: 0, body: null };
     } finally {
         clearTimeout(timer);
     }
@@ -58,22 +88,32 @@ export async function pingGsender(
     port: number,
     options: ClientOptions = {},
 ): Promise<GsenderStatus> {
+    const bridge =
+        options.bridge === undefined ? gsenderBridge() : options.bridge;
+    let reply: GsenderReply;
     try {
-        const res = await fetchWithTimeout(
-            `${baseUrl(port)}/ping`,
-            { method: 'GET' },
-            options,
-        );
-        if (!res.ok) return { state: 'unreachable' };
-        const body = await res.json();
-        if (body?.app !== 'gSender') return { state: 'unreachable' };
-        const version = String(body.version ?? '');
-        if (body.enabled === false) return { state: 'disabled', version };
-        if (body.busy) return { state: 'busy', version };
-        return { state: 'ready', version };
+        reply = bridge
+            ? await bridge.ping(port)
+            : await fetchWithTimeout(
+                  `${baseUrl(port)}/ping`,
+                  { method: 'GET' },
+                  options,
+              );
     } catch {
         return { state: 'unreachable' };
     }
+    const body = reply.body as {
+        app?: unknown;
+        version?: unknown;
+        enabled?: unknown;
+        busy?: unknown;
+    } | null;
+    const ok = reply.status >= 200 && reply.status < 300;
+    if (!ok || body?.app !== 'gSender') return { state: 'unreachable' };
+    const version = String(body.version ?? '');
+    if (body.enabled === false) return { state: 'disabled', version };
+    if (body.busy) return { state: 'busy', version };
+    return { state: 'ready', version };
 }
 
 const FAILURE_MESSAGES = {
@@ -99,23 +139,29 @@ export async function sendGcodeToGsender(
     gcode: string,
     options: ClientOptions = {},
 ): Promise<GsenderSendResult> {
-    let res: Response;
+    const bridge =
+        options.bridge === undefined ? gsenderBridge() : options.bridge;
+    let reply: GsenderReply;
     try {
-        res = await fetchWithTimeout(
-            `${baseUrl(port)}/load`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, gcode }),
-            },
-            { timeoutMs: SEND_TIMEOUT_MS, ...options },
-        );
+        reply = bridge
+            ? await bridge.send({ port, name, gcode })
+            : await fetchWithTimeout(
+                  `${baseUrl(port)}/load`,
+                  {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name, gcode }),
+                  },
+                  { timeoutMs: SEND_TIMEOUT_MS, ...options },
+              );
     } catch {
         return failure('unreachable');
     }
-    switch (res.status) {
+    switch (reply.status) {
+        case 0:
+            return failure('unreachable');
         case 202: {
-            const body = await res.json().catch(() => ({}));
+            const body = reply.body as { name?: unknown } | null;
             return { ok: true, name: String(body?.name ?? name) };
         }
         case 409:

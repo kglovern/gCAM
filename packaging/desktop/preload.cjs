@@ -1,7 +1,8 @@
 /**
  * Purpose: Exposes the main-process tablet pairing service to the renderer as
  * window.gcamPendant (its presence is how the UI knows it is in the desktop app),
- * and the installed-app update flow as window.gcamUpdates.
+ * the installed-app update flow as window.gcamUpdates, and the loopback
+ * "Send to gSender" transport as window.gcamGsender.
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -28,4 +29,9 @@ contextBridge.exposeInMainWorld('gcamUpdates', {
         ipcRenderer.on('updates:status', listener);
         return () => ipcRenderer.removeListener('updates:status', listener);
     },
+});
+
+contextBridge.exposeInMainWorld('gcamGsender', {
+    ping: (port) => ipcRenderer.invoke('gsender:ping', port),
+    send: (request) => ipcRenderer.invoke('gsender:send', request),
 });
