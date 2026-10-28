@@ -25,6 +25,7 @@ describe('Drawing layers', () => {
         openLayers();
         addLayer('Drilling');
         cy.get('[aria-label="Select layer Cuts"]').click();
+        cy.worldProperties(10, 20);
         cy.get('[aria-label^="Move selected to "]').should('not.exist');
         cy.get('[aria-label="Shape layer"]').should('be.visible');
         cy.snapshot().then((p) => {
@@ -87,6 +88,7 @@ describe('Drawing layers', () => {
         addLayer('Engrave');
         cy.get('[aria-label="Select layer Engrave"]').should('not.exist');
         cy.get('[aria-label="Select layer Cuts"]').click();
+        cy.worldProperties(10, 20);
         cy.snapshot().then((p) => {
             const target = p.layers.find((layer) => layer.name === 'Engrave');
             cy.get('[aria-label="Shape layer"]').select(target.id);
