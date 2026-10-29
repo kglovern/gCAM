@@ -103,7 +103,7 @@ jobs:
     secrets: inherit
   pages:
     name: Publish website
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: [quality, browser, desktop, tablet]
     permissions:
       contents: read
