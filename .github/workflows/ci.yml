@@ -21,13 +21,48 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 jobs:
   policy:
     name: Validate release tag
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
+      - name: Cancel superseded PR and main builds
+        if: github.event_name == 'push'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const isRelease = context.ref.startsWith('refs/tags/');
+            const pulls = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+              owner, repo, commit_sha: context.sha, per_page: 100,
+            });
+            const merged = pulls.filter(pr => pr.merged_at);
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner, repo, workflow_id: 'ci.yml', per_page: 100,
+            });
+            for (const run of runs) {
+              if (run.id === context.runId || run.status === 'completed') continue;
+              // Never cancel a newer run or a release tag.
+              if (run.run_number >= context.runNumber) continue;
+              const mergedPr = run.event === 'pull_request' && merged.some(pr =>
+                run.pull_requests.some(item => item.number === pr.number) ||
+                (run.head_sha === pr.head.sha && run.head_repository?.full_name === pr.head.repo?.full_name));
+              const sameMain = isRelease && run.event === 'push' &&
+                run.head_branch === 'main' && run.head_sha === context.sha;
+              if (!mergedPr && !sameMain) continue;
+              core.info(`Cancelling superseded run ${run.id} (${run.head_branch})`);
+              try {
+                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+              } catch (error) {
+                if (error.status !== 409) throw error;
+                core.info(`Run ${run.id} already finished or is cancelling`);
+              }
+            }
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -68,7 +103,7 @@ jobs:
     secrets: inherit
   pages:
     name: Publish website
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
     needs: [quality, browser, desktop, tablet]
     permissions:
       contents: read
