@@ -129,6 +129,35 @@ export function filletCorner(
     return out;
 }
 
+/** Discard duplicate/straight samples without changing the imported outline. */
+function cleanDogboneCorner(points: CornerPoint[], index: number) {
+    const picked = points[index];
+    if (!picked) return null;
+    const ring = points.filter(
+        (point, i) => !i || len(sub(point, points[i - 1])) > 1e-8,
+    );
+    const closed =
+        ring.length > 1 && len(sub(ring[0], ring[ring.length - 1])) < 1e-8;
+    if (closed) ring.pop();
+    const clean = ring.filter((point, i) => {
+        if (!closed && (i === 0 || i === ring.length - 1)) return true;
+        const a = sub(point, ring[(i + ring.length - 1) % ring.length]);
+        const b = sub(ring[(i + 1) % ring.length], point);
+        return (
+            Math.abs(a.x * b.y - a.y * b.x) > 1e-8 * len(a) * len(b) ||
+            a.x * b.x + a.y * b.y < 0
+        );
+    });
+    const cornerIndex = clean.findIndex(
+        (point) => len(sub(point, picked)) < 1e-8,
+    );
+    if (cornerIndex < 0 || clean.length < 3) return null;
+    return {
+        points: closed ? [...clean, { ...clean[0] }] : clean,
+        cornerIndex,
+    };
+}
+
 /** Build the dogbone relief circle for one hovered corner. */
 export function dogboneCorner(
     points: CornerPoint[],
@@ -136,6 +165,11 @@ export function dogboneCorner(
     toolRadius: number,
     segments = 24,
 ): CornerPoint[] | null {
+    const cleaned = cleanDogboneCorner(points, cornerIndex);
+    if (!cleaned) return null;
+    points = cleaned.points;
+    cornerIndex = cleaned.cornerIndex;
+
     if (points.length < 3 || !(toolRadius > 0)) return null;
     const closed = isClosed(points);
     const ring = closed ? points.slice(0, -1) : points.slice();
@@ -163,6 +197,63 @@ export function dogboneCorner(
             y: center.y + Math.sin(angle) * radius,
         };
     });
+}
+
+/** Replace a picked corner with the exposed arc of its existing relief circle. */
+export function dogboneReliefCorner(
+    points: CornerPoint[],
+    cornerIndex: number,
+    toolRadius: number,
+): CornerPoint[] | null {
+    const cleaned = cleanDogboneCorner(points, cornerIndex);
+    if (!cleaned) return null;
+    points = cleaned.points;
+    cornerIndex = cleaned.cornerIndex;
+
+    const circle = dogboneCorner(points, cornerIndex, toolRadius);
+    if (!circle) return null;
+    const closed = isClosed(points);
+    const ring = closed ? points.slice(0, -1) : points.slice();
+    const index = Math.trunc(cornerIndex);
+    const corner = ring[index];
+    const previous = ring[(index - 1 + ring.length) % ring.length];
+    const next = ring[(index + 1) % ring.length];
+    const u = norm(sub(previous, corner)),
+        v = norm(sub(next, corner));
+    if (Math.abs(u.x * v.y - u.y * v.x) < 1e-6) return null;
+    const center = mul(add(circle[0], circle[(circle.length - 1) / 2]), 0.5);
+    const radius = len(sub(circle[0], center));
+    const offset = sub(center, corner);
+    // The circle passes through the corner; these are its other edge crossings.
+    const a = add(corner, mul(u, 2 * (offset.x * u.x + offset.y * u.y)));
+    const b = add(corner, mul(v, 2 * (offset.x * v.x + offset.y * v.y)));
+    const start = Math.atan2(a.y - center.y, a.x - center.x);
+    const end = Math.atan2(b.y - center.y, b.x - center.x);
+    const through = Math.atan2(corner.y - center.y, corner.x - center.x);
+    const turn = Math.PI * 2;
+    const positive = (angle: number) => ((angle % turn) + turn) % turn;
+    const ccw = positive(end - start);
+    const sweep = positive(through - start) <= ccw + 1e-9 ? ccw : ccw - turn;
+    const count = Math.max(
+        12,
+        Math.ceil(
+            Math.abs(sweep) / (2 * Math.acos(1 - Math.min(0.01 / radius, 1))),
+        ),
+    );
+    const arc = Array.from({ length: count + 1 }, (_, i) => {
+        const angle = start + (sweep * i) / count;
+        return {
+            x: center.x + radius * Math.cos(angle),
+            y: center.y + radius * Math.sin(angle),
+        };
+    });
+    arc[0] = a;
+    arc[count] = b;
+    const result = ring.flatMap((point, i) =>
+        i === index ? arc : [{ ...point }],
+    );
+    if (closed) result.push({ ...result[0] });
+    return result;
 }
 
 /**

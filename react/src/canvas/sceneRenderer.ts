@@ -351,8 +351,8 @@ function drawGrid(
     const top = cam.ty - stockBounds.maxY * cam.scale;
     const bottom = cam.ty - stockBounds.minY * cam.scale;
     const step = Math.max(4, grid.spacingMm * cam.scale);
-    const firstX = left + ((step - (left % step)) % step);
-    const firstY = top + ((step - (top % step)) % step);
+    const firstX = cam.tx + Math.ceil((left - cam.tx) / step) * step;
+    const firstY = cam.ty + Math.ceil((top - cam.ty) / step) * step;
     ctx.save();
     ctx.beginPath();
     ctx.rect(left, top, right - left, bottom - top);

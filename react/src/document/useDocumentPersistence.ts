@@ -69,6 +69,9 @@ export function useDocumentPersistence({
                 if (
                     !recovery.snapshot.loops.length &&
                     !recovery.snapshot.stack.length &&
+                    !recovery.snapshot.guides.length &&
+                    !recovery.snapshot.bitmaps.length &&
+                    recovery.snapshot.stock?.origin !== 'center' &&
                     !hasLayerContent(recovery.snapshot.layers)
                 ) {
                     return;

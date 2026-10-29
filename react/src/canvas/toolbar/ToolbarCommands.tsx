@@ -2,12 +2,9 @@
  * Purpose: Implementation module for ToolbarCommands in the canvas domain.
  */
 import {
-    ArrowLeftRight,
-    ArrowUpRight,
     Circle,
     Copy,
     Hexagon,
-    Minus,
     MousePointer2,
     Move,
     PenTool,
@@ -16,17 +13,18 @@ import {
     Scissors,
     ScanLine,
     Spline,
-    Square,
     Trash2,
     Type,
     Undo2,
 } from 'lucide-react';
 import cx from 'classnames';
+import { CanvasToolIcon } from './CanvasToolIcon';
 import type { ReactNode } from 'react';
 import type { DrawTool } from '../../draw/geometry';
 import {
     ToolbarMenu,
     ToolbarMenuItem,
+    ToolbarMenuSeparator,
     ToolbarSeparator,
 } from './ToolbarControls';
 import {
@@ -43,15 +41,43 @@ const drawTools: {
     label: string;
     icon: ReactNode;
 }[] = [
-    { value: 'line', label: 'Line', icon: <ArrowLeftRight size={16} /> },
-    { value: 'rectangle', label: 'Rectangle', icon: <Square size={16} /> },
-    { value: 'polygon', label: 'Polygon', icon: <Hexagon size={16} /> },
-    { value: 'circle', label: 'Circle', icon: <Circle size={16} /> },
-    { value: 'arc', label: 'Arc', icon: <ArrowUpRight size={16} /> },
-    { value: 'bezier', label: 'Bezier', icon: <Spline size={16} /> },
-    { value: 'polyline', label: 'Polyline', icon: <Minus size={16} /> },
-    { value: 'text', label: 'Text', icon: <Type size={16} /> },
-    { value: 'mandala', label: 'Mandala', icon: <Circle size={16} /> },
+    { value: 'line', label: 'Line', icon: <CanvasToolIcon tool="line" /> },
+    {
+        value: 'rectangle',
+        label: 'Rectangle',
+        icon: <CanvasToolIcon tool="rectangle" />,
+    },
+    {
+        value: 'rounded-rectangle',
+        label: 'Rounded Rectangle',
+        icon: <CanvasToolIcon tool="rounded-rectangle" />,
+    },
+    { value: 'polygon', label: 'Polygon', icon: <Hexagon size={18} /> },
+    { value: 'circle', label: 'Circle', icon: <Circle size={18} /> },
+    { value: 'arc', label: 'Arc', icon: <CanvasToolIcon tool="arc" /> },
+    { value: 'bezier', label: 'Bezier', icon: <Spline size={18} /> },
+    {
+        value: 'polyline',
+        label: 'Polyline',
+        icon: <CanvasToolIcon tool="polyline" />,
+    },
+    { value: 'text', label: 'Text', icon: <Type size={18} /> },
+    { value: 'slot', label: 'Slot', icon: <CanvasToolIcon tool="slot" /> },
+    {
+        value: 'ellipse',
+        label: 'Ellipse',
+        icon: <CanvasToolIcon tool="ellipse" />,
+    },
+    {
+        value: 'clock',
+        label: 'Clock Face',
+        icon: <CanvasToolIcon tool="clock" />,
+    },
+    {
+        value: 'mandala',
+        label: 'Mandala',
+        icon: <CanvasToolIcon tool="mandala" />,
+    },
 ];
 
 interface ToolbarCommandsProps {
@@ -68,6 +94,14 @@ export function ToolbarCommands({
     group = 'all',
 }: ToolbarCommandsProps) {
     const primary = group !== 'secondary';
+    const selectActive =
+        props.activeTool === 'select' &&
+        !props.drawTool &&
+        !props.cornerTool &&
+        !props.guidePlacement &&
+        !props.transformMode &&
+        !open;
+
     const secondary = group !== 'primary';
     const labeledButton =
         group === 'secondary'
@@ -87,21 +121,14 @@ export function ToolbarCommands({
                     <button
                         title="Select (V): drag right to enclose, left to cross. Touch: one finger selects; two fingers pan and pinch to zoom."
                         aria-label="Select shapes"
-                        aria-pressed={
-                            props.activeTool === 'select' &&
-                            !props.transformMode &&
-                            !open
-                        }
+                        aria-pressed={selectActive}
                         onClick={() => {
                             props.onSelectMode();
                             close();
                         }}
                         className={cx(
                             labeledButton,
-                            props.activeTool === 'select' &&
-                                !props.transformMode &&
-                                !open &&
-                                toolbarButtonActive,
+                            selectActive && toolbarButtonActive,
                         )}
                     >
                         <MousePointer2 size={18} />
@@ -143,27 +170,64 @@ export function ToolbarCommands({
                 </>
             )}
             {primary && (
-                <ToolbarMenu label="Draw" icon={<PenTool size={18} />} wide>
-                    {drawTools.map((tool) => (
-                        <ToolbarMenuItem
-                            key={tool.value}
-                            label={tool.label}
-                            icon={tool.icon}
-                            active={props.drawTool === tool.value}
-                            onClick={() => {
-                                props.onDrawTool(tool.value);
-                                close();
-                            }}
-                        />
-                    ))}
+                <ToolbarMenu
+                    label="Draw"
+                    active={Boolean(props.drawTool || props.guidePlacement)}
+                    icon={
+                        props.guidePlacement ? (
+                            <Ruler size={18} />
+                        ) : (
+                            (drawTools.find(
+                                (tool) => tool.value === props.drawTool,
+                            )?.icon ?? <PenTool size={18} />)
+                        )
+                    }
+                    wide
+                >
+                    {drawTools
+                        .filter(
+                            (tool) =>
+                                tool.value !== 'clock' &&
+                                tool.value !== 'mandala',
+                        )
+                        .map((tool) => (
+                            <ToolbarMenuItem
+                                key={tool.value}
+                                label={tool.label}
+                                icon={tool.icon}
+                                active={props.drawTool === tool.value}
+                                onClick={() => {
+                                    props.onDrawTool(tool.value);
+                                    close();
+                                }}
+                            />
+                        ))}
                     <ToolbarMenuItem
                         label="Guide"
-                        icon={<Ruler size={16} />}
+                        icon={<Ruler size={18} />}
                         onClick={() => {
                             props.onAddGuide();
                             close();
                         }}
                     />
+                    <ToolbarMenuSeparator />
+                    {drawTools
+                        .filter(
+                            (tool) =>
+                                tool.value === 'clock' ||
+                                tool.value === 'mandala',
+                        )
+                        .map((tool) => (
+                            <ToolbarMenuItem
+                                key={tool.value}
+                                label={`${tool.label}…`}
+                                icon={tool.icon}
+                                onClick={() => {
+                                    props.onDrawTool(tool.value);
+                                    close();
+                                }}
+                            />
+                        ))}
                 </ToolbarMenu>
             )}
             {secondary && (

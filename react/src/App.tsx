@@ -1,3 +1,4 @@
+import { GeneratorModal } from './draw/GeneratorModal';
 import { MandalaModal } from './draw/MandalaModal';
 import { useVisualViewportHeight } from './hooks/useVisualViewportHeight';
 /**
@@ -62,6 +63,7 @@ export default function App() {
         x: number;
         y: number;
     } | null>(null);
+    const [generator, setGenerator] = useState<'clock' | null>(null);
     const drawing = useDrawingWorkspaceState();
     const transforms = useTransformWorkspaceState();
     const arrange = useArrangeWorkspaceState();
@@ -171,14 +173,14 @@ export default function App() {
     const formatLength = (valueMm: number, decimals = 2) =>
         formatLengthValue(valueMm, units, decimals);
     const [status, setStatus] = useState(IMPORT_START_STATUS);
+    const defaultStock = {
+        ...DEFAULT_JOB_STOCK,
+        widthMm: machineTravelLimits.maxXTravelMm ?? DEFAULT_JOB_STOCK.widthMm,
+        heightMm:
+            machineTravelLimits.maxYTravelMm ?? DEFAULT_JOB_STOCK.heightMm,
+    };
     const document = useDocumentWorkspace({
-        initialStock: {
-            ...DEFAULT_JOB_STOCK,
-            widthMm:
-                machineTravelLimits.maxXTravelMm ?? DEFAULT_JOB_STOCK.widthMm,
-            heightMm:
-                machineTravelLimits.maxYTravelMm ?? DEFAULT_JOB_STOCK.heightMm,
-        },
+        initialStock: defaultStock,
         setStatus,
         setDraftPreview,
         setBitmapImportChoice,
@@ -435,6 +437,7 @@ export default function App() {
         canUngroup,
         handleNewCanvas,
     } = useDocumentEditingCommands({
+        defaultStock,
         document,
         drawing,
         transforms,
@@ -497,8 +500,14 @@ export default function App() {
         nudgeStep: units === 'imperial' ? 0.254 : 1,
         nudgeSelected: (dx, dy) =>
             handleTransformCommit({ type: 'move', dx, dy }, true),
-        setActiveTool: () => setActiveTool('select'),
-        clearTransform: () => setTransformMode(null),
+        setActiveTool: () => {
+            setActiveTool('select');
+            setDrawTool(null);
+        },
+        clearTransform: () => {
+            setTransformMode(null);
+            setCornerTool(null);
+        },
         clearGuidePlacement: () => {
             setGuidePlacement(null);
             drawing.setGuideDraft(null);
@@ -514,7 +523,7 @@ export default function App() {
             sideTab === 'rotary' ? () => {} : handleDuplicateSelected,
     });
 
-    const toolbarProps = createToolbarProps({
+    const baseToolbarProps = createToolbarProps({
         units,
         drawing,
         transforms,
@@ -570,6 +579,35 @@ export default function App() {
         },
     });
 
+    const toolbarProps = {
+        ...baseToolbarProps,
+        onDrawTool: (
+            tool: Parameters<typeof baseToolbarProps.onDrawTool>[0],
+        ) => {
+            if (tool === 'clock') {
+                arrange.setCornerTool(null);
+                setGuidePlacement(null);
+                setTransformMode(null);
+                setDrawTool(null);
+                setActiveTool('select');
+                setGenerator(tool);
+            } else {
+                baseToolbarProps.onDrawTool(tool);
+                if (tool === 'slot')
+                    setStatus(
+                        'Slot: pick the first end centre, second end centre, then width.',
+                    );
+                if (tool === 'ellipse')
+                    setStatus(
+                        'Ellipse: pick the centre, then set width and height.',
+                    );
+                if (tool === 'rounded-rectangle')
+                    setStatus(
+                        'Rounded rectangle: pick opposite corners; set the radius on the drawing.',
+                    );
+            }
+        },
+    };
     const inspector = buildInspector(units);
     const toolpathRailProps = {
         outputSettings,
@@ -763,7 +801,11 @@ export default function App() {
             onTrimAt: handleTrimAt,
             onTrimStroke: handleTrimStroke,
             onCommitText: (at) => setTextAnchor(snapToGuides(at, guides)),
-            onCommitMandala: (at) => setMandalaAnchor(snapToGuides(at, guides)),
+            onCommitMandala: (at) => {
+                setDrawTool(null);
+                setActiveTool('select');
+                setMandalaAnchor(snapToGuides(at, guides));
+            },
             onTransformCommit: handleTransformCommit,
             onFilletCorner: handleCorner,
             onAdjustStock: () => {
@@ -824,6 +866,27 @@ export default function App() {
 
     return (
         <ErrorBoundary>
+            {generator && (
+                <GeneratorModal
+                    kind={generator}
+                    units={units}
+                    onClose={() => setGenerator(null)}
+                    onAdd={(raw) => {
+                        document.pushHistory();
+                        const groupId = document.newLoopId();
+                        const added = document.withIds(raw).map((loop) => ({
+                            ...loop,
+                            ...(generator === 'clock' ? { groupId } : {}),
+                        }));
+                        const next = [...loops, ...added];
+                        setLoops(next);
+                        setSelected(added.map((loop) => loop.id));
+                        document.refreshBounds(next);
+                        setViewportCommand({ type: 'fit', token: Date.now() });
+                        setGenerator(null);
+                    }}
+                />
+            )}
             {mandalaAnchor && (
                 <MandalaModal
                     units={units}
@@ -951,30 +1014,6 @@ export default function App() {
                     surfaceUnitImportChoice={surfaceUnitImportChoice}
                     resolveSurfaceModelUnits={resolveSurfaceModelUnits}
                     cancelSurfaceModelUnits={cancelSurfaceModelUnits}
-                    onImportRotaryModel={async (file, modelUnits) => {
-                        cancelSurfaceModelUnits();
-                        try {
-                            await rotary.importStlFile(
-                                file,
-                                'auto',
-                                true,
-                                modelUnits === 'inch' ? 25.4 : 1,
-                            );
-                            setSimulationSource('rotary');
-                            setSideTab('rotary');
-                        } catch (error) {
-                            setStatus(
-                                error instanceof Error
-                                    ? error.message
-                                    : 'Could not import this STL.',
-                            );
-                            showToast(
-                                error instanceof Error
-                                    ? error.message
-                                    : 'Could not import this STL.',
-                            );
-                        }
-                    }}
                 />
             </div>
         </ErrorBoundary>

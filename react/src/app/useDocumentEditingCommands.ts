@@ -17,12 +17,14 @@ import { useDrawingWorkspaceState } from './useDrawingWorkspaceState';
 import { useTransformWorkspaceState } from './useTransformWorkspaceState';
 import type { OutputSettings } from '../gcode/profiles';
 import type { UnitSystem } from '../lib/units';
+import type { JobStock } from '../job/stock';
 
 type DocumentState = ReturnType<typeof useDocumentWorkspace>;
 type DrawingState = ReturnType<typeof useDrawingWorkspaceState>;
 type TransformState = ReturnType<typeof useTransformWorkspaceState>;
 
 interface Options {
+    defaultStock?: JobStock;
     outputSettings?: OutputSettings;
     outputUnits?: UnitSystem;
     onLoadOutputUnits?: (units: UnitSystem) => void;
@@ -48,6 +50,7 @@ interface Options {
 
 /** Cohesive document-edit command wiring; state remains owned by its domains. */
 export function useDocumentEditingCommands({
+    defaultStock,
     outputUnits,
     onLoadOutputUnits,
     outputSettings,
@@ -180,12 +183,15 @@ export function useDocumentEditingCommands({
         PlacedBitmapRecord,
         Guide
     >({
+        defaultStock,
+        setStock,
         layers: document.layers,
         setLayers: document.setLayers,
         setActiveLayerId: document.setActiveLayerId,
         loops,
         stack,
         bitmaps,
+        guides,
         pushHistory,
         setEmptyStateDismissed,
         setSelected,

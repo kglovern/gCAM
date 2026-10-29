@@ -87,3 +87,29 @@ test('Transform can be armed before selecting geometry', () => {
     fireEvent.click(button);
     expect(modes).toEqual(['transform']);
 });
+
+test.each([
+    { drawTool: 'slot', cornerTool: null, guidePlacement: null },
+    { drawTool: null, cornerTool: 'dogbone', guidePlacement: null },
+    { drawTool: null, cornerTool: null, guidePlacement: 'edge' },
+])(
+    'Select is not highlighted while another canvas tool is active: %j',
+    (mode) => {
+        const props = {
+            activeTool: 'select',
+            transformMode: null,
+            ...mode,
+        } as unknown as CanvasToolbarProps;
+        render(<ToolbarCommands props={props} open={null} close={() => {}} />);
+        expect(
+            screen.getByRole('button', { name: 'Select shapes' }),
+        ).toHaveAttribute('aria-pressed', 'false');
+        expect(
+            screen.getByRole('button', { name: 'Select shapes' }),
+        ).not.toHaveClass('bg-robin-500');
+        expect(screen.getByRole('button', { name: 'Draw' })).toHaveAttribute(
+            'aria-pressed',
+            String(Boolean(mode.drawTool || mode.guidePlacement)),
+        );
+    },
+);

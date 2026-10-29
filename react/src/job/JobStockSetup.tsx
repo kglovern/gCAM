@@ -82,6 +82,22 @@ export function JobStockSetup({
                 ))}
             </div>
             <label className="block text-xs text-slate-600 dark:text-slate-300">
+                Origin
+                <select
+                    aria-label="Stock origin"
+                    className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-robin-900 dark:bg-dark dark:text-white"
+                    value={stock.origin ?? 'front-left'}
+                    onChange={(event) =>
+                        update({
+                            origin: event.target.value as JobStock['origin'],
+                        })
+                    }
+                >
+                    <option value="front-left">Front Left</option>
+                    <option value="center">Center</option>
+                </select>
+            </label>
+            <label className="block text-xs text-slate-600 dark:text-slate-300">
                 Material
                 <select
                     aria-label="Stock material"

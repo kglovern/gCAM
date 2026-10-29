@@ -187,7 +187,7 @@ export class MeshStockSimulator {
         const sourceToolpaths = previewWorkerToolpaths(
             toolpaths,
         ) as PreviewToolpath[];
-        // Stock is machine-space: its lower-left is always G-code X0 Y0.
+        // Stock and toolpaths share the configured work-origin coordinate frame.
         // Never translate an imported drawing merely to make it fit the board;
         // the preview must expose an out-of-stock programmed move.
         this.previewToolpaths = sourceToolpaths;

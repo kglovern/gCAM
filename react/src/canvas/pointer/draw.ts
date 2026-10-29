@@ -19,7 +19,14 @@ import type {
     Point,
 } from './types';
 
-const CLICK_TO_DRAW = new Set(['line', 'rectangle', 'polygon', 'circle']);
+const CLICK_TO_DRAW = new Set([
+    'line',
+    'rectangle',
+    'rounded-rectangle',
+    'ellipse',
+    'polygon',
+    'circle',
+]);
 const CHAIN_TO_DRAW = new Set(['arc', 'bezier', 'polyline']);
 
 function snapped(
@@ -101,11 +108,37 @@ export function updateDrawDraft(
         const point = snapped(event, deps, anchor);
         if (point && anchor)
             deps.draftRef.current = {
+                ...deps.draftRef.current,
                 ax: anchor.x,
                 ay: anchor.y,
                 bx: point.x,
                 by: point.y,
             };
+        deps.forceTick();
+        return true;
+    }
+    if (tool === 'slot' && deps.clicksRef.current.length) {
+        const start = deps.clicksRef.current[0];
+        const point = snapped(event, deps, start);
+        if (!point) return true;
+        const end = deps.clicksRef.current[1] ?? point;
+        const length = Math.hypot(end.x - start.x, end.y - start.y);
+        const width =
+            deps.clicksRef.current.length === 2 && length > 0
+                ? (2 *
+                      Math.abs(
+                          (end.x - start.x) * (point.y - start.y) -
+                              (end.y - start.y) * (point.x - start.x),
+                      )) /
+                  length
+                : (deps.draftRef.current?.slotWidth ?? 10);
+        deps.draftRef.current = {
+            ax: start.x,
+            ay: start.y,
+            bx: end.x,
+            by: end.y,
+            slotWidth: width,
+        };
         deps.forceTick();
         return true;
     }
@@ -118,6 +151,7 @@ export function updateDrawDraft(
     const start = snappedScreenPoint(down, deps);
     const end = snapped(event, deps, start);
     deps.draftRef.current = {
+        ...deps.draftRef.current,
         ax: start?.x ?? (down.x - rect.left - camera.tx) / camera.scale,
         ay: start?.y ?? (camera.ty - (down.y - rect.top)) / camera.scale,
         bx: end?.x ?? (event.clientX - rect.left - camera.tx) / camera.scale,
@@ -190,6 +224,46 @@ export function finishDraw(
         deps.forceTick();
         return true;
     }
+    if (tool === 'slot') {
+        const point = snapped(event, deps, deps.clicksRef.current[0]);
+        if (!point) return true;
+        const clicks = deps.clicksRef.current;
+        if (!clicks.length) {
+            deps.clicksRef.current = [point];
+            deps.pendingAnchorRef.current = point;
+            deps.draftRef.current = {
+                ax: point.x,
+                ay: point.y,
+                bx: point.x,
+                by: point.y,
+                slotWidth: 10,
+            };
+        } else if (clicks.length === 1) {
+            if (
+                Math.hypot(point.x - clicks[0].x, point.y - clicks[0].y) >= 0.01
+            ) {
+                deps.clicksRef.current = [clicks[0], point];
+                deps.draftRef.current = {
+                    ax: clicks[0].x,
+                    ay: clicks[0].y,
+                    bx: point.x,
+                    by: point.y,
+                    slotWidth: deps.draftRef.current?.slotWidth ?? 10,
+                };
+            }
+        } else {
+            updateDrawDraft(event, deps);
+            const points = draftPoints(tool, deps.draftRef.current);
+            if (points) {
+                deps.onCommitLoop(points, { sourceType: 'slot' });
+                deps.clicksRef.current = [];
+                deps.pendingAnchorRef.current = null;
+                deps.draftRef.current = null;
+            }
+        }
+        deps.forceTick();
+        return true;
+    }
     if (!CLICK_TO_DRAW.has(tool)) return false;
     if (dragged) {
         const start = snappedScreenPoint(down, deps);
@@ -198,7 +272,13 @@ export function finishDraw(
         const view = deps.viewRef.current;
         const points = draftPoints(
             tool,
-            { ax: start.x, ay: start.y, bx: end.x, by: end.y },
+            {
+                ...deps.draftRef.current,
+                ax: start.x,
+                ay: start.y,
+                bx: end.x,
+                by: end.y,
+            },
             view.drawSides,
             null,
             view.polygonMode,
@@ -239,7 +319,13 @@ export function finishDraw(
             const view = deps.viewRef.current;
             const points = draftPoints(
                 tool,
-                { ax: anchor.x, ay: anchor.y, bx: point.x, by: point.y },
+                {
+                    ...deps.draftRef.current,
+                    ax: anchor.x,
+                    ay: anchor.y,
+                    bx: point.x,
+                    by: point.y,
+                },
                 view.drawSides,
                 null,
                 view.polygonMode,

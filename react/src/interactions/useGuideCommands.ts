@@ -29,7 +29,6 @@ export function useGuideCommands(options: UseGuideCommandsOptions) {
             ...current,
             { id: createDocumentId('guide'), ...placement },
         ]);
-        options.setGuidePlacement(null);
         options.setGuideDraft(null);
         options.setStatus('Parallel guide added.');
     };

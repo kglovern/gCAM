@@ -26,6 +26,8 @@ export interface CanvasToolbarProps {
     activeTool: 'select' | 'draw' | 'trim';
     onSelectMode: () => void;
     drawTool: DrawTool;
+    cornerTool?: 'fillet' | 'chamfer' | 'dogbone' | null;
+    guidePlacement?: 'edge' | null;
     onDrawTool: (t: NonNullable<DrawTool>) => void;
     transformMode: TransformMode | null;
     onTransformMode: (m: TransformMode | null) => void;

@@ -73,6 +73,9 @@ export function useProjectFileCommands<
         if (
             !options.loops.length &&
             !options.stack.length &&
+            !options.guides.length &&
+            !options.bitmaps.length &&
+            options.stock.origin !== 'center' &&
             !options.rotaryProject &&
             !hasLayerContent(options.layers)
         ) {

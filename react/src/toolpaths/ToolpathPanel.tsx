@@ -1,3 +1,4 @@
+import { jobStockBounds } from '../job/stock';
 /**
  * Purpose: Implementation module for ToolpathPanel in the react domain.
  */
@@ -335,6 +336,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     }, [
         selectedSurfaceBitmap,
         stock.thicknessMm,
+        stock.origin,
         stock.widthMm,
         stock.heightMm,
     ]);
@@ -487,6 +489,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         surfaceBoundaryMode,
         selectedSurfaceBitmap,
         safeZ,
+        stock.origin,
         stock.widthMm,
         stock.heightMm,
         stock.thicknessMm,
@@ -696,12 +699,14 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             }
             const cutterRadius = activeSlot.cuttingDiameterMm! / 2;
             if (
-                mesh.bounds.minX - cutterRadius - surfaceBoundary < 0 ||
-                mesh.bounds.minY - cutterRadius - surfaceBoundary < 0 ||
+                mesh.bounds.minX - cutterRadius - surfaceBoundary <
+                    jobStockBounds(stock).minX ||
+                mesh.bounds.minY - cutterRadius - surfaceBoundary <
+                    jobStockBounds(stock).minY ||
                 mesh.bounds.maxX + cutterRadius + surfaceBoundary >
-                    stock.widthMm ||
+                    jobStockBounds(stock).maxX ||
                 mesh.bounds.maxY + cutterRadius + surfaceBoundary >
-                    stock.heightMm
+                    jobStockBounds(stock).maxY
             ) {
                 setStatus(
                     `The 3D model, cutter, and boundary overrun (${surfaceBoundary} mm) do not fit inside the job stock with safe edge clearance. Reduce the boundary, move or resize the model, or use larger stock.`,
@@ -764,6 +769,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                         widthMm: stock.widthMm,
                         heightMm: stock.heightMm,
                         thicknessMm: stock.thicknessMm,
+                        origin: stock.origin,
                     },
                     resolutionMm: surfaceResolution,
                 },

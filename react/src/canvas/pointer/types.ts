@@ -1,3 +1,4 @@
+import type { Draft } from '../../draw/geometry';
 import type { CornerIntersection } from '../../lib/cornerIntersections';
 /**
  * Purpose: Implementation module for types in the canvas domain.
@@ -64,7 +65,7 @@ export type CanvasPointerControllerProps = {
     clicksRef: { current: Point[] };
     cursorRef: { current: Point | null };
     draftRef: {
-        current: { ax: number; ay: number; bx: number; by: number } | null;
+        current: Draft | null;
     };
     downRef: { current: Point | null };
     panRef: { current: Point | null };

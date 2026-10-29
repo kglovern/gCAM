@@ -13,7 +13,7 @@ import cx from 'classnames';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useInlineToolbar } from './ToolbarOverflow';
 
-import { toolbarButtonBase } from './styles';
+import { toolbarButtonBase, toolbarButtonActive } from './styles';
 
 export function ToolbarSeparator() {
     return (
@@ -39,12 +39,14 @@ export function ToolbarMenu({
     children,
     iconOnly,
     wide,
+    active,
 }: {
     label: string;
     icon?: ReactNode;
     children: ReactNode;
     iconOnly?: boolean;
     wide?: boolean;
+    active?: boolean;
 }) {
     const inline = useInlineToolbar();
     const [position, setPosition] = useState({
@@ -120,9 +122,11 @@ export function ToolbarMenu({
                 aria-label={label}
                 title={label}
                 aria-expanded={open}
+                aria-pressed={active}
                 onClick={() => setOpen((value) => !value)}
                 className={cx(
                     toolbarButtonBase,
+                    active && toolbarButtonActive,
                     inline
                         ? 'h-11 w-full justify-start gap-2 px-3 text-sm'
                         : [

@@ -1,3 +1,4 @@
+import { basicShapeLoops } from './generators';
 /**
  * Purpose: Implementation module for geometry in the draw domain.
  */
@@ -11,6 +12,10 @@ export type DrawTool =
     | 'polyline'
     | 'text'
     | 'mandala'
+    | 'slot'
+    | 'ellipse'
+    | 'rounded-rectangle'
+    | 'clock'
     | null;
 
 export interface Draft {
@@ -18,6 +23,8 @@ export interface Draft {
     ay: number;
     bx: number;
     by: number;
+    slotWidth?: number;
+    cornerRadius?: number;
 }
 
 export interface DraftPoint {
@@ -101,6 +108,32 @@ export function draftPoints(
             { x: ax, y: ay },
             { x: bx, y: by },
         ];
+    if (tool === 'slot' || tool === 'ellipse' || tool === 'rounded-rectangle') {
+        const width =
+            tool === 'slot'
+                ? (draft.slotWidth ?? 10)
+                : Math.abs(bx - ax) * (tool === 'ellipse' ? 2 : 1);
+        const height = Math.abs(by - ay) * (tool === 'ellipse' ? 2 : 1);
+        try {
+            return basicShapeLoops(tool, {
+                x: tool === 'rounded-rectangle' ? (ax + bx) / 2 : ax,
+                y: tool === 'rounded-rectangle' ? (ay + by) / 2 : ay,
+                endX: bx,
+                endY: by,
+                width,
+                height,
+                radius: Math.min(
+                    draft.cornerRadius ?? 5,
+                    width / 2,
+                    height / 2,
+                ),
+                diameter: 0,
+                font: '',
+            })[0].points;
+        } catch {
+            return null;
+        }
+    }
     if (tool === 'rectangle') {
         const x0 = Math.min(ax, bx);
         const x1 = Math.max(ax, bx);

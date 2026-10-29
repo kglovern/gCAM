@@ -9,14 +9,18 @@ import {
 } from '../layers/model';
 import type { Dispatch, SetStateAction } from 'react';
 import { IMPORT_START_STATUS } from '../lib/import';
+import { DEFAULT_JOB_STOCK, type JobStock } from '../job/stock';
 
 interface UseNewCanvasCommandOptions<TLoop, TStack, TBitmap, TGuide> {
+    defaultStock?: JobStock;
+    setStock: Dispatch<SetStateAction<JobStock>>;
     setLayers?: Dispatch<SetStateAction<DrawingLayer[]>>;
     setActiveLayerId?: Dispatch<SetStateAction<string>>;
     layers?: DrawingLayer[];
     loops: TLoop[];
     stack: TStack[];
     bitmaps: TBitmap[];
+    guides: TGuide[];
     pushHistory(): void;
     setEmptyStateDismissed: Dispatch<SetStateAction<boolean>>;
     setSelected: Dispatch<SetStateAction<string[]>>;
@@ -52,6 +56,7 @@ export function useNewCanvasCommand<TLoop, TStack, TBitmap, TGuide>(
             options.loops.length > 0 ||
             options.stack.length > 0 ||
             options.bitmaps.length > 0 ||
+            options.guides.length > 0 ||
             hasLayerContent(options.layers);
         if (
             hasWork &&
@@ -70,6 +75,7 @@ export function useNewCanvasCommand<TLoop, TStack, TBitmap, TGuide>(
         options.setBitmaps([]);
         options.setStack([]);
         options.setGuides([]);
+        options.setStock({ ...(options.defaultStock ?? DEFAULT_JOB_STOCK) });
         options.setTabMode(false);
         options.setEditingId(null);
         options.setDraftPreview([]);

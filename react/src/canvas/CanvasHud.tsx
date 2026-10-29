@@ -19,6 +19,7 @@ export type DraftDimensionField =
     | 'radius'
     | 'length'
     | 'angle'
+    | 'cornerRadius'
     | 'bulge'
     | 'sweep';
 export type DraftDimension = {
@@ -94,7 +95,7 @@ export function CanvasHud({
             >
                 {loopCount
                     ? `${loopCount} shape${loopCount === 1 ? '' : 's'}`
-                    : 'Drop DXF/SVG, STL/OBJ, or an image here — or use File > Import File'}
+                    : 'Drop DXF/SVG, STL/OBJ, or an image here — or use File > Open File'}
             </div>
             <CursorReadout
                 cursorRef={cursorRef}
@@ -169,8 +170,8 @@ export function CanvasHud({
                     aria-label="Shape dimensions"
                     className={`absolute z-20 flex items-center gap-1 rounded border px-1.5 py-1 text-[11px] shadow ${darkMode ? 'border-orange-400 bg-dark text-slate-100' : 'border-orange-500 bg-white text-slate-700'}`}
                     style={{
-                        left: draftDimension.x,
-                        top: draftDimension.y,
+                        left: `clamp(8px, ${draftDimension.x}px, calc(100% - ${draftDimension.fields.length * 150}px))`,
+                        top: `clamp(8px, ${draftDimension.y}px, calc(100% - 40px))`,
                     }}
                 >
                     {draftDimension.fields.map((field) => (

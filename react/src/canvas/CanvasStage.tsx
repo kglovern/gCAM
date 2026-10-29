@@ -1,3 +1,4 @@
+import { jobStockBounds } from '../job/stock';
 /**
  * Purpose: Implementation module for CanvasStage in the react domain.
  */
@@ -21,6 +22,7 @@ import {
     defaultArcBulgePoint,
     rulerStep,
     type DrawTool,
+    type Draft,
 } from '../draw/geometry';
 import { type TransformCommit, type TransformMode } from '../lib/transform';
 import {
@@ -158,12 +160,7 @@ export function CanvasStage({
         x1: number;
         y1: number;
     } | null>(null);
-    const draftRef = useRef<{
-        ax: number;
-        ay: number;
-        bx: number;
-        by: number;
-    } | null>(null);
+    const draftRef = useRef<Draft | null>(null);
     const clicksRef = useRef<{ x: number; y: number }[]>([]);
     const cursorRef = useRef<{ x: number; y: number } | null>(null);
     const progressPointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -437,12 +434,7 @@ export function CanvasStage({
                     viewRef.current.polygonMode,
                 ),
                 grid,
-                stockBounds: {
-                    minX: 0,
-                    minY: 0,
-                    maxX: stock.widthMm,
-                    maxY: stock.heightMm,
-                },
+                stockBounds: jobStockBounds(stock),
                 bitmaps,
                 guides: viewRef.current.guides,
                 guidePlacement: viewRef.current.guidePlacement,
@@ -579,7 +571,7 @@ export function CanvasStage({
             arcCursor;
         const arcBulgePhase =
             drawTool === 'arc' && arcStart && arcEnd && arcCursor;
-        const draft =
+        const draft: Draft | null =
             draftRef.current ??
             (arcFirstPhase
                 ? {
@@ -626,6 +618,9 @@ export function CanvasStage({
             !drawTool ||
             ![
                 'rectangle',
+                'rounded-rectangle',
+                'ellipse',
+                'slot',
                 'circle',
                 'line',
                 'polygon',
@@ -640,51 +635,79 @@ export function CanvasStage({
         if (!(distance > 0.01)) return null;
         const length = units === 'imperial' ? distance / MM_PER_INCH : distance;
         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-        const fields: DraftDimension['fields'] =
-            drawTool === 'rectangle'
-                ? [
-                      {
-                          key: 'width',
-                          label: 'Width',
-                          value:
-                              units === 'imperial'
-                                  ? Math.abs(dx) / MM_PER_INCH
-                                  : Math.abs(dx),
-                          unit: 'length',
-                      },
-                      {
-                          key: 'height',
-                          label: 'Height',
-                          value:
-                              units === 'imperial'
-                                  ? Math.abs(dy) / MM_PER_INCH
-                                  : Math.abs(dy),
-                          unit: 'length',
-                      },
-                  ]
-                : drawTool === 'circle' || drawTool === 'polygon'
-                  ? [
-                        {
-                            key: 'radius',
-                            label: drawTool === 'circle' ? 'Radius' : 'Radius',
-                            value: length,
-                            unit: 'length',
-                        },
-                    ]
-                  : [
-                        {
-                            key: 'length',
-                            label: 'Length',
-                            value: length,
-                            unit: 'length',
-                        },
-                        {
-                            key: 'angle',
-                            label: 'Angle',
-                            value: angle,
-                            unit: 'angle',
-                        },
-                    ];
+        const fields: DraftDimension['fields'] = [
+            'rectangle',
+            'rounded-rectangle',
+            'ellipse',
+        ].includes(drawTool)
+            ? [
+                  {
+                      key: 'width',
+                      label: 'Width',
+                      value:
+                          units === 'imperial'
+                              ? (Math.abs(dx) *
+                                    (drawTool === 'ellipse' ? 2 : 1)) /
+                                MM_PER_INCH
+                              : Math.abs(dx) * (drawTool === 'ellipse' ? 2 : 1),
+                      unit: 'length',
+                  },
+                  {
+                      key: 'height',
+                      label: 'Height',
+                      value:
+                          units === 'imperial'
+                              ? (Math.abs(dy) *
+                                    (drawTool === 'ellipse' ? 2 : 1)) /
+                                MM_PER_INCH
+                              : Math.abs(dy) * (drawTool === 'ellipse' ? 2 : 1),
+                      unit: 'length',
+                  },
+              ]
+            : drawTool === 'circle' || drawTool === 'polygon'
+              ? [
+                    {
+                        key: 'radius',
+                        label: drawTool === 'circle' ? 'Radius' : 'Radius',
+                        value: length,
+                        unit: 'length',
+                    },
+                ]
+              : [
+                    {
+                        key: 'length',
+                        label: 'Length',
+                        value: length,
+                        unit: 'length',
+                    },
+                    {
+                        key: 'angle',
+                        label: 'Angle',
+                        value: angle,
+                        unit: 'angle',
+                    },
+                ];
+        if (drawTool === 'rounded-rectangle')
+            fields.push({
+                key: 'cornerRadius',
+                label: 'Corner radius',
+                value:
+                    Math.min(
+                        draft.cornerRadius ?? 5,
+                        Math.abs(dx) / 2,
+                        Math.abs(dy) / 2,
+                    ) / (units === 'imperial' ? MM_PER_INCH : 1),
+                unit: 'length',
+            });
+        if (drawTool === 'slot')
+            fields.push({
+                key: 'width',
+                label: 'Width',
+                value:
+                    (draft.slotWidth ?? 10) /
+                    (units === 'imperial' ? MM_PER_INCH : 1),
+                unit: 'length',
+            });
         const x = camNow.tx + ((draft.ax + draft.bx) * camNow.scale) / 2 + 12;
         const y = camNow.ty - Math.max(draft.ay, draft.by) * camNow.scale - 36;
         return {
@@ -745,7 +768,7 @@ export function CanvasStage({
             }
             return;
         }
-        const current =
+        const current: Draft | null =
             draftRef.current ??
             (arc && arcStart && point
                 ? { ax: arcStart.x, ay: arcStart.y, bx: point.x, by: point.y }
@@ -755,14 +778,26 @@ export function CanvasStage({
         if (!current || !Number.isFinite(value)) return;
         const draft = { ...current };
         const scale = units === 'imperial' ? MM_PER_INCH : 1;
-        if (drawTool === 'rectangle') {
+        if (drawTool === 'slot' && key === 'width') {
+            draft.slotWidth = Math.max(0.01, Math.abs(value * scale));
+        } else if (drawTool === 'rounded-rectangle' && key === 'cornerRadius') {
+            draft.cornerRadius = Math.min(
+                Math.max(0, Math.abs(value * scale)),
+                Math.abs(draft.bx - draft.ax) / 2,
+                Math.abs(draft.by - draft.ay) / 2,
+            );
+        } else if (
+            ['rectangle', 'rounded-rectangle', 'ellipse'].includes(
+                drawTool ?? '',
+            )
+        ) {
             const width =
                 key === 'width'
-                    ? Math.abs(value * scale)
+                    ? Math.abs(value * scale) / (drawTool === 'ellipse' ? 2 : 1)
                     : Math.abs(draft.bx - draft.ax);
             const height =
                 key === 'height'
-                    ? Math.abs(value * scale)
+                    ? Math.abs(value * scale) / (drawTool === 'ellipse' ? 2 : 1)
                     : Math.abs(draft.by - draft.ay);
             draft.bx = draft.ax + Math.sign(draft.bx - draft.ax || 1) * width;
             draft.by = draft.ay + Math.sign(draft.by - draft.ay || 1) * height;
@@ -774,7 +809,12 @@ export function CanvasStage({
             );
             draft.bx = draft.ax + Math.cos(direction) * radius;
             draft.by = draft.ay + Math.sin(direction) * radius;
-        } else if (drawTool === 'line' || polyline || arc) {
+        } else if (
+            drawTool === 'line' ||
+            drawTool === 'slot' ||
+            polyline ||
+            arc
+        ) {
             const length =
                 key === 'length'
                     ? Math.max(0, value * scale)
@@ -787,7 +827,14 @@ export function CanvasStage({
             draft.by = draft.ay + Math.sin(angle) * length;
         }
         if (polyline || arc) cursorRef.current = { x: draft.bx, y: draft.by };
-        else draftRef.current = draft;
+        else {
+            draftRef.current = draft;
+            if (drawTool === 'slot' && clicksRef.current.length === 2)
+                clicksRef.current = [
+                    { x: draft.ax, y: draft.ay },
+                    { x: draft.bx, y: draft.by },
+                ];
+        }
         forceTick();
     };
 
@@ -843,6 +890,7 @@ export function CanvasStage({
         );
         pendingAnchorRef.current = null;
         draftRef.current = null;
+        if (drawTool === 'slot') clicksRef.current = [];
         if (points && points.length >= 2) {
             const snapStep =
                 grid.snap && grid.spacingMm > 0 ? grid.spacingMm : 0.1;
@@ -888,10 +936,10 @@ export function CanvasStage({
 
     const jobExceedsStock = Boolean(
         bounds &&
-            (bounds.minX < 0 ||
-                bounds.minY < 0 ||
-                bounds.maxX > stock.widthMm ||
-                bounds.maxY > stock.heightMm),
+            (bounds.minX < jobStockBounds(stock).minX ||
+                bounds.minY < jobStockBounds(stock).minY ||
+                bounds.maxX > jobStockBounds(stock).maxX ||
+                bounds.maxY > jobStockBounds(stock).maxY),
     );
     const clearViewportInteraction = () => {
         marqueeRef.current = null;

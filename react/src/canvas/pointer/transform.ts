@@ -19,7 +19,9 @@ export function handleCornerDown(
     if (canvas) {
         const hover = findFilletCorner(
             deps.viewRef.current.loops,
-            deps.viewRef.current.selected,
+            deps.viewRef.current.cornerTool === 'dogbone'
+                ? []
+                : deps.viewRef.current.selected,
             deps.viewRef.current.hidden,
             worldAtEvent(event, canvas, deps.cameraRef.current),
             deps.cameraRef.current.scale,
@@ -32,6 +34,7 @@ export function handleCornerDown(
                 hover.intersection,
             );
     }
+    deps.cornerHoverRef.current = null;
     event.preventDefault();
     // A corner edit consumes the click; mouse-up must not reselect the old corner.
     deps.downRef.current = null;
@@ -121,7 +124,9 @@ export function updateCornerHover(
     if (!canvas) return false;
     deps.cornerHoverRef.current = findFilletCorner(
         deps.viewRef.current.loops,
-        deps.viewRef.current.selected,
+        deps.viewRef.current.cornerTool === 'dogbone'
+            ? []
+            : deps.viewRef.current.selected,
         deps.viewRef.current.hidden,
         worldAtEvent(event, canvas, deps.cameraRef.current),
         deps.cameraRef.current.scale,

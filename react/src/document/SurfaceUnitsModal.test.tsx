@@ -35,28 +35,23 @@ test('requires a clear STL/OBJ unit choice before continuing', () => {
     expect(onApply).toHaveBeenCalledWith('inch');
 });
 
-test('an STL can go directly to rotary with explicit units instead of the flat-bed flow', () => {
-    const flat = jest.fn(),
-        rotary = jest.fn();
+test('model setup only asks for units and keeps the caller workspace context', () => {
+    const apply = jest.fn();
     render(
         <SurfaceUnitsModal
             fileName="queen.stl"
             sizeMm={{ x: 32, y: 32, z: 60 }}
-            onApply={flat}
-            onRotary={rotary}
+            onApply={apply}
             onCancel={() => {}}
         />,
     );
+    expect(screen.queryByText('How will you machine it?')).toBeNull();
+    expect(screen.queryByRole('radio', { name: /Rotary/ })).toBeNull();
     fireEvent.change(screen.getByLabelText('Model units'), {
         target: { value: 'mm' },
     });
-    expect(
-        screen.getByRole('button', { name: 'Continue to model setup' }),
-    ).toBeDisabled();
-    fireEvent.click(screen.getByRole('radio', { name: /Rotary/ }));
     fireEvent.click(
         screen.getByRole('button', { name: 'Continue to model setup' }),
     );
-    expect(rotary).toHaveBeenCalledWith('mm');
-    expect(flat).not.toHaveBeenCalled();
+    expect(apply).toHaveBeenCalledWith('mm');
 });

@@ -1,9 +1,8 @@
+import { CanvasToolIcon } from './CanvasToolIcon';
 /**
  * Purpose: Implementation module for ToolbarMenus in the canvas domain.
  */
 import {
-    ArrowUpRight,
-    Combine,
     Download,
     Eye,
     File,
@@ -17,12 +16,10 @@ import {
     Maximize2,
     Minus,
     PanelRight,
-    Radius,
     Scissors,
     Square,
     SunMoon,
     Spline,
-    Triangle,
     Type,
     Ungroup,
     ZoomIn,
@@ -42,6 +39,7 @@ interface ToolbarMenusProps {
     openAction: (action: Exclude<ToolbarAction, null>) => void;
     close: () => void;
     group?: 'all' | 'file' | 'secondary';
+    activeAction?: ToolbarAction;
 }
 
 /** Project, modification, grouping, and view menu groups for the canvas toolbar. */
@@ -50,6 +48,7 @@ export function ToolbarMenus({
     openAction,
     close,
     group = 'all',
+    activeAction,
     latheProfile,
 }: ToolbarMenusProps) {
     return (
@@ -57,13 +56,8 @@ export function ToolbarMenus({
             {group !== 'secondary' && (
                 <ToolbarMenu label="File" icon={<File size={18} />} wide>
                     <ToolbarMenuItem
-                        label="New Project"
-                        icon={<FilePlus2 size={16} />}
-                        onClick={() => props.onNewCanvas?.()}
-                    />
-                    <ToolbarMenuItem
-                        label="Import File"
-                        icon={<FileUp size={16} />}
+                        label="Open File"
+                        icon={<FolderOpen size={16} />}
                         onClick={() => props.onImportFile?.()}
                     />
                     <ToolbarMenuSeparator />
@@ -82,6 +76,11 @@ export function ToolbarMenus({
                             <ToolbarMenuSeparator />
                         </>
                     )}
+                    <ToolbarMenuItem
+                        label="New Project"
+                        icon={<FilePlus2 size={16} />}
+                        onClick={() => props.onNewCanvas?.()}
+                    />
                     <ToolbarMenuItem
                         label="Import Project"
                         icon={<FolderOpen size={16} />}
@@ -105,12 +104,32 @@ export function ToolbarMenus({
                     <ToolbarSeparator />
                     <ToolbarMenu
                         label="Modify"
-                        icon={<Scissors size={18} />}
+                        active={Boolean(
+                            props.cornerTool ||
+                                ['offset', 'boolean', 'nest'].includes(
+                                    activeAction ?? '',
+                                ),
+                        )}
+                        icon={
+                            props.cornerTool === 'dogbone' ||
+                            props.cornerTool === 'fillet' ||
+                            props.cornerTool === 'chamfer' ? (
+                                <CanvasToolIcon tool={props.cornerTool} />
+                            ) : activeAction === 'offset' ||
+                              activeAction === 'boolean' ? (
+                                <CanvasToolIcon tool={activeAction} />
+                            ) : activeAction === 'nest' ? (
+                                <Grid3X3 size={18} />
+                            ) : (
+                                <Scissors size={18} />
+                            )
+                        }
                         iconOnly
                     >
                         <ToolbarMenuItem
                             label="Fillet…"
-                            icon={<Radius size={16} />}
+                            active={props.cornerTool === 'fillet'}
+                            icon={<CanvasToolIcon tool="fillet" />}
                             onClick={() => {
                                 props.onApplyFillet();
                                 close();
@@ -118,7 +137,8 @@ export function ToolbarMenus({
                         />
                         <ToolbarMenuItem
                             label="Chamfer…"
-                            icon={<Triangle size={16} />}
+                            active={props.cornerTool === 'chamfer'}
+                            icon={<CanvasToolIcon tool="chamfer" />}
                             onClick={() => {
                                 props.onApplyChamfer?.();
                                 close();
@@ -126,7 +146,8 @@ export function ToolbarMenus({
                         />
                         <ToolbarMenuItem
                             label="Dogbone"
-                            icon={<Combine size={16} />}
+                            active={props.cornerTool === 'dogbone'}
+                            icon={<CanvasToolIcon tool="dogbone" />}
                             onClick={() => {
                                 props.onApplyDogbone();
                                 close();
@@ -134,16 +155,19 @@ export function ToolbarMenus({
                         />
                         <ToolbarMenuItem
                             label="Combine / Subtract…"
-                            icon={<Combine size={16} />}
+                            disabled={!props.canBoolean}
+                            icon={<CanvasToolIcon tool="boolean" />}
                             onClick={() => openAction('boolean')}
                         />
                         <ToolbarMenuItem
                             label="Offset…"
-                            icon={<ArrowUpRight size={16} />}
+                            disabled={!props.hasSelection}
+                            icon={<CanvasToolIcon tool="offset" />}
                             onClick={() => openAction('offset')}
                         />
                         <ToolbarMenuItem
                             label="Nest…"
+                            disabled={!props.canBoolean}
                             icon={<Grid3X3 size={16} />}
                             onClick={() => openAction('nest')}
                         />

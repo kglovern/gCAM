@@ -109,7 +109,6 @@ export function CanvasPointerController(props: CanvasPointerControllerProps) {
         props.panRef.current = null;
         const marquee = props.marqueeRef.current;
         props.marqueeRef.current = null;
-        props.draftRef.current = null;
         if (handleTransformUp(event, props)) return;
         if (event.button !== 0) {
             props.forceTick();
@@ -118,6 +117,7 @@ export function CanvasPointerController(props: CanvasPointerControllerProps) {
         if (placeGuide(event, props, down, marquee)) return;
         if (trimAt(event, props, down, marquee)) return;
         if (finishDraw(event, props, down, marquee)) return;
+        props.draftRef.current = null;
         if (clearDraggedDraft(props)) return;
         if (placeTab(props)) return;
         finishSelection(event, props, down, marquee);

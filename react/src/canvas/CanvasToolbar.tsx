@@ -99,6 +99,7 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
             >
                 <ToolbarMenus
                     props={props}
+                    activeAction={open}
                     openAction={toggle}
                     close={close}
                     group={phone ? 'file' : 'all'}
@@ -113,6 +114,7 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
                     <ToolbarOverflow>
                         <ToolbarMenus
                             props={props}
+                            activeAction={open}
                             openAction={toggle}
                             close={close}
                             group="secondary"

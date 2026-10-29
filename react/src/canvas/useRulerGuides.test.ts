@@ -3,11 +3,18 @@ import { jest } from '@jest/globals';
 import type { PointerEvent } from 'react';
 import { useRulerGuides } from './useRulerGuides';
 
-function setup() {
+function setup(ruler: 'left' | 'top' = 'left') {
     const onDraft = jest.fn(),
         onPlace = jest.fn(),
         onCancel = jest.fn();
-    const target = { focus: jest.fn(), setPointerCapture: jest.fn() };
+    const target = {
+        focus: jest.fn(),
+        setPointerCapture: jest.fn(),
+        getBoundingClientRect: () =>
+            ruler === 'left'
+                ? { left: 0, top: 0, right: 20, bottom: 330 }
+                : { left: 20, top: 0, right: 420, bottom: 30 },
+    };
     const event = (x: number, y: number) =>
         ({
             clientX: x,
@@ -65,7 +72,7 @@ test('release outside cancels without creating a guide', () => {
     const { handlers, event, onPlace, onCancel } = setup();
     const h = handlers('left');
     h.onPointerDown(event(50, 10));
-    h.onPointerUp(event(50, 10));
+    h.onPointerUp(event(500, 10));
     expect(onPlace).not.toHaveBeenCalled();
     expect(onCancel).toHaveBeenCalledTimes(1);
 });
@@ -78,4 +85,29 @@ test('pointer cancellation clears the preview', () => {
     h.onPointerUp(event(100, 100));
     expect(onPlace).not.toHaveBeenCalled();
     expect(onCancel).toHaveBeenCalledTimes(1);
+});
+
+test('dropping over the source ruler commits the same guide as dropping on the canvas', () => {
+    const { handlers, event, onPlace, onCancel } = setup();
+    const h = handlers('left');
+    h.onPointerDown(event(10, 100));
+    h.onPointerMove(event(10, 123));
+    h.onPointerUp(event(10, 123));
+    expect(onPlace).toHaveBeenCalledWith({
+        point: { x: -0, y: 54 },
+        direction: { x: 1, y: 0 },
+    });
+    expect(onCancel).not.toHaveBeenCalled();
+});
+
+test('dropping on top ruler keeps a vertical guide at that ruler coordinate', () => {
+    const { handlers, event, onPlace, onCancel } = setup('top');
+    const h = handlers('top');
+    h.onPointerDown(event(123, 10));
+    h.onPointerUp(event(123, 10));
+    expect(onPlace).toHaveBeenCalledWith({
+        point: { x: 31, y: -0 },
+        direction: { x: 0, y: 1 },
+    });
+    expect(onCancel).not.toHaveBeenCalled();
 });

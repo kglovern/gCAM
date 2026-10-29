@@ -121,13 +121,17 @@ export function createToolbarProps({
                   : 'select',
         onSelectMode: () => {
             clearGuidePlacement();
+            drawing.setDrawTool(null);
             drawing.setActiveTool('select');
             transforms.setTransformMode(null);
             arrange.setCornerTool(null);
         },
         drawTool: drawing.drawTool,
+        cornerTool: arrange.cornerTool,
+        guidePlacement: drawing.guidePlacement,
         onDrawTool: (tool) => {
             clearGuidePlacement();
+            arrange.setCornerTool(null);
             drawing.setDrawTool(tool);
             drawing.setActiveTool('draw');
             transforms.setTransformMode(null);
@@ -169,7 +173,12 @@ export function createToolbarProps({
             drawing.setActiveTool('select');
             actions.applyChamfer?.();
         },
-        onApplyDogbone: actions.applyDogbone,
+        onApplyDogbone: () => {
+            clearGuidePlacement();
+            drawing.setDrawTool(null);
+            drawing.setActiveTool('select');
+            actions.applyDogbone();
+        },
         offsetAmount: arrange.offsetAmount,
         onOffsetAmount: arrange.setOffsetAmount,
         onApplyOffset: actions.applyOffset,
@@ -188,7 +197,10 @@ export function createToolbarProps({
         onSheetW: arrange.setSheetW,
         onSheetH: arrange.setSheetH,
         onApplyNest: actions.applyNest,
-        onAddGuide: actions.addGuide,
+        onAddGuide: () => {
+            arrange.setCornerTool(null);
+            actions.addGuide();
+        },
         onDeleteGuide: actions.deleteGuide,
         guides,
         hasSelection: selected.length > 0,

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { JobStockSetup } from './JobStockSetup';
 import { DEFAULT_JOB_STOCK } from './stock';
 
@@ -48,4 +48,21 @@ test('describes bed-sized stock as a starting guide and switches to actual-stock
     expect(
         screen.queryByText(/Starting stock is set to/),
     ).not.toBeInTheDocument();
+});
+
+test('stock origin can be changed independently of material dimensions', () => {
+    let changed = DEFAULT_JOB_STOCK;
+    render(
+        <JobStockSetup
+            stock={DEFAULT_JOB_STOCK}
+            {...props}
+            onChange={(stock) => {
+                changed = stock;
+            }}
+        />,
+    );
+    fireEvent.change(screen.getByLabelText('Stock origin'), {
+        target: { value: 'center' },
+    });
+    expect(changed).toEqual({ ...DEFAULT_JOB_STOCK, origin: 'center' });
 });

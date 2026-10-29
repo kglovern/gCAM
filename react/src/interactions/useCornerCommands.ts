@@ -6,7 +6,11 @@ import {
  * Purpose: React hook that owns the CornerCommands workflow.
  */
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { chamferCorner, dogboneCorner, filletCorner } from '../lib/corners';
+import {
+    chamferCorner,
+    dogboneReliefCorner,
+    filletCorner,
+} from '../lib/corners';
 import type { TransformMode } from '../lib/transform';
 
 interface Point {
@@ -61,7 +65,7 @@ export function useCornerCommands<TLoop extends CornerLoop, TStack>(
         options.setCornerTool('dogbone');
         options.setTransformMode(null);
         options.setStatus(
-            `Dogbone r=${options.formatLength(options.cornerRadius)}: hover a corner, then click to apply.`,
+            `Dogbone r=${options.formatLength(options.cornerRadius)}: click corners on any shape. Esc to finish.`,
         );
     };
 
@@ -76,7 +80,7 @@ export function useCornerCommands<TLoop extends CornerLoop, TStack>(
         if (!target) return;
         const points =
             tool === 'dogbone'
-                ? dogboneCorner(target.points, cornerIndex, size)
+                ? dogboneReliefCorner(target.points, cornerIndex, size)
                 : tool === 'chamfer'
                   ? chamferCorner(target.points, cornerIndex, size)
                   : filletCorner(target.points, cornerIndex, size);
@@ -85,40 +89,28 @@ export function useCornerCommands<TLoop extends CornerLoop, TStack>(
             return false;
         }
         options.pushHistory();
-        if (tool === 'dogbone') {
-            const added = options.withIds([{ points }]);
-            options.setLoops((current) => {
-                const next = [...current, ...added];
-                options.setStack([]);
-                options.refreshBounds(next);
-                return next;
-            });
-            options.setSelected(added.map((loop) => loop.id));
-            options.setStatus(`Dogbone r=${options.formatLength(size)} added.`);
-        } else {
-            options.setStack([]);
-            options.setLoops((current) => {
-                const next = current.map((loop) =>
-                    loop.id === loopId
-                        ? {
-                              ...loop,
-                              points,
-                              sourceType: undefined,
-                              radius: undefined,
-                              sides: undefined,
-                              exportGeometry: undefined,
-                          }
-                        : loop,
-                );
-                options.refreshBounds(next);
-                return next;
-            });
-            options.setSelected([loopId]);
-            options.setStatus(
-                `${tool === 'chamfer' ? 'Chamfer' : 'Fillet'} ${options.formatLength(size)} applied.`,
+        options.setStack([]);
+        options.setLoops((current) => {
+            const next = current.map((loop) =>
+                loop.id === loopId
+                    ? {
+                          ...loop,
+                          points,
+                          sourceType: undefined,
+                          radius: undefined,
+                          sides: undefined,
+                          exportGeometry: undefined,
+                      }
+                    : loop,
             );
-        }
-        options.setCornerTool(null);
+            options.refreshBounds(next);
+            return next;
+        });
+        options.setSelected([loopId]);
+        options.setStatus(
+            `${tool === 'dogbone' ? 'Dogbone' : tool === 'chamfer' ? 'Chamfer' : 'Fillet'} ${options.formatLength(size)} applied.`,
+        );
+        if (tool !== 'dogbone') options.setCornerTool(null);
         return true;
     };
 

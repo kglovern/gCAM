@@ -1,3 +1,4 @@
+import { jobStockBounds } from '../job/stock';
 import {
     buildClearingPathsAsync,
     buildRasterPathsAsync,
@@ -34,6 +35,7 @@ export interface SurfaceCamRequest extends SurfacePathOptions {
         widthMm: number;
         heightMm: number;
         thicknessMm: number;
+        origin?: 'front-left' | 'center';
     };
 }
 
@@ -99,10 +101,10 @@ export function validateSurfacePathsForStock(
         paths.some((path) =>
             path.some(
                 (point) =>
-                    point.x - radius < -epsilon ||
-                    point.y - radius < -epsilon ||
-                    point.x + radius > stock.widthMm + epsilon ||
-                    point.y + radius > stock.heightMm + epsilon,
+                    point.x - radius < jobStockBounds(stock).minX - epsilon ||
+                    point.y - radius < jobStockBounds(stock).minY - epsilon ||
+                    point.x + radius > jobStockBounds(stock).maxX + epsilon ||
+                    point.y + radius > jobStockBounds(stock).maxY + epsilon,
             ),
         )
     )
@@ -123,21 +125,25 @@ export function validateSurfacePathsForStock(
         limits?.maxXTravelMm !== null &&
         limits?.maxXTravelMm !== undefined &&
         moves.some(
-            ({ x }) => x < -epsilon || x > limits.maxXTravelMm! + epsilon,
+            ({ x }) =>
+                x < jobStockBounds(stock).minX - epsilon ||
+                x > jobStockBounds(stock).minX + limits.maxXTravelMm! + epsilon,
         )
     )
         throw new Error(
-            `Generated X moves exceed the configured 0–${limits.maxXTravelMm} mm work travel.`,
+            `Generated X moves exceed the configured ${limits.maxXTravelMm} mm work travel for the stock origin.`,
         );
     if (
         limits?.maxYTravelMm !== null &&
         limits?.maxYTravelMm !== undefined &&
         moves.some(
-            ({ y }) => y < -epsilon || y > limits.maxYTravelMm! + epsilon,
+            ({ y }) =>
+                y < jobStockBounds(stock).minY - epsilon ||
+                y > jobStockBounds(stock).minY + limits.maxYTravelMm! + epsilon,
         )
     )
         throw new Error(
-            `Generated Y moves exceed the configured 0–${limits.maxYTravelMm} mm work travel.`,
+            `Generated Y moves exceed the configured ${limits.maxYTravelMm} mm work travel for the stock origin.`,
         );
     const zMoves = [...moves.map(({ z }) => z), safeZMm];
     if (
@@ -433,12 +439,14 @@ export async function generateSurfaceCamPaths(
         );
     const radiusMm = request.toolDiameterMm / 2;
     if (
-        mesh.bounds.minX - radiusMm - (request.boundaryMm ?? 0) < 0 ||
-        mesh.bounds.minY - radiusMm - (request.boundaryMm ?? 0) < 0 ||
+        mesh.bounds.minX - radiusMm - (request.boundaryMm ?? 0) <
+            jobStockBounds(request.stock).minX ||
+        mesh.bounds.minY - radiusMm - (request.boundaryMm ?? 0) <
+            jobStockBounds(request.stock).minY ||
         mesh.bounds.maxX + radiusMm + (request.boundaryMm ?? 0) >
-            request.stock.widthMm ||
+            jobStockBounds(request.stock).maxX ||
         mesh.bounds.maxY + radiusMm + (request.boundaryMm ?? 0) >
-            request.stock.heightMm
+            jobStockBounds(request.stock).maxY
     )
         throw new Error(
             'STL, cutter, and boundary overrun do not fit inside job stock with the required edge clearance.',

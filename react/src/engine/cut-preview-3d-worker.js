@@ -43,10 +43,10 @@ function boundsFor(toolpaths, stock) {
         // The entered stock is authoritative. Geometry beyond it is flagged in
         // the editor rather than silently stretching the material to fit.
         return {
-            minX: 0,
-            minY: 0,
-            maxX: width,
-            maxY: height,
+            minX: stock.origin === 'center' ? -width / 2 : 0,
+            minY: stock.origin === 'center' ? -height / 2 : 0,
+            maxX: stock.origin === 'center' ? width / 2 : width,
+            maxY: stock.origin === 'center' ? height / 2 : height,
         };
     }
     // The stock is laid out from the machine origin as well as around the

@@ -2,7 +2,7 @@ import { useRef, type PointerEvent, type RefObject } from 'react';
 import type { GuideDraft, GuidePlacement } from '../lib/guides';
 import type { Camera } from './types';
 
-/** Drag a construction guide from a ruler; release outside the canvas to cancel. */
+/** Drag a construction guide from a ruler; release over the ruler or drawing to place it. */
 export function useRulerGuides({
     canvasRef,
     cameraRef,
@@ -20,7 +20,11 @@ export function useRulerGuides({
     onPlace(guide: GuidePlacement): void;
     onCancel(): void;
 }) {
-    const drag = useRef<{ axis: 'x' | 'y'; pointerId: number } | null>(null);
+    const drag = useRef<{
+        axis: 'x' | 'y';
+        pointerId: number;
+        rulerBounds: DOMRect;
+    } | null>(null);
     const cancel = () => {
         if (!drag.current) return;
         drag.current = null;
@@ -54,7 +58,11 @@ export function useRulerGuides({
                 event.preventDefault();
                 event.currentTarget.focus();
                 event.currentTarget.setPointerCapture(event.pointerId);
-                drag.current = { axis, pointerId: event.pointerId };
+                drag.current = {
+                    axis,
+                    pointerId: event.pointerId,
+                    rulerBounds: event.currentTarget.getBoundingClientRect(),
+                };
                 onDraft(at(event, axis));
             },
             onPointerMove(event: PointerEvent<HTMLCanvasElement>) {
@@ -65,12 +73,19 @@ export function useRulerGuides({
                 if (drag.current?.pointerId !== event.pointerId) return;
                 const rect = canvasRef.current!.getBoundingClientRect();
                 const draft = at(event, drag.current.axis);
+                const ruler = drag.current.rulerBounds;
+                const overRuler =
+                    event.clientX >= ruler.left &&
+                    event.clientX <= ruler.right &&
+                    event.clientY >= ruler.top &&
+                    event.clientY <= ruler.bottom;
                 drag.current = null;
                 if (
-                    event.clientX < rect.left ||
-                    event.clientX > rect.right ||
-                    event.clientY < rect.top ||
-                    event.clientY > rect.bottom
+                    !overRuler &&
+                    (event.clientX < rect.left ||
+                        event.clientX > rect.right ||
+                        event.clientY < rect.top ||
+                        event.clientY > rect.bottom)
                 ) {
                     onCancel();
                     return;

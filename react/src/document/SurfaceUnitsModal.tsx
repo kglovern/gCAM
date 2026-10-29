@@ -6,20 +6,15 @@ export function SurfaceUnitsModal({
     sizeMm,
     onApply,
     onCancel,
-    onRotary,
 }: {
     fileName: string;
     sizeMm: { x: number; y: number; z: number };
     onApply(units: 'mm' | 'inch'): void;
     onCancel(): void;
-    onRotary?(units: 'mm' | 'inch'): void;
 }) {
     const panelRef = useRef<HTMLDivElement>(null);
     useDialogFocus(panelRef, true);
     const [units, setUnits] = useState<'mm' | 'inch' | ''>('');
-    const [destination, setDestination] = useState<'flat' | 'rotary' | ''>(
-        onRotary ? '' : 'flat',
-    );
 
     return (
         <div
@@ -41,48 +36,9 @@ export function SurfaceUnitsModal({
                     id="surface-units-title"
                     className="text-lg font-semibold text-slate-900 dark:text-white"
                 >
-                    {onRotary ? 'Set up your 3D model' : 'Check model units'}
+                    Check model units
                 </h2>
-                {onRotary && (
-                    <fieldset className="mt-4 space-y-2">
-                        <legend className="mb-2 text-sm font-medium">
-                            How will you machine it?
-                        </legend>
-                        {(
-                            [
-                                [
-                                    'flat',
-                                    'Flat-bed',
-                                    'Cut from above on the machine bed.',
-                                ],
-                                [
-                                    'rotary',
-                                    'Rotary',
-                                    'Turn the wood in a chuck.',
-                                ],
-                            ] as const
-                        ).map(([value, label, hint]) => (
-                            <label
-                                key={value}
-                                className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm ${destination === value ? 'border-robin-500 bg-robin-50 dark:bg-robin-950' : 'border-slate-300 dark:border-robin-800'}`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="model-destination"
-                                    value={value}
-                                    checked={destination === value}
-                                    onChange={() => setDestination(value)}
-                                />
-                                <span>
-                                    <strong>{label}</strong>
-                                    <span className="block text-slate-600 dark:text-slate-300">
-                                        {hint}
-                                    </span>
-                                </span>
-                            </label>
-                        ))}
-                    </fieldset>
-                )}
+
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     Choose the model’s original units, then check the size
                     below.
@@ -140,13 +96,8 @@ export function SurfaceUnitsModal({
                     </button>
                     <button
                         type="button"
-                        disabled={!units || !destination}
-                        onClick={() =>
-                            units &&
-                            (destination === 'rotary'
-                                ? onRotary?.(units)
-                                : onApply(units))
-                        }
+                        disabled={!units}
+                        onClick={() => units && onApply(units)}
                         className="rounded bg-robin-600 px-3 py-2 text-sm font-medium text-white enabled:hover:bg-robin-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Continue to model setup

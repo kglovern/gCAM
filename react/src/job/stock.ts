@@ -6,6 +6,7 @@ export interface JobStock {
     heightMm: number;
     thicknessMm: number;
     material: MaterialId;
+    origin?: 'front-left' | 'center';
 }
 
 export const DEFAULT_JOB_STOCK: JobStock = {
@@ -13,6 +14,7 @@ export const DEFAULT_JOB_STOCK: JobStock = {
     heightMm: 300,
     thicknessMm: 18,
     material: 'sheet-goods',
+    origin: 'front-left',
 };
 
 export function normalizeJobStock(value: unknown): JobStock {
@@ -33,6 +35,7 @@ export function normalizeJobStock(value: unknown): JobStock {
         'foam',
     ]);
     return {
+        origin: stock?.origin === 'center' ? 'center' : 'front-left',
         widthMm: positive(stock?.widthMm, DEFAULT_JOB_STOCK.widthMm),
         heightMm: positive(stock?.heightMm, DEFAULT_JOB_STOCK.heightMm),
         thicknessMm: positive(
@@ -42,5 +45,19 @@ export function normalizeJobStock(value: unknown): JobStock {
         material: allowed.has(material as MaterialId)
             ? (material as MaterialId)
             : DEFAULT_JOB_STOCK.material,
+    };
+}
+
+/** Stock placement in the same coordinate frame used by drawing and G-code. */
+export function jobStockBounds(
+    stock: Pick<JobStock, 'widthMm' | 'heightMm' | 'origin'>,
+) {
+    const minX = stock.origin === 'center' ? -stock.widthMm / 2 : 0;
+    const minY = stock.origin === 'center' ? -stock.heightMm / 2 : 0;
+    return {
+        minX,
+        minY,
+        maxX: minX + stock.widthMm,
+        maxY: minY + stock.heightMm,
     };
 }

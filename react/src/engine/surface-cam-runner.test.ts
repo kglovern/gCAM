@@ -422,3 +422,42 @@ test.each(['surface-clear', 'surface-finish', 'surface-waterline'] as const)(
         expect(mesh.vertices).toHaveLength(9);
     },
 );
+
+test('centred stock accepts negative cutter positions and still rejects edge overrun', () => {
+    const request = {
+        strategy: 'surface-finish' as const,
+        cutter: 'ball' as const,
+        toolDiameterMm: 2,
+        stepoverMm: 1,
+        stepdownMm: 1,
+        resolutionMm: 1,
+        safeZMm: 5,
+        stockTopZMm: 0,
+        stock: {
+            widthMm: 100,
+            heightMm: 100,
+            thicknessMm: 18,
+            origin: 'center' as const,
+        },
+        travelLimits: {
+            maxXTravelMm: 100,
+            maxYTravelMm: 100,
+            minZTravelMm: -100,
+            maxZTravelMm: 100,
+        },
+    };
+    expect(() =>
+        validateSurfacePathsForStock(
+            [
+                [
+                    { x: -40, y: -40, z: -1 },
+                    { x: 40, y: 40, z: -1 },
+                ],
+            ],
+            request,
+        ),
+    ).not.toThrow();
+    expect(() =>
+        validateSurfacePathsForStock([[{ x: -50, y: 0, z: -1 }]], request),
+    ).toThrow(/outside/);
+});
