@@ -1,6 +1,6 @@
 describe('Fresh tool library', () => {
     it('configures flat, ball and V-bit cutters through the empty-library flow', () => {
-        cy.freshProject({ tools: false });
+        cy.freshProject({ tools: false, multipleSelection: false });
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
         cy.contains('button', /^Outside$/).click();

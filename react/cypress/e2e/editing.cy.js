@@ -214,7 +214,7 @@ describe('Boolean and trim operations', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
         cy.menu('Modify', 'Fillet…');
-        cy.worldClick(20, 40);
+        cy.worldClick(20, 40, { force: true });
         cy.get('[aria-label="Radius (mm)"]').clear().type('2').blur();
         cy.contains('[role=dialog] button', /^Apply$/).click();
         cy.snapshot().then((p) => {
@@ -228,7 +228,7 @@ describe('Boolean and trim operations', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
         cy.menu('Modify', 'Chamfer…');
-        cy.worldClick(20, 40);
+        cy.worldClick(20, 40, { force: true });
         cy.get('[aria-label="Distance (mm)"]').clear().type('2').blur();
         cy.contains('[role=dialog] button', /^Apply$/).click();
         cy.snapshot().then((p) => {
