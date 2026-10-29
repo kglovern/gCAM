@@ -96,12 +96,12 @@ describe('Send to gSender', () => {
     it('posts the exported program to the gSender handoff listener', () => {
         cy.intercept('POST', 'http://127.0.0.1:47820/gcam/v1/load', {
             statusCode: 202,
-            body: { accepted: true, name: 'vectors.gcode' },
+            body: { accepted: true, name: 'vectors.nc' },
         }).as('handoff');
         cy.addOperation('Engrave');
         cy.contains('button', /^Send to gSender$/).click();
         cy.wait('@handoff').then(({ request }) => {
-            expect(request.body.name).to.equal('vectors.gcode');
+            expect(request.body.name).to.equal('vectors.nc');
             expect(request.body.gcode).to.match(/G[01]/);
         });
         cy.contains('button', 'Sent to gSender');
