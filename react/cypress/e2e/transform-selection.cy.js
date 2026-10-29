@@ -1,6 +1,6 @@
 describe('Transform before selection', () => {
     it('can be armed first and stays armed when selecting and clearing items', () => {
-        cy.freshProject();
+        cy.freshProject({ multipleSelection: false });
         cy.get('[aria-label="Transform selection"]')
             .should('be.enabled')
             .click();

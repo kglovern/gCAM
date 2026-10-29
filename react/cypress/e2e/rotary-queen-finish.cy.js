@@ -42,7 +42,7 @@ describe('Rotary finishing with overhangs', () => {
                 .contains('button', 'Export G-code', { timeout: 90000 })
                 .should('be.enabled')
                 .click();
-            cy.readDownload('.nc').then((code) => {
+            cy.readDownload('.gcode').then((code) => {
                 expect(code).to.include('(finish)');
                 expect(code).to.include('G93');
                 expect(code).to.match(/G1X[^\r\n]*Y/);

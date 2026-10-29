@@ -112,7 +112,7 @@ describe('Tablet workspace', () => {
             cy.get('[role="menuitem"]')
                 .contains('Export Project')
                 .should('be.visible');
-            cy.get('[aria-label="Select vectors"]').click();
+            cy.get('[aria-label="Select shapes"]').click();
             cy.get('button[aria-label="File"]').should(
                 'have.attr',
                 'aria-expanded',

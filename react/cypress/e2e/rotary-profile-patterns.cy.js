@@ -24,7 +24,7 @@ describe('Native rotary profile machining', () => {
                 .contains('button', 'Export G-code')
                 .should('be.enabled')
                 .click();
-            cy.readDownload('.nc').then((code) => {
+            cy.readDownload('.gcode').then((code) => {
                 expect(code).to.include('G93');
                 expect(code).to.include('G94');
                 expect(code).not.to.include('G0X0.000A0.000');

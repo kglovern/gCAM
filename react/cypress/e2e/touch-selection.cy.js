@@ -79,7 +79,7 @@ describe('Directional and touch selection', () => {
         cy.screenshot('individual-toolpath-export-tablet');
         cy.task('clearDownloads');
         cy.contains('button', /^1\. /).click();
-        cy.readDownload('.nc').then((code) => {
+        cy.readDownload('.gcode').then((code) => {
             expect(code).to.match(/G21\b/);
             expect(code).to.match(/M(?:2|30)\b/);
             expect(code).not.to.match(/NaN|Infinity|undefined/);

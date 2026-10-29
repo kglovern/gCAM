@@ -2,7 +2,7 @@ describe('Image workflows', () => {
     beforeEach(() => cy.freshProject());
     it('traces a bitmap, replaces it with vectors, and machines the result', () => {
         cy.importDesign('contrast.png');
-        cy.contains('button', 'Convert to vector').click();
+        cy.contains('button', 'Trace into shapes').click();
         cy.contains('button', /^Import \(/, { timeout: 30000 })
             .should('be.enabled')
             .click();
@@ -64,11 +64,7 @@ describe('Retained mesh operations', () => {
             it(`${extension.toUpperCase()} → ${label}`, () => {
                 cy.importDesign(`relief.${extension}`);
                 cy.get('[aria-label="Model units"]').select('mm');
-                if (extension === 'stl')
-                    cy.get(
-                        'input[name="model-destination"][value="flat"]',
-                    ).check();
-                cy.contains('button', 'Continue to model setup').click();
+                cy.contains('button', 'Continue').click();
                 cy.contains('button', 'Place 3D model', {
                     timeout: 30000,
                 }).click();
@@ -100,12 +96,12 @@ describe('Send to gSender', () => {
     it('posts the exported program to the gSender handoff listener', () => {
         cy.intercept('POST', 'http://127.0.0.1:47820/gcam/v1/load', {
             statusCode: 202,
-            body: { accepted: true, name: 'vectors.nc' },
+            body: { accepted: true, name: 'vectors.gcode' },
         }).as('handoff');
         cy.addOperation('Engrave');
         cy.contains('button', /^Send to gSender$/).click();
         cy.wait('@handoff').then(({ request }) => {
-            expect(request.body.name).to.equal('vectors.nc');
+            expect(request.body.name).to.equal('vectors.gcode');
             expect(request.body.gcode).to.match(/G[01]/);
         });
         cy.contains('button', 'Sent to gSender');

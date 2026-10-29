@@ -173,7 +173,7 @@ describe('Rotary workspace', () => {
             .contains('button', 'Export G-code')
             .should('be.enabled')
             .click();
-        cy.readDownload('.nc').then((text) => {
+        cy.readDownload('.gcode').then((text) => {
             expect(text).to.include('G21');
             expect(text).to.match(/A-?\d/);
         });
@@ -183,7 +183,7 @@ describe('Rotary workspace', () => {
             .contains('button', 'Export G-code')
             .should('be.enabled')
             .click();
-        cy.readDownload('.nc').should('contain', 'Stock L100');
+        cy.readDownload('.gcode').should('contain', 'Stock L100');
     });
     it('keeps rotary G-code in Simulation current after changes', () => {
         addRoughing();

@@ -46,7 +46,7 @@ describe('Rotary operation toolpaths', () => {
             .contains('button', 'Export G-code')
             .should('be.enabled')
             .click();
-        return cy.readDownload('.nc');
+        return cy.readDownload('.gcode');
     };
     it('has the same operation picker, with five loaded icons and only relevant fields', () => {
         ['Facing', 'Roughing', 'Finishing', 'Groove', 'Part-off'].forEach(
@@ -108,7 +108,7 @@ describe('Rotary operation toolpaths', () => {
         cy.get('[aria-label="Export individual toolpaths"]').click();
         cy.task('clearDownloads');
         cy.contains('button', /^1. Finishing$/).click();
-        cy.readDownload('.nc').then((code) => {
+        cy.readDownload('.gcode').then((code) => {
             expect(code.includes('(finish)')).to.equal(true);
             expect(code.includes('(rough)')).to.equal(false);
         });

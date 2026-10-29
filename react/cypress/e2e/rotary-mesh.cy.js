@@ -52,7 +52,7 @@ describe('Independent XYZA mesh machining', () => {
             .contains('button', 'Export G-code', { timeout: 60000 })
             .should('be.enabled')
             .click();
-        cy.readDownload('.nc').then((code) => {
+        cy.readDownload('.gcode').then((code) => {
             expect(code).to.contain('G93');
             expect(code).to.match(/G1X[^\r\n]*Y/);
             expect(code).not.to.contain('G0X0.000A0.000');

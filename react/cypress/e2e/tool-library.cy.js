@@ -9,6 +9,7 @@ describe('Fresh tool library', () => {
         for (const [index, type] of ['flat', 'ball', 'v-bit'].entries()) {
             if (index > 0)
                 cy.get(`[aria-label="Edit tool T${index + 1}"]`).click();
+            cy.contains('[role=tab]', 'Custom').click();
             cy.contains('label', 'Tool Name')
                 .find('input')
                 .clear()

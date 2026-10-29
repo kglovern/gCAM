@@ -34,6 +34,8 @@ Cypress.Commands.add('freshProject', (options = {}) => {
     cy.visit('/', {
         onBeforeLoad(win) {
             win.localStorage.clear();
+            if (options.multipleSelection === false)
+                win.localStorage.setItem('gcam.multipleSelection', 'false');
             win.localStorage.setItem('gcam.machineSetupComplete', 'true');
             win.localStorage.setItem(
                 'gcam.machineProfileId',
@@ -71,7 +73,7 @@ Cypress.Commands.add('importDesign', (file) => {
         { force: true },
     );
     if (file.endsWith('.svg') || file.endsWith('.dxf')) {
-        cy.contains(`${file}:`).should('contain.text', 'vectors');
+        cy.contains(`${file}:`).should('contain.text', 'shapes');
         cy.get('[data-testid="gcam-canvas"]').should(($el) => {
             expect(JSON.parse($el.attr('data-camera')).scale).to.be.greaterThan(
                 1,
@@ -207,7 +209,7 @@ Cypress.Commands.add('addOperation', (label, options = {}) => {
     });
     cy.task('clearDownloads');
     cy.contains('button:not([role="menuitem"])', /^Export G-code$/).click();
-    cy.readDownload('.nc').then((gcode) => {
+    cy.readDownload('.gcode').then((gcode) => {
         expect(gcode).to.match(/G0?[123]\b/);
         expect(gcode).not.to.match(/NaN|Infinity|undefined/);
         expect(gcode).to.match(/M(?:2|30)\b/);

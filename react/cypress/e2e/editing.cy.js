@@ -17,7 +17,9 @@ describe('Canvas selection and editing', () => {
         cy.freshProject();
         cy.importDesign('vectors.svg');
     });
-    it('replaces plain-click selection, toggles Ctrl-click, clears empty clicks', () => {
+    it('replaces plain-click selection, toggles Ctrl-click, clears empty clicks when additive selection is off', () => {
+        cy.freshProject({ multipleSelection: false });
+        cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
         cy.snapshot().then((p) => expect(p.selected).to.have.length(1));
         cy.worldClick(50, 50);
@@ -129,7 +131,7 @@ describe('Canvas selection and editing', () => {
             expect(box.minX).to.be.closeTo(30, 0.1);
             expect(box.minY).to.be.closeTo(50, 0.1);
         });
-        cy.get('[aria-label="Select vectors"]').click();
+        cy.get('[aria-label="Select shapes"]').click();
         cy.worldDrag([25, 35], [75, 75]);
         cy.snapshot().then((p) => expect(p.selected).to.have.length(2));
     });
@@ -146,9 +148,9 @@ describe('Boolean and trim operations', () => {
             cy.importDesign('overlap.svg');
             cy.worldClick(25, 40);
             cy.worldClick(45, 40, { ctrlKey: true });
-            cy.menu('Modify', 'Boolean…');
+            cy.menu('Modify', 'Combine / Subtract…');
             cy.contains('label', 'Operation').find('select').select(operation);
-            cy.contains('button', 'Apply Boolean').click();
+            cy.contains('button', /^Apply$/).click();
             cy.snapshot().then((p) =>
                 expect(
                     p.loops.reduce((sum, loop) => sum + area(loop), 0),
@@ -158,7 +160,7 @@ describe('Boolean and trim operations', () => {
     }
     it('removes only the segment between crossing vectors', () => {
         cy.importDesign('trim.svg');
-        cy.get('[aria-label="Trim vectors"]').click();
+        cy.get('[aria-label="Trim shapes"]').click();
         cy.worldClick(40, 50);
         cy.snapshot().then((p) => {
             expect(p.loops).to.have.length(4);
@@ -176,7 +178,7 @@ describe('Boolean and trim operations', () => {
     });
     it('trims an unsegmented crossing with a Ctrl brush and supports undo', () => {
         cy.importDesign('trim.svg');
-        cy.get('[aria-label="Trim vectors"]').click();
+        cy.get('[aria-label="Trim shapes"]').click();
         cy.worldDrag([40, 45], [40, 55], { ctrlKey: true });
         cy.snapshot().then((p) => expect(p.loops).to.have.length(4));
         cy.get('[aria-label="Undo"]').click();
@@ -212,9 +214,9 @@ describe('Boolean and trim operations', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
         cy.menu('Modify', 'Fillet…');
-        cy.get('[aria-label="Radius in mm"]').clear().type('2').blur();
-        cy.contains('button', /^Fillet$/).click();
         cy.worldClick(20, 40);
+        cy.get('[aria-label="Radius (mm)"]').clear().type('2').blur();
+        cy.contains('[role=dialog] button', /^Apply$/).click();
         cy.snapshot().then((p) => {
             expect(p.loops).to.have.length(3);
             const loop = p.loops.find((item) => p.selected.includes(item.id));
@@ -226,11 +228,12 @@ describe('Boolean and trim operations', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
         cy.menu('Modify', 'Chamfer…');
-        cy.get('[aria-label="Distance in mm"]').clear().type('2').blur();
-        cy.contains('button', /^Chamfer$/).click();
+        cy.worldClick(20, 40);
+        cy.get('[aria-label="Distance (mm)"]').clear().type('2').blur();
+        cy.contains('[role=dialog] button', /^Apply$/).click();
         cy.snapshot().then((p) => {
             const loop = p.loops.find((item) => p.selected.includes(item.id));
-            expect(area(loop)).to.be.closeTo(392, 0.1);
+            expect(area(loop)).to.be.closeTo(398, 0.1);
         });
     });
     it('adds dogbone relief at a clicked corner', () => {
@@ -239,7 +242,7 @@ describe('Boolean and trim operations', () => {
         cy.menu('Modify', /^Dogbone$/);
         cy.worldClick(20, 40);
         cy.snapshot().then((p) => {
-            expect(p.loops).to.have.length(4);
+            expect(p.loops).to.have.length(3);
             const loop = p.loops.find((item) => p.selected.includes(item.id));
             expect(loop.points.length).to.be.greaterThan(8);
             expect(area(loop)).to.be.greaterThan(0);

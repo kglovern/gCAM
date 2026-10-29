@@ -61,7 +61,7 @@ describe('Persistent combined transform', () => {
             'aria-pressed',
             'true',
         );
-        cy.get('[aria-label="Select vectors"]').click();
+        cy.get('[aria-label="Select shapes"]').click();
         cy.get('[aria-label="Transform selection"]').should(
             'have.attr',
             'aria-pressed',

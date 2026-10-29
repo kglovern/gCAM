@@ -47,9 +47,8 @@ describe('Mobile editing workflow', () => {
         cy.contains('[role="menuitem"]', 'Object Browser').click();
         cy.get('[aria-label="More canvas tools"]').should('not.exist');
         cy.get('[aria-label="Object browser"]').should('be.visible');
-        cy.get('[aria-label="Multiple selection in object browser"]').click();
-        cy.contains('button', 'Vector 1 (').click();
-        cy.contains('button', 'Vector 2 (').click();
+        cy.contains('button', 'Shape 1 (').click();
+        cy.contains('button', 'Shape 2 (').click();
         cy.get('[aria-label="Close object browser"]').click();
         cy.snapshot().then((project) =>
             expect(project.selected).to.have.length(2),
@@ -58,7 +57,6 @@ describe('Mobile editing workflow', () => {
 
     it('adds and removes canvas selections without a keyboard, then pans without changing selection', () => {
         cy.worldClick(20, 50);
-        cy.get('[aria-label="Multiple selection"]').click();
         cy.worldClick(50, 50);
         cy.snapshot().then((project) =>
             expect(project.selected).to.have.length(2),
@@ -108,7 +106,7 @@ describe('Mobile editing workflow', () => {
     it('opens single-shape properties from the object browser without overlapping panels', () => {
         cy.viewport(800, 1280);
         cy.menu('View', 'Object Browser');
-        cy.contains('button', 'Vector 1 (').click();
+        cy.contains('button', 'Shape 1 (').click();
         cy.get('[aria-label="Object browser"]')
             .contains('button', /^Edit$/)
             .click();

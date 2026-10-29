@@ -1,9 +1,13 @@
 describe('Shared beginner workflows', () => {
     beforeEach(() => cy.freshProject());
     it('imports an STL once and sends it directly to Rotary', () => {
-        cy.importDesign('rotary-asymmetric.stl');
+        cy.get('[aria-label="Rotary"]').click();
+        cy.contains('[role=tab]', 'STL').click();
+        cy.get('[aria-label="Import STL file"]').selectFile(
+            'cypress/fixtures/rotary-asymmetric.stl',
+            { force: true },
+        );
         cy.get('[aria-label="Model units"]').select('mm');
-        cy.get('input[name="model-destination"][value="rotary"]').check();
         cy.contains('button', 'Continue to model setup').click();
         cy.get('[aria-label="Rotary workspace"]').should('be.visible');
         cy.get('[aria-label="Rotary shape"]').should(
