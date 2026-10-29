@@ -2,6 +2,7 @@
  * Purpose: React hook that owns the AppPreferences workflow.
  */
 import { useEffect, useState } from 'react';
+import { loadOutput, OUTPUT_STORAGE_KEY } from '../gcode/profiles';
 import type { ConfigActions } from '../components/ConfigPanel';
 import { loadGrid, saveGrid } from '../components/ConfigPanel';
 import type { SideTab } from '../components/Sidebar';
@@ -19,6 +20,17 @@ import {
 
 /** Persistent application-wide display and output preferences. */
 export function useAppPreferences() {
+    const [outputSettings, setOutputSettings] = useState(loadOutput);
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                OUTPUT_STORAGE_KEY,
+                JSON.stringify(outputSettings),
+            );
+        } catch {
+            /* Keep in memory if storage is full. */
+        }
+    }, [outputSettings]);
     const [grid, setGrid] = useState(loadGrid);
     const [sideTab, setSideTab] = useState<SideTab>('toolpaths');
     const [configActions, setConfigActions] = useState<ConfigActions | null>(
@@ -101,6 +113,8 @@ export function useAppPreferences() {
     );
 
     return {
+        outputSettings,
+        setOutputSettings,
         grid,
         setGrid,
         sideTab,

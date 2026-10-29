@@ -4,8 +4,12 @@
 import { normalizeLayers, type DrawingLayer } from '../layers/model';
 import { normalizeJobStock, type JobStock } from '../job/stock';
 import type { StoredSurfaceMesh } from '../engine/surface-model';
+import { validateOutput, type OutputSettings } from '../gcode/profiles';
+import type { UnitSystem } from './units';
 
 export interface ProjectSnapshot {
+    outputSettings?: OutputSettings;
+    outputUnits?: UnitSystem;
     loops: {
         id?: string;
         points: { x: number; y: number }[];
@@ -104,6 +108,13 @@ export function deserializeProject(raw: string): ProjectSnapshot {
         throw new Error('This is not a valid gCAM project file.');
     }
     return {
+        outputUnits:
+            snap.outputUnits === 'metric' || snap.outputUnits === 'imperial'
+                ? snap.outputUnits
+                : undefined,
+        outputSettings: snap.outputSettings
+            ? validateOutput(snap.outputSettings)
+            : undefined,
         layers: normalizeLayers(snap.layers, snap.loops),
         activeLayerId: snap.activeLayerId,
         loops: snap.loops,

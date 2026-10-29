@@ -3,12 +3,19 @@
  */
 import { useMemo } from 'react';
 import { pointAtDistance } from '../geometry/primitives.js';
-import { combineToolpaths, type PlacedTab } from '../lib/engine';
-import { gcodeForUnits, type UnitSystem } from '../lib/units';
+import type { PlacedTab } from '../lib/engine';
+import type { UnitSystem } from '../lib/units';
 import { operationUsesTabs } from '../lib/tabs';
 import type { ToolpathStackEntry } from './useToolpathStack';
+import { exportToolpaths } from '../gcode/exportToolpaths';
+import {
+    DEFAULT_OUTPUT,
+    outputError,
+    type OutputSettings,
+} from '../gcode/profiles';
 
 interface ToolpathPresentationOptions {
+    outputSettings?: OutputSettings;
     stack: ToolpathStackEntry[];
     editingId: string | null;
     fileName: string;
@@ -92,18 +99,28 @@ export function useToolpathPresentation(options: ToolpathPresentationOptions) {
             ),
         [options.stack],
     );
-    const gcode = useMemo(
-        () =>
-            gcodeForUnits(
-                combineToolpaths(
+    const { gcode, gcodeError } = useMemo(() => {
+        try {
+            return {
+                gcode: exportToolpaths(
                     options.stack.map((entry) => entry.toolpath),
                     options.fileName || 'gcam',
                     options.emitArcs,
+                    options.units,
+                    options.outputSettings ?? DEFAULT_OUTPUT,
                 ),
-                options.units,
-            ),
-        [options.stack, options.fileName, options.emitArcs, options.units],
-    );
+                gcodeError: '',
+            };
+        } catch (error) {
+            return { gcode: '', gcodeError: outputError(error) };
+        }
+    }, [
+        options.stack,
+        options.fileName,
+        options.emitArcs,
+        options.units,
+        options.outputSettings,
+    ]);
     const previewToolpaths = useMemo(
         () =>
             options.stack.map((entry) => ({
@@ -114,5 +131,12 @@ export function useToolpathPresentation(options: ToolpathPresentationOptions) {
         [options.stack],
     );
 
-    return { editingEntry, preview, tabMarkers, gcode, previewToolpaths };
+    return {
+        editingEntry,
+        preview,
+        tabMarkers,
+        gcode,
+        gcodeError,
+        previewToolpaths,
+    };
 }

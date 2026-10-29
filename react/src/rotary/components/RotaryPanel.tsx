@@ -106,6 +106,7 @@ export function RotaryPanel({
                             className="shrink-0 border-t border-slate-200 p-3 dark:border-robin-900"
                         >
                             <GcodeExportButton
+                                outputSettings={R.outputSettings}
                                 gcode={output.ready ? R.gcode : ''}
                                 fileName={R.name}
                                 stack={[]}

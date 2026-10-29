@@ -7,6 +7,12 @@ import {
 } from './engine/meshToolpath';
 import { useMeshPlan } from './useMeshPlan';
 import { toGcode } from './engine/gcode';
+import {
+    DEFAULT_OUTPUT,
+    outputError,
+    type OutputSettings,
+} from '../gcode/profiles';
+import { renderProgram, type ProgramContext } from '../gcode/renderProgram';
 /**
  * Purpose: Rotary workflow state — conversational profile xor STL mesh,
  * stock/tool/ops, undo snapshots, and memoized toolpath derivation.
@@ -108,7 +114,9 @@ export function compRFor(mode: RotaryMode, tool: RotaryTool): number {
     return tool.type === 'flat' ? 0 : tool.dia / 2;
 }
 
-export function useRotaryState(): RotaryStateApi {
+export function useRotaryState(
+    outputSettings: OutputSettings = DEFAULT_OUTPUT,
+): RotaryStateApi {
     const [toolpaths, setToolpaths] = useState<RotaryToolpathEntry[]>([]);
     const [operation, setOperation] = useState<RotaryOperation>('rough');
     const [editingToolpathId, setEditingToolpathId] = useState<string | null>(
@@ -420,28 +428,82 @@ export function useRotaryState(): RotaryStateApi {
         moves: [],
         flags: pendingFlags,
     };
-    const { moves, flags } = job;
-    const programs = useMemo(
-        () =>
-            job.paths.map((path) => ({
-                id: path.entry.id,
-                label: operationLabel(path.entry.operation),
-                gcode: toGcode(combineRotaryPaths([path]).moves, {
-                    stock,
-                    mode,
-                    name,
-                    tool: path.entry.tool,
-                    compR: path.compR,
-                    toolChange: true,
-                    clearance: path.entry.ops.mesh?.clearance,
-                }),
-            })),
-        [job, stock, mode, name],
-    );
+    const { moves } = job;
+    const exported = useMemo(() => {
+        try {
+            const operationValues = (entry: RotaryToolpathEntry) => ({
+                toolNumber: entry.tool.slotNum ?? 1,
+                toolName: entry.tool.type,
+                toolDiameter: entry.tool.dia,
+                spindleSpeed: entry.tool.spindle,
+                feedRate: entry.tool.feed,
+                plungeRate: entry.tool.plunge,
+                safeZ:
+                    stock.diameter / 2 +
+                    Math.max(5, entry.ops.mesh?.clearance ?? 5),
+            });
+            const render = (
+                code: string,
+                operations: ProgramContext['operations'],
+            ) =>
+                renderProgram(code, outputSettings, 'metric', {
+                    rotary: true,
+                    fileName: name,
+                    operations,
+                });
+            return {
+                error: '',
+                gcode: render(
+                    rotaryJobGcode(
+                        job,
+                        stock,
+                        mode,
+                        name,
+                        outputSettings.controller !== 'grblhal',
+                    ),
+                    job.paths.map((path, index) => ({
+                        marker: `(Toolpath ${index + 1}: ${operationLabel(path.entry.operation)})`,
+                        name: operationLabel(path.entry.operation),
+                        values: operationValues(path.entry),
+                    })),
+                ),
+                programs: job.paths.map((path) => ({
+                    id: path.entry.id,
+                    label: operationLabel(path.entry.operation),
+                    gcode: render(
+                        toGcode(combineRotaryPaths([path]).moves, {
+                            stock,
+                            mode,
+                            name,
+                            tool: path.entry.tool,
+                            compR: path.compR,
+                            toolChange: true,
+                            clearance: path.entry.ops.mesh?.clearance,
+                            inverseTime:
+                                outputSettings.controller !== 'grblhal',
+                        }),
+                        [...new Set(path.moves.map((move) => move.op))].map(
+                            (op) => ({
+                                marker: `(${op})`,
+                                name: op,
+                                values: operationValues(path.entry),
+                            }),
+                        ),
+                    ),
+                })),
+            };
+        } catch (error) {
+            return { error: outputError(error), gcode: '', programs: [] };
+        }
+    }, [job, stock, mode, name, outputSettings]);
+    const programs = exported.programs;
+    const flags: RotaryCheck[] = exported.error
+        ? [...job.flags, { level: 'e', msg: exported.error }]
+        : job.flags;
     const stats = useMemo(() => estimate(moves), [moves]);
     const generate = useCallback(() => {
-        setGcode(rotaryJobGcode(job, stock, mode, name));
-    }, [job, stock, mode, name]);
+        setGcode(exported.gcode);
+    }, [exported.gcode]);
     const saveToolpath = () => {
         if (
             draft.flags.some((flag) => flag.level === 'e') ||
@@ -696,6 +758,7 @@ export function useRotaryState(): RotaryStateApi {
     );
 
     return {
+        outputSettings,
         toolpaths,
         programs,
         operation,
@@ -774,6 +837,7 @@ export function useRotaryState(): RotaryStateApi {
 }
 
 export interface RotaryStateApi {
+    outputSettings?: OutputSettings;
     planning: boolean;
     planningProgress?: number;
     toolpaths: RotaryToolpathEntry[];

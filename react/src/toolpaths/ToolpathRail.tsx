@@ -18,6 +18,7 @@ import type { MachineTravelLimits } from '../cutting-parameters/types';
 import { JobStockSetup } from '../job/JobStockSetup';
 import { machineProfileById } from '../cutting-parameters/machines';
 import { GcodeExportButton } from './GcodeExportButton';
+import type { OutputSettings } from '../gcode/profiles';
 
 type Bitmap = {
     id: string;
@@ -29,6 +30,8 @@ type Bitmap = {
 };
 
 interface ToolpathRailProps {
+    outputSettings?: OutputSettings;
+    gcodeError?: string;
     layerPanel?: LayerPanelProps;
     loops: ViewLoop[];
     selected: string[];
@@ -71,6 +74,8 @@ interface ToolpathRailProps {
 
 /** The toolpath form and committed-stack rail; independent from canvas layout. */
 export function ToolpathRail({
+    outputSettings,
+    gcodeError,
     layerPanel,
     loops,
     selected,
@@ -263,7 +268,16 @@ export function ToolpathRail({
             </div>
             {!showEditor && (
                 <div className="toolpath-rail-export space-y-2 shrink-0 border-t border-slate-200 p-3 dark:border-robin-900">
+                    {gcodeError && (
+                        <p
+                            role="alert"
+                            className="text-sm text-red-600 dark:text-red-400"
+                        >
+                            {gcodeError}
+                        </p>
+                    )}
                     <GcodeExportButton
+                        outputSettings={outputSettings}
                         gcode={gcode}
                         fileName={fileName}
                         stack={stack}

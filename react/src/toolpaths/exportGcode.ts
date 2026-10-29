@@ -4,12 +4,16 @@ import { saveTextFile } from '../platform/saveTextFile';
  */
 
 /** Output file name for a job: the source name with a fixed `.nc` extension. */
-export function gcodeFileName(fileName: string): string {
+export function gcodeFileName(fileName: string, extension = 'nc'): string {
     // camcanvas always exported GRBL as fixed .nc
-    return `${(fileName || 'gcam').replace(/\.[^.]+$/, '')}.nc`;
+    return `${(fileName || 'gcam').replace(/\.[^.]+$/, '')}.${extension}`;
 }
 
-export function downloadGcode(gcode: string, fileName: string): void {
+export function downloadGcode(
+    gcode: string,
+    fileName: string,
+    extension = 'nc',
+): void {
     if (!gcode.trim()) return;
-    saveTextFile(gcode, gcodeFileName(fileName));
+    saveTextFile(gcode, gcodeFileName(fileName, extension));
 }

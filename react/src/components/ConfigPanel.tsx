@@ -4,15 +4,7 @@ import { UpdateControls } from '../platform/updates/UpdateControls';
  * Purpose: Implementation module for ConfigPanel in the components domain.
  */
 import { useEffect, useId, useRef, useState } from 'react';
-import {
-    Box,
-    Grid,
-    Layers,
-    Lightbulb,
-    Ruler,
-    Send,
-    Settings,
-} from 'lucide-react';
+import { Box, Grid, Lightbulb, Ruler, Send, Settings } from 'lucide-react';
 import cx from 'classnames';
 import { displayValue, lengthUnit, toMm, type UnitSystem } from '../lib/units';
 import { UnitInput } from './UnitInput';
@@ -34,6 +26,13 @@ import {
     saveGsenderPort,
 } from '../integrations/gsender/settings';
 import { TabletSettings } from '../integrations/pendant/TabletSettings';
+import { GcodeSettings } from '../gcode/GcodeSettings';
+import {
+    DEFAULT_OUTPUT,
+    controllerPreset,
+    validateOutput,
+    type OutputSettings,
+} from '../gcode/profiles';
 
 export type GridStyle = 'lines' | 'dots';
 
@@ -95,6 +94,8 @@ function machineTravelLimitsForProfile(profileId: string): MachineTravelLimits {
 }
 
 interface ConfigPanelProps {
+    outputSettings?: OutputSettings;
+    onOutputSettingsChange?: (value: OutputSettings) => void;
     darkMode: boolean;
     onDarkModeChange: (v: boolean) => void;
     grid: GridState;
@@ -127,6 +128,8 @@ const inputCls = cx(
  * All state is lifted to App so changes apply live to canvas + toolpaths.
  */
 export function ConfigPanel({
+    outputSettings = DEFAULT_OUTPUT,
+    onOutputSettingsChange,
     darkMode,
     onDarkModeChange,
     grid,
@@ -185,6 +188,7 @@ export function ConfigPanel({
 
     const handleExportConfig = () => {
         const config = {
+            outputSettings,
             darkMode,
             grid,
             emitArcs,
@@ -209,6 +213,10 @@ export function ConfigPanel({
         reader.onload = (ev) => {
             try {
                 const config = JSON.parse(ev.target?.result as string);
+                const importedOutput = config.outputSettings
+                    ? validateOutput(config.outputSettings)
+                    : undefined;
+                if (importedOutput) onOutputSettingsChange?.(importedOutput);
                 if (typeof config.darkMode === 'boolean')
                     onDarkModeChange(config.darkMode);
                 if (config.grid) onGridChange(config.grid);
@@ -253,6 +261,7 @@ export function ConfigPanel({
     };
 
     const handleResetConfig = () => {
+        onOutputSettingsChange?.(controllerPreset());
         onDarkModeChange(true);
         onGridChange({
             visible: true,
@@ -278,6 +287,8 @@ export function ConfigPanel({
             resetConfig: handleResetConfig,
         });
     }, [
+        outputSettings,
+        onOutputSettingsChange,
         darkMode,
         emitArcs,
         grid,
@@ -613,24 +624,12 @@ export function ConfigPanel({
                 </div>
             </section>
 
-            <section className="space-y-4">
-                <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">
-                    <Layers size={16} className="text-robin-400" />
-                    G-code Output
-                </h3>
-                <div className="space-y-3 bg-white dark:bg-slate-800/80 rounded-lg border border-slate-300 dark:border-robin-900/70 p-4 shadow-sm dark:shadow-[0_4px_16px_rgba(2,6,23,0.18)]">
-                    <SettingRow
-                        label="Emit G2/G3 Arcs"
-                        description="Default for new toolpaths (circular interpolation vs G1 segments)"
-                    >
-                        <Toggle
-                            label="Emit G2/G3 Arcs"
-                            checked={emitArcs}
-                            onChange={onEmitArcsChange}
-                        />
-                    </SettingRow>
-                </div>
-            </section>
+            <GcodeSettings
+                value={outputSettings}
+                onChange={(value) => onOutputSettingsChange?.(value)}
+                emitArcs={emitArcs}
+                onEmitArcsChange={onEmitArcsChange}
+            />
 
             <section className="space-y-4">
                 <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2">

@@ -15,12 +15,18 @@ import { useTrimCommands } from '../interactions/useTrimCommands';
 import type { ToolpathStackEntry } from '../toolpaths/useToolpathStack';
 import { useDrawingWorkspaceState } from './useDrawingWorkspaceState';
 import { useTransformWorkspaceState } from './useTransformWorkspaceState';
+import type { OutputSettings } from '../gcode/profiles';
+import type { UnitSystem } from '../lib/units';
 
 type DocumentState = ReturnType<typeof useDocumentWorkspace>;
 type DrawingState = ReturnType<typeof useDrawingWorkspaceState>;
 type TransformState = ReturnType<typeof useTransformWorkspaceState>;
 
 interface Options {
+    outputSettings?: OutputSettings;
+    outputUnits?: UnitSystem;
+    onLoadOutputUnits?: (units: UnitSystem) => void;
+    onLoadOutputSettings?: (settings: OutputSettings) => void;
     document: DocumentState;
     drawing: DrawingState;
     transforms: TransformState;
@@ -42,6 +48,10 @@ interface Options {
 
 /** Cohesive document-edit command wiring; state remains owned by its domains. */
 export function useDocumentEditingCommands({
+    outputUnits,
+    onLoadOutputUnits,
+    outputSettings,
+    onLoadOutputSettings,
     document,
     drawing,
     transforms,
@@ -83,6 +93,10 @@ export function useDocumentEditingCommands({
     } = document;
 
     const projectFiles = useProjectFileCommands({
+        outputUnits,
+        onLoadOutputUnits,
+        outputSettings,
+        onLoadOutputSettings,
         layers: document.layers,
         activeLayerId: document.activeLayerId,
         setLayers: document.setLayers,

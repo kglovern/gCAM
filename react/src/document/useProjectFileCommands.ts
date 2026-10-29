@@ -12,6 +12,8 @@ import type { BitmapLike, GuideLike, StackEntryLike } from '../lib/project';
 import { downloadProject, readProjectFile } from './projectFile';
 import type { JobStock } from '../job/stock';
 import { normalizeJobStock } from '../job/stock';
+import { controllerPreset, type OutputSettings } from '../gcode/profiles';
+import type { UnitSystem } from '../lib/units';
 
 interface IdentifiedLoop {
     id: string;
@@ -28,6 +30,10 @@ interface UseProjectFileCommandsOptions<
     TBitmap extends ProjectBitmap,
     TGuide extends GuideLike,
 > {
+    outputSettings?: OutputSettings;
+    outputUnits?: UnitSystem;
+    onLoadOutputUnits?: (units: UnitSystem) => void;
+    onLoadOutputSettings?: (settings: OutputSettings) => void;
     layers?: DrawingLayer[];
     activeLayerId?: string;
     setLayers?: Dispatch<SetStateAction<DrawingLayer[]>>;
@@ -76,6 +82,8 @@ export function useProjectFileCommands<
             return;
         }
         const name = downloadProject({
+            outputUnits: options.outputUnits,
+            outputSettings: options.outputSettings,
             layers: options.layers,
             activeLayerId: options.activeLayerId,
             loops: options.loops,
@@ -97,6 +105,11 @@ export function useProjectFileCommands<
         if (!file) return;
         try {
             const snapshot = await readProjectFile(file);
+            options.onLoadOutputSettings?.(
+                snapshot.outputSettings ?? controllerPreset(),
+            );
+            if (snapshot.outputUnits)
+                options.onLoadOutputUnits?.(snapshot.outputUnits);
             options.pushHistory();
             const loops = snapshot.loops.map(
                 (loop) =>

@@ -8,6 +8,7 @@ import {
 } from './project';
 import { DEFAULT_LAYER } from '../layers/model';
 import { DEFAULT_JOB_STOCK } from '../job/stock';
+import { controllerPreset } from '../gcode/profiles';
 
 const SNAP: ProjectSnapshot = {
     layers: [DEFAULT_LAYER],
@@ -34,6 +35,25 @@ test('project round-trips through the gcam envelope', () => {
     expect(raw).toContain('"gcam.project"');
     const back = deserializeProject(raw);
     expect(back).toEqual(SNAP);
+});
+
+test('projects retain custom controller blocks and reject corrupt output settings', () => {
+    const outputSettings = controllerPreset('duet');
+    outputSettings.name = 'Workshop Duet';
+    outputSettings.blocks.start = '(Job {jobName})';
+    outputSettings.delaySeconds = 2;
+    const back = deserializeProject(
+        serializeProject({ ...SNAP, outputSettings }),
+    );
+    expect(back.outputSettings).toEqual(outputSettings);
+    expect(() =>
+        deserializeProject(
+            serializeProject({
+                ...SNAP,
+                outputSettings: { ...outputSettings, decimals: -1 },
+            }),
+        ),
+    ).toThrow('Invalid G-code settings');
 });
 
 test('legacy camcanvas envelopes still load', () => {

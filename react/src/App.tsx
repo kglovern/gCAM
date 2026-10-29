@@ -154,6 +154,8 @@ export default function App() {
         setDarkMode,
         emitArcs,
         setEmitArcs,
+        outputSettings,
+        setOutputSettings,
         units,
         setUnits,
         machineProfileId,
@@ -228,7 +230,7 @@ export default function App() {
     const { confirm, dialog: confirmDialog } = useConfirmation();
     const { expandedSelectedIds, selectedLoops, offsetSource, booleanLoops } =
         useVisibleSelection(loops, selected, hidden);
-    const rotary = useRotaryState();
+    const rotary = useRotaryState(outputSettings);
     const rotaryOutput = useRotaryExport(rotary);
     const [newRotaryProject] = useState(() => rotary.snapshotProject());
     const [simulationSource, setSimulationSource] = useState<
@@ -436,6 +438,13 @@ export default function App() {
         setBooleanPreview,
         setEditingId,
         rotaryProject: rotary.snapshotProject(),
+        outputUnits: units,
+        onLoadOutputUnits: setUnits,
+        outputSettings,
+        onLoadOutputSettings: (settings) => {
+            setOutputSettings(settings);
+            setEmitArcs(settings.arcs);
+        },
         onLoadRotaryProject: (slice) => {
             if (rotary.restoreProject(slice)) {
                 setStatus('Loaded rotary setup.');
@@ -443,14 +452,21 @@ export default function App() {
         },
     });
 
-    const { editingEntry, preview, tabMarkers, gcode, previewToolpaths } =
-        useToolpathPresentation({
-            stack,
-            editingId,
-            fileName,
-            emitArcs,
-            units,
-        });
+    const {
+        editingEntry,
+        preview,
+        tabMarkers,
+        gcode,
+        gcodeError,
+        previewToolpaths,
+    } = useToolpathPresentation({
+        outputSettings,
+        stack,
+        editingId,
+        fileName,
+        emitArcs,
+        units,
+    });
 
     useEditorLifecycle({
         textAnchor,
@@ -545,6 +561,8 @@ export default function App() {
 
     const inspector = buildInspector(units);
     const toolpathRailProps = {
+        outputSettings,
+        gcodeError,
         onStockThickness: (thicknessMm: number) => {
             if (
                 !Number.isFinite(thicknessMm) ||
@@ -664,6 +682,8 @@ export default function App() {
         setMachineSetupOpen(false);
     };
     const configPanelProps = {
+        outputSettings,
+        onOutputSettingsChange: setOutputSettings,
         darkMode,
         onDarkModeChange: setDarkMode,
         grid,

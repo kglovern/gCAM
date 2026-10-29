@@ -3,11 +3,17 @@ import { SendToTabletButton } from '../integrations/pendant/SendToTabletButton';
 import { downloadGcode } from './exportGcode';
 import { ChevronDown, Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { combineToolpaths } from '../lib/engine';
-import { gcodeForUnits, type UnitSystem } from '../lib/units';
+import type { UnitSystem } from '../lib/units';
 import type { ToolpathStackEntry } from './useToolpathStack';
+import { exportToolpaths } from '../gcode/exportToolpaths';
+import {
+    DEFAULT_OUTPUT,
+    outputError,
+    type OutputSettings,
+} from '../gcode/profiles';
 
 export function GcodeExportButton({
+    outputSettings = DEFAULT_OUTPUT,
     gcode,
     fileName,
     stack,
@@ -15,6 +21,7 @@ export function GcodeExportButton({
     emitArcs,
     programs,
 }: {
+    outputSettings?: OutputSettings;
     gcode: string;
     fileName: string;
     stack: ToolpathStackEntry[];
@@ -23,6 +30,7 @@ export function GcodeExportButton({
     programs?: { id: string; label: string; gcode: string }[];
 }) {
     const [open, setOpen] = useState(false);
+    const [error, setError] = useState('');
     const root = useRef<HTMLDivElement>(null);
     const toggle = useRef<HTMLButtonElement>(null);
     const baseName = (fileName || 'gcam').replace(/\.[^.]+$/, '');
@@ -56,6 +64,7 @@ export function GcodeExportButton({
                   downloadGcode(
                       program.gcode,
                       `${baseName}-${index + 1}-${program.label}`,
+                      outputSettings.extension,
                   ),
           }))
         : stack.map((entry, index) => ({
@@ -64,11 +73,15 @@ export function GcodeExportButton({
               download: () => {
                   const name = `${baseName}-${index + 1}-${entry.label.replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/\.+$/g, '') || 'toolpath'}`;
                   downloadGcode(
-                      gcodeForUnits(
-                          combineToolpaths([entry.toolpath], name, emitArcs),
+                      exportToolpaths(
+                          [entry.toolpath],
+                          name,
+                          emitArcs,
                           units,
+                          outputSettings,
                       ),
                       name,
+                      outputSettings.extension,
                   );
               },
           }));
@@ -76,11 +89,21 @@ export function GcodeExportButton({
         'flex min-h-11 items-center justify-center bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500';
     return (
         <div ref={root} className="relative space-y-2">
+            {error && (
+                <p
+                    role="alert"
+                    className="text-sm text-red-600 dark:text-red-400"
+                >
+                    {error}
+                </p>
+            )}
             <div className="flex">
                 <button
                     type="button"
                     disabled={!gcode.trim()}
-                    onClick={() => downloadGcode(gcode, baseName)}
+                    onClick={() =>
+                        downloadGcode(gcode, baseName, outputSettings.extension)
+                    }
                     className={`${buttonClass} flex-1 gap-2 rounded-l-lg px-3 py-2`}
                 >
                     <Download size={16} />
@@ -111,7 +134,12 @@ export function GcodeExportButton({
                             type="button"
                             className="block min-h-11 w-full rounded px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-dark-lighter"
                             onClick={() => {
-                                entry.download();
+                                try {
+                                    entry.download();
+                                    setError('');
+                                } catch (cause) {
+                                    setError(outputError(cause));
+                                }
                                 setOpen(false);
                                 toggle.current?.focus();
                             }}

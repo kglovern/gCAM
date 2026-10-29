@@ -12,7 +12,7 @@ export function useRotaryExport(rotary: UseRotaryState) {
         editingToolpathId: _editingId,
         ...job
     } = rotary.snapshotProject();
-    const key = JSON.stringify(job);
+    const key = JSON.stringify({ job, outputSettings: rotary.outputSettings });
     const needsModel = rotary.mode === 'stl' && !rotary.stlMesh;
     const errors =
         rotary.flags.filter((flag) => flag.level === 'e').length +

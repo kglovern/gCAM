@@ -259,6 +259,7 @@ export function rotaryJobGcode(
     stock: RotaryStock,
     mode: RotaryMode,
     name: string,
+    inverseTime = false,
 ) {
     if (!job.paths.length || job.flags.some((flag) => flag.level === 'e'))
         return '';
@@ -282,6 +283,7 @@ export function rotaryJobGcode(
             compR: path.compR,
             toolChange,
             clearance: path.entry.ops.mesh?.clearance,
+            inverseTime,
         })
             .trim()
             .split(/\r?\n/)

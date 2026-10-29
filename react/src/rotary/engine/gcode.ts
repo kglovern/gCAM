@@ -14,11 +14,38 @@ export interface GcodeContext {
     compR: number;
     toolChange?: boolean;
     clearance?: number;
+    inverseTime?: boolean;
 }
 
 export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
     const { stock, tool, name, mode, compR } = ctx;
     const xyza = moves.some((m) => m.y !== undefined);
+    if (ctx.inverseTime && !xyza) {
+        let previous: { x: number; z: number; a: number } | null = null;
+        moves = moves.flatMap((move) => {
+            const next = {
+                x: move.x ?? previous?.x ?? 0,
+                z: move.z ?? previous?.z ?? 0,
+                a: move.a ?? previous?.a ?? 0,
+            };
+            const before = previous;
+            previous = next;
+            if (move.rapid) return [move];
+            if (!before || !(move.f! > 0))
+                throw new Error(
+                    'Rotary inverse-time output requires a positioned start and positive feed.',
+                );
+            const radius = Math.max(Math.abs(before.z), Math.abs(next.z));
+            const distance = Math.hypot(
+                next.x - before.x,
+                next.z - before.z,
+                (((next.a - before.a) * Math.PI) / 180) * radius,
+            );
+            if (!distance) return [];
+            return [{ ...move, minutes: distance / move.f! }];
+        });
+    }
+    const inverseTime = xyza || ctx.inverseTime;
     if (
         xyza &&
         moves.some(
@@ -63,7 +90,7 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
     L.push('G17');
     L.push('G21');
     L.push('G90');
-    if (xyza) L.push('G94');
+    if (inverseTime) L.push('G94');
     L.push(`G0Z${f3(zPark)}`);
     if (ctx.toolChange) L.push(`(Change to T${tool.slotNum ?? 1})`, 'M6');
     L.push(`S${tool.spindle}M3`);
@@ -76,7 +103,7 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
             lastOp = m.op;
         }
         // Any axis may be omitted (modal) — never synthesize one.
-        if (xyza && !m.rapid) L.push('G93');
+        if (inverseTime && !m.rapid) L.push('G93');
         let w = m.rapid ? 'G0' : 'G1';
         if (m.x !== undefined) {
             w += `X${f3(m.x)}`;
@@ -95,7 +122,7 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
             w += `Z${f3(m.z)}`;
         }
         if (!m.rapid) {
-            if (xyza) {
+            if (inverseTime) {
                 // Round down so formatting cannot shorten the requested block time.
                 const inverse = Math.floor((1 / m.minutes!) * 1e6) / 1e6;
                 if (!(inverse > 0))
@@ -110,7 +137,7 @@ export function toGcode(moves: ToolpathMove[], ctx: GcodeContext): string {
     if (aMax > -Infinity) {
         L.push(`(A range ${aMin.toFixed(1)}..${aMax.toFixed(1)} deg)`);
     }
-    if (xyza) L.push('G94');
+    if (inverseTime) L.push('G94');
     L.push(`G0Z${f3(zSafe)}`);
     L.push('M5');
     L.push(`G0Z${f3(zPark)}`);
