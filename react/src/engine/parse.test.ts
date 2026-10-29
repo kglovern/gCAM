@@ -1,8 +1,9 @@
 /**
- * Tests: parseDxf reads an LWPOLYLINE square; buildLoops closes the square with correct area and perimeter; parseSvg reads rect and circle without DOM measurement.
+ * Tests: parseDxf reads an LWPOLYLINE square; buildLoops closes the square with correct area and perimeter; parseSvg reads rect and circle without DOM measurement; relative subpath moves keep their absolute position; compact transform lists parse.
  */
 import { parseDxf } from './dxf.js';
-import { parseSvg } from './svg.js';
+import { absolutizeSubpathStarts, parseSvg } from './svg.js';
+import { parseSvgTransform } from '../geometry/matrix.js';
 import {
     boundsOfEntities,
     buildLoops,
@@ -126,4 +127,43 @@ test('parseSvg reads rect and circle without DOM measurement', () => {
     const bounds = boundsOfEntities(entities);
     expect(bounds.minX).toBeCloseTo(10);
     expect(bounds.maxX).toBeCloseTo(70);
+});
+
+test('relative subpath moves continue from the closed subpath start', () => {
+    expect(
+        absolutizeSubpathStarts(['M10 10 h5 v5 z', 'm20 0 h5 v5 z']),
+    ).toEqual(['M10 10 h5 v5 z', 'M30 10 h5 v5 z']);
+});
+
+test('relative subpath moves continue from an open subpath end', () => {
+    expect(absolutizeSubpathStarts(['M10 10 l5 5', 'm1 1 l2 0'])[1]).toBe(
+        'M16 16 l2 0',
+    );
+});
+
+test('extra pairs after a relative move stay relative line segments', () => {
+    expect(absolutizeSubpathStarts(['M0 0 z', 'm1 1 2 2'])[1]).toBe(
+        'M1 1 l2 2',
+    );
+});
+
+test('relative curves, arcs and axis lines move the current point', () => {
+    const [, second] = absolutizeSubpathStarts([
+        'M0 0 c1 1 2 2 3 3 a5 5 0 0110 10 h2 v-1',
+        'm1 1 z',
+    ]);
+    expect(second).toBe('M16 13 z');
+});
+
+test('absolute subpath starts are left untouched', () => {
+    expect(absolutizeSubpathStarts(['M0 0 h1 z', 'M5 5 h1 z'])[1]).toBe(
+        'M5 5 h1 z',
+    );
+});
+
+test('parseSvgTransform reads compact number lists', () => {
+    expect(parseSvgTransform('translate(10-5)')).toMatchObject({
+        e: 10,
+        f: -5,
+    });
 });

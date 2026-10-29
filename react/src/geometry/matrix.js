@@ -32,8 +32,9 @@ export function parseSvgTransform(transformText) {
     let match = commandPattern.exec(transformText);
     while (match) {
         const command = match[1].toLowerCase();
-        const values = match[2]
-            .split(/[\s,]+/)
+        const values = (
+            match[2].match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) ?? []
+        )
             .map((value) => Number.parseFloat(value))
             .filter(Number.isFinite);
         let next = createMatrix();
