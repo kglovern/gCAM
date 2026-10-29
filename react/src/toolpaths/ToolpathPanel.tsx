@@ -210,6 +210,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     const [overlap, setOverlap] = useState(40);
     const [tabWidth, setTabWidth] = useState(9);
     const [tabHeight, setTabHeight] = useState(9);
+    const [tabsEnabled, setTabsEnabled] = useState(true);
     const [surfaceResolution, setSurfaceResolution] = useState(0.25);
     const [surfaceStepover, setSurfaceStepover] = useState(1.2);
     const [surfaceStepdown, setSurfaceStepdown] = useState(1.5);
@@ -290,7 +291,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     const LASER_OPS: Operation[] = ['laser-cut', 'laser-raster'];
     const [busy, setBusy] = useState(false);
     const [status, setStatus] = useState(
-        loops.length ? 'Vectors ready.' : 'Import vectors first.',
+        loops.length ? 'Shapes ready.' : 'Import shapes first.',
     );
     // In edit mode the entry's own source loops drive it instead.
     const byId = new Map(loops.map((l) => [l.id, l]));
@@ -396,6 +397,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         setOverlap(num(a.overlapPercent, 40));
         setTabWidth(num(a.tabWidth, 9));
         setTabHeight(num(a.tabHeight, 9));
+        setTabsEnabled(num(a.tabHeight, 9) > 0);
         setAutoTabHeight(false);
         setSurfaceResolution(num(a.surfaceResolutionMm, 0.25));
         setSurfaceStepover(num(a.surfaceStepoverMm, 1.2));
@@ -547,9 +549,11 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             bitmap = resolveRasterBitmap();
         }
         // Editing preserves the entry's existing tabs.
-        const tabs = editEntry
-            ? (((editEntry.args as ProfileArgs).tabs as PlacedTab[]) ?? [])
-            : [];
+        const tabs = !tabsEnabled
+            ? []
+            : editEntry
+              ? (((editEntry.args as ProfileArgs).tabs as PlacedTab[]) ?? [])
+              : [];
         return {
             loops:
                 operation === 'profile-outside' && selectedSurfaceBitmap
@@ -621,7 +625,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             arcs: defaultArcs,
             overlapPercent: overlap,
             tabWidth,
-            tabHeight,
+            tabHeight: tabsEnabled ? tabHeight : 0,
             toolNumber,
             tabs,
             fileName: 'gcam',
@@ -1029,6 +1033,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         overlap,
         tabWidth,
         tabHeight,
+        tabsEnabled,
         toolNumber,
         slotNum,
         slots,
@@ -1192,6 +1197,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                         onEngagementChange={setEngagement}
                         helicalEntry={helicalEntry}
                         onHelicalEntryChange={setHelicalEntry}
+                        tabsEnabled={tabsEnabled}
+                        onTabsEnabledChange={setTabsEnabled}
                         tabWidth={tabWidth}
                         onTabWidthChange={setTabWidth}
                         tabHeight={tabHeight}

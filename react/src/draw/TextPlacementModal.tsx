@@ -44,7 +44,7 @@ export function TextPlacementModal({
                     await onSubmit();
                 }}
             >
-                <div className="text-base font-semibold">Add Vector Text</div>
+                <div className="text-base font-semibold">Add Text Shapes</div>
                 <label className="grid gap-1">
                     <span>Text</span>
                     <input

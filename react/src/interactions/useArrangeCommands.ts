@@ -126,11 +126,13 @@ export function useArrangeCommands<TLoop extends ArrangeLoop, TStack>(
             const results = applyBoolean(inputs, operation);
             replaceSelection(
                 results,
-                `${operation}: ${inputs.length} vectors → ${results.length} shape${results.length === 1 ? '' : 's'}.`,
+                `${operation}: ${inputs.length} shapes → ${results.length} shape${results.length === 1 ? '' : 's'}.`,
             );
         } catch (error) {
             options.setStatus(
-                error instanceof Error ? error.message : 'Boolean failed',
+                error instanceof Error
+                    ? error.message
+                    : 'Could not combine or subtract the shapes',
             );
         }
     };

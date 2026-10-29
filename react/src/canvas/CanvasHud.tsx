@@ -93,7 +93,7 @@ export function CanvasHud({
                 className={`absolute top-2 left-2 text-xs px-2 py-1 rounded border ${chip}`}
             >
                 {loopCount
-                    ? `${loopCount} vector${loopCount === 1 ? '' : 's'}`
+                    ? `${loopCount} shape${loopCount === 1 ? '' : 's'}`
                     : 'Drop DXF/SVG, STL/OBJ, or an image here — or use File > Import File'}
             </div>
             <CursorReadout
@@ -350,21 +350,18 @@ function GuideOffsetInput({
     onChange(offset: number): void;
     onCancel(): void;
 }) {
-    const normal = { x: -draft.direction.y, y: draft.direction.x };
-    const anchor = {
-        x: draft.source.x + normal.x * draft.offset,
-        y: draft.source.y + normal.y * draft.offset,
-    };
-    const left =
-        camera.tx + ((draft.source.x + anchor.x) * camera.scale) / 2 + 12;
-    const top =
-        camera.ty - ((draft.source.y + anchor.y) * camera.scale) / 2 - 14;
+    const cursor = draft.cursor ?? draft.source;
+    const left = camera.tx + cursor.x * camera.scale + 14;
+    const top = camera.ty - cursor.y * camera.scale + 14;
     const value =
         units === 'imperial' ? draft.offset / MM_PER_INCH : draft.offset;
     return (
         <label
-            className={`absolute z-20 flex items-center gap-1 rounded border px-1.5 py-1 text-xs shadow ${darkMode ? 'border-orange-400 bg-dark text-slate-100' : 'border-orange-500 bg-white text-slate-700'}`}
-            style={{ left, top }}
+            className={`absolute z-20 flex w-40 items-center gap-1 rounded border px-1.5 py-1 text-xs shadow ${darkMode ? 'border-orange-400 bg-dark text-slate-100' : 'border-orange-500 bg-white text-slate-700'}`}
+            style={{
+                left: `clamp(8px, ${left}px, calc(100% - 168px))`,
+                top: `clamp(8px, ${top}px, calc(100% - 40px))`,
+            }}
         >
             <span>Offset</span>
             <input

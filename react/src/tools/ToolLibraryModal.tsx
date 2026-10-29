@@ -1,7 +1,7 @@
 /**
  * Purpose: Implementation module for ToolLibraryModal in the react domain.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { RotateCcw, Save, Layers, X } from 'lucide-react';
 import cx from 'classnames';
@@ -139,7 +139,9 @@ export function ToolLibraryModal({
                 ref={modalRef}
                 tabIndex={-1}
                 className={cx(
-                    'w-full max-w-3xl max-h-[calc(var(--app-height,100dvh)-16px)] md:max-h-[90dvh] flex flex-col overflow-hidden',
+                    'w-full max-w-6xl max-h-[calc(var(--app-height,100dvh)-16px)] md:max-h-[90dvh] flex flex-col overflow-hidden',
+                    editingSlot !== null &&
+                        'h-[calc(var(--app-height,100dvh)-16px)] md:h-[90dvh]',
                     'rounded-lg bg-gray-100 dark:bg-dark border border-gray-300 dark:border-gray-700',
                     'animate-slide-up',
                 )}
@@ -152,6 +154,9 @@ export function ToolLibraryModal({
                     >
                         <Layers size={20} className="text-robin-400" />
                         Tool Library
+                        {editingSlot !== null
+                            ? `: Editing slot T${editingSlot}`
+                            : ''}
                     </h2>
                     <button
                         onClick={onClose}
@@ -256,7 +261,7 @@ function ToolSlotEditor({
 }) {
     const [name, setName] = useState(slot.name);
     const [toolType, setToolType] = useState<ToolType>(slot.toolType);
-    const [libraryToolId, setLibraryToolId] = useState(
+    const [catalogToolId, setLibraryToolId] = useState(
         slot.libraryToolId ?? '',
     );
     const [diameter, setDiameter] = useState(
@@ -268,6 +273,27 @@ function ToolSlotEditor({
         slot.cuttingLengthMm?.toString() ?? '',
     );
     const [touched, setTouched] = useState(false);
+    const tabsId = useId();
+    const [source, setSource] = useState(
+        slot.libraryToolId
+            ? slot.vendor || 'sienci'
+            : slot.name
+              ? 'custom'
+              : 'sienci',
+    );
+    const vendors = new Map<string, string>([['sienci', 'Sienci Labs']]);
+    for (const tool of catalog) {
+        if (tool.vendor)
+            vendors.set(tool.vendor, tool.vendorDisplayName || tool.vendor);
+    }
+    const sources = [...vendors, ['custom', 'Custom']];
+    const libraryToolId =
+        source !== 'custom' &&
+        (catalog.find((tool) => tool.id === catalogToolId)?.vendor ||
+            slot.vendor ||
+            'sienci') === source
+            ? catalogToolId
+            : '';
 
     const num = (v: string) => {
         const n = Number.parseFloat(v);
@@ -291,7 +317,8 @@ function ToolSlotEditor({
     const issues = rowHasAnyData(draft) ? slotIssues(draft) : [];
     const invalid = (field: string) =>
         touched && issues.includes(REQUIRED_TOOL_FIELDS[field]);
-    const valid = issues.length === 0;
+    const valid =
+        issues.length === 0 && (source === 'custom' || Boolean(libraryToolId));
 
     const fieldCls = (bad: boolean) =>
         cx(
@@ -317,155 +344,207 @@ function ToolSlotEditor({
     };
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-lg border border-robin-500/50 bg-slate-100 dark:bg-dark-lighter p-3 animate-slide-up">
-            <header className="flex shrink-0 items-center justify-between">
-                <span className="font-mono text-robin-400">
-                    Editing T{slot.slot}
-                </span>
-                <button
-                    onClick={onCancel}
-                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-robin-900/50 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                    aria-label="Cancel editing"
-                >
-                    <X size={18} />
-                </button>
-            </header>
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-lg border border-robin-500/50 bg-slate-100 dark:bg-dark-lighter p-3 animate-slide-up">
+            <div
+                role="tablist"
+                aria-label="Tool source"
+                className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-300 dark:border-robin-900"
+            >
+                {sources.map(([id, label], index) => (
+                    <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        id={`${tabsId}-${id}`}
+                        aria-controls={`${tabsId}-panel`}
+                        aria-selected={source === id}
+                        tabIndex={source === id ? 0 : -1}
+                        onClick={() => setSource(id)}
+                        onKeyDown={(event) => {
+                            let next = index;
+                            if (event.key === 'ArrowRight')
+                                next = (index + 1) % sources.length;
+                            else if (event.key === 'ArrowLeft')
+                                next =
+                                    (index + sources.length - 1) %
+                                    sources.length;
+                            else if (event.key === 'Home') next = 0;
+                            else if (event.key === 'End')
+                                next = sources.length - 1;
+                            else return;
+                            event.preventDefault();
+                            setSource(sources[next][0]);
+                            (
+                                event.currentTarget.parentElement?.children[
+                                    next
+                                ] as HTMLButtonElement
+                            )?.focus();
+                        }}
+                        className={cx(
+                            'shrink-0 border-b-2 px-4 py-2 text-sm font-medium',
+                            source === id
+                                ? 'border-robin-500 text-robin-600 dark:text-robin-300'
+                                : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+                        )}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+            <div
+                role="tabpanel"
+                id={`${tabsId}-panel`}
+                aria-labelledby={`${tabsId}-${source}`}
+                className={
+                    source === 'custom'
+                        ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
+                        : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                }
+            >
+                {source !== 'custom' && (
+                    <ToolCatalogSelect
+                        catalog={catalog.filter(
+                            (tool) => tool.vendor === source,
+                        )}
+                        catalogError={catalogError}
+                        selectedId={libraryToolId}
+                        units={units}
+                        className={fieldCls(false)}
+                        onSelect={applyCatalogTool}
+                    />
+                )}
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
-                <ToolCatalogSelect
-                    catalog={catalog}
-                    catalogError={catalogError}
-                    selectedId={libraryToolId}
-                    units={units}
-                    className={fieldCls(false)}
-                    onSelect={applyCatalogTool}
-                />
-
-                <div className="grid grid-cols-2 gap-3">
-                    <label className="col-span-2 space-y-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Tool Name *
-                        </span>
-                        <input
-                            value={name}
-                            onChange={(e) => {
-                                setName(e.target.value);
-                                setTouched(true);
-                            }}
-                            placeholder='e.g. 1/4" End Mill'
-                            aria-invalid={invalid('name')}
-                            className={fieldCls(invalid('name'))}
-                        />
-                    </label>
-                    <label className="space-y-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Type
-                        </span>
-                        <select
-                            value={toolType}
-                            onChange={(e) => {
-                                setToolType(e.target.value as ToolType);
-                                setTouched(true);
-                            }}
-                            className={fieldCls(false)}
-                        >
-                            <option value="flat">Flat</option>
-                            <option value="ball">Ball</option>
-                            <option value="ballnose">Ball Nose</option>
-                            <option value="surfacing">Surfacing</option>
-                            <option value="drill">Drill</option>
-                            <option value="v-bit">V-Bit</option>
-                            <option value="specialty">Specialty</option>
-                        </select>
-                    </label>
-                    <label className="space-y-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Diameter ({lengthUnit(units)}) *
-                        </span>
-                        <input
-                            type="number"
-                            step={displayValue(0.1, units)}
-                            min={displayValue(0.1, units)}
-                            value={displayLength(diameter)}
-                            onChange={(e) => {
-                                setDiameter(
-                                    e.target.value === ''
-                                        ? ''
-                                        : String(
-                                              toMm(
-                                                  Number(e.target.value),
-                                                  units,
-                                              ),
-                                          ),
-                                );
-                                setTouched(true);
-                            }}
-                            aria-invalid={invalid('cuttingDiameterMm')}
-                            className={fieldCls(invalid('cuttingDiameterMm'))}
-                        />
-                    </label>
-                    {toolType === 'v-bit' && (
+                {source === 'custom' && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <label className="col-span-2 space-y-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                Tool Name *
+                            </span>
+                            <input
+                                value={name}
+                                onChange={(e) => {
+                                    setName(e.target.value);
+                                    setTouched(true);
+                                }}
+                                placeholder='e.g. 1/4" End Mill'
+                                aria-invalid={invalid('name')}
+                                className={fieldCls(invalid('name'))}
+                            />
+                        </label>
                         <label className="space-y-1">
                             <span className="text-xs text-slate-500 dark:text-slate-400">
-                                V Angle (°) *
+                                Type
+                            </span>
+                            <select
+                                value={toolType}
+                                onChange={(e) => {
+                                    setToolType(e.target.value as ToolType);
+                                    setTouched(true);
+                                }}
+                                className={fieldCls(false)}
+                            >
+                                <option value="flat">Flat</option>
+                                <option value="ball">Ball</option>
+                                <option value="ballnose">Ball Nose</option>
+                                <option value="surfacing">Surfacing</option>
+                                <option value="drill">Drill</option>
+                                <option value="v-bit">V-Bit</option>
+                                <option value="specialty">Specialty</option>
+                            </select>
+                        </label>
+                        <label className="space-y-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                Diameter ({lengthUnit(units)}) *
+                            </span>
+                            <input
+                                type="number"
+                                step={displayValue(0.1, units)}
+                                min={displayValue(0.1, units)}
+                                value={displayLength(diameter)}
+                                onChange={(e) => {
+                                    setDiameter(
+                                        e.target.value === ''
+                                            ? ''
+                                            : String(
+                                                  toMm(
+                                                      Number(e.target.value),
+                                                      units,
+                                                  ),
+                                              ),
+                                    );
+                                    setTouched(true);
+                                }}
+                                aria-invalid={invalid('cuttingDiameterMm')}
+                                className={fieldCls(
+                                    invalid('cuttingDiameterMm'),
+                                )}
+                            />
+                        </label>
+                        {toolType === 'v-bit' && (
+                            <label className="space-y-1">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    V Angle (°) *
+                                </span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={179}
+                                    value={angle}
+                                    onChange={(e) => {
+                                        setAngle(e.target.value);
+                                        setTouched(true);
+                                    }}
+                                    aria-invalid={invalid('fluteAngleDeg')}
+                                    className={fieldCls(
+                                        invalid('fluteAngleDeg'),
+                                    )}
+                                />
+                            </label>
+                        )}
+                        <label className="space-y-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                Flutes *
                             </span>
                             <input
                                 type="number"
                                 min={1}
-                                max={179}
-                                value={angle}
+                                max={12}
+                                value={flutes}
                                 onChange={(e) => {
-                                    setAngle(e.target.value);
+                                    setFlutes(e.target.value);
                                     setTouched(true);
                                 }}
-                                aria-invalid={invalid('fluteAngleDeg')}
-                                className={fieldCls(invalid('fluteAngleDeg'))}
+                                aria-invalid={invalid('flutes')}
+                                className={fieldCls(invalid('flutes'))}
                             />
                         </label>
-                    )}
-                    <label className="space-y-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Flutes *
-                        </span>
-                        <input
-                            type="number"
-                            min={1}
-                            max={12}
-                            value={flutes}
-                            onChange={(e) => {
-                                setFlutes(e.target.value);
-                                setTouched(true);
-                            }}
-                            aria-invalid={invalid('flutes')}
-                            className={fieldCls(invalid('flutes'))}
-                        />
-                    </label>
-                    <label className="space-y-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Cutting length ({lengthUnit(units)})
-                        </span>
-                        <input
-                            type="number"
-                            min={0}
-                            step={displayValue(0.1, units)}
-                            value={displayLength(cuttingLength)}
-                            onChange={(e) => {
-                                setCuttingLength(
-                                    e.target.value === ''
-                                        ? ''
-                                        : String(
-                                              toMm(
-                                                  Number(e.target.value),
-                                                  units,
+                        <label className="space-y-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                Cutting length ({lengthUnit(units)})
+                            </span>
+                            <input
+                                type="number"
+                                min={0}
+                                step={displayValue(0.1, units)}
+                                value={displayLength(cuttingLength)}
+                                onChange={(e) => {
+                                    setCuttingLength(
+                                        e.target.value === ''
+                                            ? ''
+                                            : String(
+                                                  toMm(
+                                                      Number(e.target.value),
+                                                      units,
+                                                  ),
                                               ),
-                                          ),
-                                );
-                                setTouched(true);
-                            }}
-                            className={fieldCls(false)}
-                        />
-                    </label>
-                </div>
+                                    );
+                                    setTouched(true);
+                                }}
+                                className={fieldCls(false)}
+                            />
+                        </label>
+                    </div>
+                )}
             </div>
             <footer className="flex shrink-0 flex-wrap items-center gap-2 pt-2 border-t border-slate-200 dark:border-robin-900">
                 {issues.length > 0 && (

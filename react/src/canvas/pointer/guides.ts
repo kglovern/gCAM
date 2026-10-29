@@ -61,10 +61,15 @@ export function updateGuideInteraction(
     if (deps.viewRef.current.guidePlacement !== 'edge') return false;
     deps.updateCursor(event);
     const draft = deps.viewRef.current.guideDraft;
-    if (draft) {
-        deps.onGuideDraftChange(
-            draftAtOffset(draft, offsetAtEvent(event, deps, draft)),
-        );
+    if (draft && deps.canvasRef.current) {
+        deps.onGuideDraftChange({
+            ...draftAtOffset(draft, offsetAtEvent(event, deps, draft)),
+            cursor: worldAtEvent(
+                event,
+                deps.canvasRef.current,
+                deps.cameraRef.current,
+            ),
+        });
     }
     deps.forceTick();
     return true;

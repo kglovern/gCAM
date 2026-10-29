@@ -343,7 +343,7 @@ export function buildToolpathGcode({
     libraryToolName,
     bitmap,
 }: ProfileArgs & { bitmap?: RasterBitmap }): Promise<ToolpathResult> {
-    if (!loops.length) return Promise.reject(new Error('No vectors selected.'));
+    if (!loops.length) return Promise.reject(new Error('No shapes selected.'));
     if (operation === 'laser-raster' && !bitmap)
         return Promise.reject(
             new Error('Laser Raster needs a bitmap — import an image first.'),
@@ -468,7 +468,7 @@ export function applyBoolean(
         loops,
         operation,
     );
-    if (!results.length) throw new Error('Boolean produced no geometry.');
+    if (!results.length) throw new Error('The shapes produced no result.');
     return results.map((points) => ({ points }));
 }
 
@@ -521,7 +521,7 @@ export async function buildToolpathGcodeAsync(
         ...config
     } = args;
 
-    if (!loops.length) throw new Error('No vectors selected.');
+    if (!loops.length) throw new Error('No shapes selected.');
     assertToolpathRequest({ operation, ...config }, bitmap);
 
     // Prepare raster data for bitmap operations

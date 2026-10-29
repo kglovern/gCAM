@@ -86,7 +86,7 @@ export function ToolbarCommands({
                 <>
                     <button
                         title="Select (V): drag right to enclose, left to cross. Touch: one finger selects; two fingers pan and pinch to zoom."
-                        aria-label="Select vectors"
+                        aria-label="Select shapes"
                         aria-pressed={
                             props.activeTool === 'select' &&
                             !props.transformMode &&
@@ -113,8 +113,8 @@ export function ToolbarCommands({
                 <>
                     <ToolbarSeparator />
                     <button
-                        title="Trim vectors"
-                        aria-label="Trim vectors"
+                        title="Trim shapes"
+                        aria-label="Trim shapes"
                         aria-pressed={props.activeTool === 'trim'}
                         disabled={!props.hasGeometry}
                         onClick={() => props.onTrim?.()}

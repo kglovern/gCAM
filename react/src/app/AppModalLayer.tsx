@@ -30,7 +30,11 @@ interface AppModalLayerProps {
     units: UnitSystem;
     machineSetupOpen: boolean;
     machineProfileId: string;
-    onChooseMachine(profileId: string, limits: MachineTravelLimits): void;
+    onChooseMachine(
+        profileId: string,
+        limits: MachineTravelLimits,
+        units: UnitSystem,
+    ): void;
     textAnchor: Point | null;
     drawText: string;
     drawFont: string;

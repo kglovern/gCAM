@@ -2,6 +2,7 @@
  * Purpose: Implementation module for CanvasStage in the react domain.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useRulerGuides } from './useRulerGuides';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { CanvasNavigationControls } from './CanvasNavigationControls';
 import { VectorContextMenu } from './VectorContextMenu';
@@ -134,6 +135,21 @@ export function CanvasStage({
     const topRulerRef = useRef<HTMLCanvasElement>(null);
     const leftRulerRef = useRef<HTMLCanvasElement>(null);
     const cameraRef = useRef<Camera>({ scale: 1, tx: 0, ty: 0 });
+    const rulerGuides = useRulerGuides({
+        canvasRef,
+        cameraRef,
+        grid,
+        enabled:
+            activeTool === 'select' &&
+            !drawTool &&
+            !transformMode &&
+            !cornerTool &&
+            !tabMode &&
+            !guidePlacement,
+        onDraft: onGuideDraftChange,
+        onPlace: onPlaceGuide,
+        onCancel: onCancelGuide,
+    });
     const panRef = useRef<{ x: number; y: number } | null>(null);
     const downRef = useRef<{ x: number; y: number } | null>(null);
     const marqueeRef = useRef<{
@@ -494,7 +510,7 @@ export function CanvasStage({
         };
     }, []);
 
-    // Repaint after every render — viewRef is refreshed during render, so
+    // Repaint after every render â€” viewRef is refreshed during render, so
     // the canvas always reflects current loops/selection/preview/camera.
     useEffect(() => {
         renderRef.current();
@@ -907,7 +923,10 @@ export function CanvasStage({
                 />
                 <canvas
                     ref={topRulerRef}
-                    aria-hidden="true"
+                    {...rulerGuides('top')}
+                    tabIndex={0}
+                    aria-label="Top ruler: drag onto the drawing to add a vertical guide"
+                    title="Drag onto the drawing to add a vertical guide"
                     className="flex-1 block min-w-0"
                     style={{ height: RULER }}
                 />
@@ -915,7 +934,10 @@ export function CanvasStage({
             <div className="flex flex-1 min-h-0">
                 <canvas
                     ref={leftRulerRef}
-                    aria-hidden="true"
+                    {...rulerGuides('left')}
+                    tabIndex={0}
+                    aria-label="Left ruler: drag onto the drawing to add a horizontal guide"
+                    title="Drag onto the drawing to add a horizontal guide"
                     className="block shrink-0 self-stretch"
                     style={{ width: RULER }}
                 />

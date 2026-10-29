@@ -34,7 +34,7 @@ test('real pipeline emits gCAM GRBL for a profiled square', async () => {
 test('real pipeline rejects empty selection', async () => {
     await expect(
         buildProfileGcode({ loops: [], toolDiameter: 6, cutDepth: 3 }),
-    ).rejects.toThrow(/No vectors/);
+    ).rejects.toThrow(/No shapes/);
 });
 
 test('3D surface results emit XYZ finishing moves through the shared GRBL program', () => {

@@ -82,7 +82,7 @@ export function ObjectTree({
                 ? `Bitmap ${displayValue(bm.w, units)}×${displayValue(bm.h, units)}${lengthUnit(units)}`
                 : 'Bitmap';
         }
-        return `Vector ${index + 1} (${loop.points.length} pts)`;
+        return `Shape ${index + 1} (${loop.points.length} pts)`;
     };
     return (
         <FloatingPanel

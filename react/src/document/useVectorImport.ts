@@ -71,7 +71,7 @@ export function useVectorImport<TLoop extends ImportLoop, TStack>(
         options.setStack([]);
         options.setFileName(scaled.fileName);
         options.setStatus(
-            `${scaled.fileName}: ${scaled.entityCount} entities → ${scaled.loops.length} vectors (${scale} mm per drawing unit)`,
+            `${scaled.fileName}: ${scaled.entityCount} entities → ${scaled.loops.length} shapes (${scale} mm per drawing unit)`,
         );
         options.onFitView();
     };

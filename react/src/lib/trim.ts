@@ -24,7 +24,12 @@ function closestOnSegment(a: Point, b: Point, p: Point) {
         : 0;
     return { t, distance: distance(p, { x: a.x + dx * t, y: a.y + dy * t }) };
 }
-function crossings(a: Point, b: Point, c: Point, d: Point): number[] {
+export function segmentCrossings(
+    a: Point,
+    b: Point,
+    c: Point,
+    d: Point,
+): number[] {
     if (
         Math.max(a.x, b.x) + EPS < Math.min(c.x, d.x) ||
         Math.min(a.x, b.x) - EPS > Math.max(c.x, d.x) ||
@@ -104,7 +109,7 @@ export function trimNearestSegment(
                         (closed && Math.abs(i - j) === points.length - 2))
                 )
                     continue;
-                for (const t of crossings(
+                for (const t of segmentCrossings(
                     points[i],
                     points[i + 1],
                     boundary[j],

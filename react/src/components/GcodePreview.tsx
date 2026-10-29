@@ -33,7 +33,7 @@ export function GcodePreview({
                 </summary>
                 <pre className="max-h-28 overflow-auto no-scrollbar rounded bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-robin-900 p-2 text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
                     {preview ||
-                        'Import vectors and add a toolpath to generate G-code.'}
+                        'Import shapes and add a toolpath to generate G-code.'}
                     {truncated &&
                         '\n… Preview truncated; export includes the full file.'}
                 </pre>

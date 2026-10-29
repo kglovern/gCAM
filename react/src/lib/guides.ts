@@ -18,6 +18,7 @@ export interface GuideSource {
 }
 
 export interface GuideDraft {
+    cursor?: GuidePoint;
     source: GuidePoint;
     direction: GuidePoint;
     sourceLabel: string;

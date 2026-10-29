@@ -23,8 +23,14 @@ export function handleCornerDown(
             deps.viewRef.current.hidden,
             worldAtEvent(event, canvas, deps.cameraRef.current),
             deps.cameraRef.current.scale,
+            deps.viewRef.current.cornerTool !== 'dogbone',
         );
-        if (hover) deps.onFilletCorner?.(hover.loopId, hover.index);
+        if (hover)
+            deps.onFilletCorner?.(
+                hover.loopId,
+                hover.index,
+                hover.intersection,
+            );
     }
     event.preventDefault();
     // A corner edit consumes the click; mouse-up must not reselect the old corner.
@@ -119,6 +125,7 @@ export function updateCornerHover(
         deps.viewRef.current.hidden,
         worldAtEvent(event, canvas, deps.cameraRef.current),
         deps.cameraRef.current.scale,
+        deps.viewRef.current.cornerTool !== 'dogbone',
     );
     canvas.style.cursor = deps.cornerHoverRef.current ? 'crosshair' : '';
     deps.updateCursor(event);

@@ -15,6 +15,7 @@ import { useGuideCommands } from './interactions/useGuideCommands';
 import { useFileLoading } from './document/useFileLoading';
 import { useArrangeCommands } from './interactions/useArrangeCommands';
 import { useTransformCommands } from './interactions/useTransformCommands';
+import { CornerSizeDialog } from './components/CornerSizeDialog';
 import { useCornerCommands } from './interactions/useCornerCommands';
 import {
     type ToolpathStackEntry,
@@ -51,9 +52,9 @@ type StackEntry = ToolpathStackEntry;
 type PlacedBitmap = PlacedBitmapRecord;
 
 /**
- * gCAM React shell — gSender visual language (robin/blue palette, dark slate
- * chrome, compact panels) with the gCAM workflow: import → select → toolpath
- * stack → combined export for gSender.
+ * gCAM React shell â€” gSender visual language (robin/blue palette, dark slate
+ * chrome, compact panels) with the gCAM workflow: import â†’ select â†’ toolpath
+ * stack â†’ combined export for gSender.
  */
 export default function App() {
     useVisualViewportHeight();
@@ -164,6 +165,8 @@ export default function App() {
         setMachineSetupOpen,
         machineTravelLimits,
         setMachineTravelLimits,
+        multipleSelection,
+        setMultipleSelection,
     } = useAppPreferences();
     const formatLength = (valueMm: number, decimals = 2) =>
         formatLengthValue(valueMm, units, decimals);
@@ -325,24 +328,32 @@ export default function App() {
         setLoadingSample,
     });
 
-    const { handleFillet, handleDogbone, handleCorner, handleChamfer } =
-        useCornerCommands<ViewLoop, StackEntry>({
-            loops,
-            cornerRadius,
-            cornerTool,
-            selectedLoops,
-            withIds,
-            formatLength,
-            replaceSelection: (items, note) => replaceSelection(items, note),
-            pushHistory,
-            refreshBounds,
-            setLoops,
-            setSelected,
-            setStack,
-            setCornerTool,
-            setTransformMode,
-            setStatus,
-        });
+    const {
+        handleFillet,
+        handleDogbone,
+        handleCorner,
+        handleChamfer,
+        pendingCorner,
+        confirmCorner,
+        cancelCorner,
+    } = useCornerCommands<ViewLoop, StackEntry>({
+        loops,
+        cornerRadius,
+        setCornerRadius: arrange.setCornerRadius,
+        cornerTool,
+        selectedLoops,
+        withIds,
+        formatLength,
+        replaceSelection: (items, note) => replaceSelection(items, note),
+        pushHistory,
+        refreshBounds,
+        setLoops,
+        setSelected,
+        setStack,
+        setCornerTool,
+        setTransformMode,
+        setStatus,
+    });
 
     const {
         applyAbsoluteMove,
@@ -662,7 +673,9 @@ export default function App() {
     const handleFirstMachineChoose = (
         id: string,
         limits: typeof machineTravelLimits,
+        preferredUnits: typeof units,
     ) => {
+        setUnits(preferredUnits);
         const matchesCurrentBed =
             machineTravelLimits.maxXTravelMm !== null &&
             machineTravelLimits.maxYTravelMm !== null &&
@@ -682,6 +695,8 @@ export default function App() {
         setMachineSetupOpen(false);
     };
     const configPanelProps = {
+        multipleSelection,
+        onMultipleSelectionChange: setMultipleSelection,
         outputSettings,
         onOutputSettingsChange: setOutputSettings,
         darkMode,
@@ -733,7 +748,10 @@ export default function App() {
             onMoveTab: handleMoveTab,
             onDeleteTab: handleDeleteTab,
             onPlaceGuide: placeGuide,
-            onGuideDraftChange: drawing.setGuideDraft,
+            onGuideDraftChange: (draft) => {
+                if (draft) setGuidePlacement('edge');
+                drawing.setGuideDraft(draft);
+            },
             onCancelGuide: () => {
                 setGuidePlacement(null);
                 drawing.setGuideDraft(null);
@@ -901,7 +919,20 @@ export default function App() {
                     setStatus={setStatus}
                     toasts={toasts}
                     dismissToast={dismissToast}
-                    confirmation={confirmDialog}
+                    confirmation={
+                        <>
+                            {confirmDialog}
+                            {pendingCorner && (
+                                <CornerSizeDialog
+                                    tool={pendingCorner.tool}
+                                    initialSize={cornerRadius}
+                                    units={units}
+                                    onApply={confirmCorner}
+                                    onCancel={cancelCorner}
+                                />
+                            )}
+                        </>
+                    }
                     bitmapImportChoice={bitmapImportChoice}
                     commitBitmapPlacement={commitBitmapPlacement}
                     updateSurfaceSetupOrientation={

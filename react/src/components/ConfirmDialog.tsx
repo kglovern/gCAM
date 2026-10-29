@@ -10,6 +10,7 @@ interface ConfirmOptions {
     message: string;
     confirmLabel?: string;
     destructive?: boolean;
+    rememberKey?: string;
 }
 
 /**
@@ -17,6 +18,7 @@ interface ConfirmOptions {
  * Render once; call `confirm()` to await the user's choice.
  */
 export function useConfirmation() {
+    const [remember, setRemember] = useState(false);
     const [pending, setPending] = useState<
         (ConfirmOptions & { resolve: (v: boolean) => void }) | null
     >(null);
@@ -33,8 +35,19 @@ export function useConfirmation() {
         return () => window.removeEventListener('keydown', onKey);
     }, [pending]);
 
-    const confirm = (opts: ConfirmOptions): Promise<boolean> =>
-        new Promise((resolve) => setPending({ ...opts, resolve }));
+    const confirm = (opts: ConfirmOptions): Promise<boolean> => {
+        try {
+            if (
+                opts.rememberKey &&
+                localStorage.getItem(opts.rememberKey) === 'true'
+            )
+                return Promise.resolve(true);
+        } catch {
+            /* Confirmation remains available without storage. */
+        }
+        setRemember(false);
+        return new Promise((resolve) => setPending({ ...opts, resolve }));
+    };
 
     const dialog = pending ? (
         <div
@@ -67,6 +80,18 @@ export function useConfirmation() {
                 >
                     {pending.message}
                 </p>
+                {pending.rememberKey && (
+                    <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                        <input
+                            type="checkbox"
+                            checked={remember}
+                            onChange={(event) =>
+                                setRemember(event.target.checked)
+                            }
+                        />
+                        Don’t show again
+                    </label>
+                )}
                 <div className="flex justify-end gap-2 pt-1">
                     <button
                         onClick={() => {
@@ -80,6 +105,16 @@ export function useConfirmation() {
                     <button
                         autoFocus
                         onClick={() => {
+                            if (remember && pending.rememberKey) {
+                                try {
+                                    localStorage.setItem(
+                                        pending.rememberKey,
+                                        'true',
+                                    );
+                                } catch {
+                                    /* Keep this confirmation if storage is unavailable. */
+                                }
+                            }
                             pending.resolve(true);
                             setPending(null);
                         }}

@@ -115,7 +115,7 @@ test('snaps to vector midpoint and edge before the grid', () => {
     ).toMatchObject({
         point: { x: 3.2, y: 0 },
         kind: 'edge',
-        label: 'On vector',
+        label: 'On shape',
     });
 });
 

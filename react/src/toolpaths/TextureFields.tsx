@@ -55,7 +55,7 @@ export function TextureFields({
                     />
                     <span className="block text-xs text-slate-500 dark:text-slate-400">
                         Whole-area Voronoi cells, clipped to the selected
-                        vectors.
+                        shapes.
                     </span>
                 </label>
             ) : (
@@ -93,7 +93,7 @@ export function TextureFields({
                     </label>
                     <span className="block text-xs text-slate-500 dark:text-slate-400">
                         Two perpendicular V-bit passes, clipped to the selected
-                        vectors.
+                        shapes.
                     </span>
                 </>
             )}

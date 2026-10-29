@@ -111,12 +111,18 @@ export function ToolbarMenus({
                         <ToolbarMenuItem
                             label="Fillet…"
                             icon={<Radius size={16} />}
-                            onClick={() => openAction('fillet')}
+                            onClick={() => {
+                                props.onApplyFillet();
+                                close();
+                            }}
                         />
                         <ToolbarMenuItem
                             label="Chamfer…"
                             icon={<Triangle size={16} />}
-                            onClick={() => openAction('chamfer')}
+                            onClick={() => {
+                                props.onApplyChamfer?.();
+                                close();
+                            }}
                         />
                         <ToolbarMenuItem
                             label="Dogbone"
@@ -127,7 +133,7 @@ export function ToolbarMenus({
                             }}
                         />
                         <ToolbarMenuItem
-                            label="Boolean…"
+                            label="Combine / Subtract…"
                             icon={<Combine size={16} />}
                             onClick={() => openAction('boolean')}
                         />

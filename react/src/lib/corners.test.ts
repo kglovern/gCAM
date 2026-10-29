@@ -1,7 +1,12 @@
 /**
  * Tests: fillet rounds square corners inside the original bounds; fillet leaves impossible radii sharp; chamfer replaces each square corner with a straight cut; dogbone emits one tool circle per corner.
  */
-import { chamferLoop, dogboneLoops, filletLoop } from './corners';
+import {
+    chamferCorner,
+    chamferLoop,
+    dogboneLoops,
+    filletLoop,
+} from './corners';
 import { boundsOfPoints } from '../engine/paths.js';
 
 const SQUARE = [
@@ -44,4 +49,17 @@ test('dogbone emits one tool circle per corner', () => {
         const b = boundsOfPoints(c);
         expect(b.maxX - b.minX).toBeCloseTo(6, 0);
     }
+});
+
+test('chamfer changes only the picked corner and preserves closure', () => {
+    const out = chamferCorner(SQUARE, 1, 3)!;
+    expect(out).toEqual([
+        { x: 0, y: 0 },
+        { x: 17, y: 0 },
+        { x: 20, y: 3 },
+        { x: 20, y: 20 },
+        { x: 0, y: 20 },
+        { x: 0, y: 0 },
+    ]);
+    expect(chamferCorner(SQUARE, 1, 25)).toBeNull();
 });

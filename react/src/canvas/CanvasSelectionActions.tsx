@@ -26,12 +26,12 @@ export function CanvasSelectionActions({
                 className="min-w-0 truncate text-xs tabular-nums text-slate-500 dark:text-slate-300"
                 role="status"
             >
-                {count ? `${count} selected` : 'Select vectors'}
+                {count ? `${count} selected` : 'Select shapes'}
             </span>
             <button
                 type="button"
                 aria-label="Multiple selection"
-                title="Tap vectors to add or remove them from the selection"
+                title="Tap shapes to add or remove them from the selection"
                 aria-pressed={additive}
                 onClick={() => onAdditiveChange(!additive)}
                 className={`${button} ${additive ? '!bg-robin-500 !text-white' : ''}`}

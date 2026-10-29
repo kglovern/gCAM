@@ -157,8 +157,18 @@ export function createToolbarProps({
         onApplyScale: actions.applyScale,
         cornerRadius: arrange.cornerRadius,
         onCornerRadius: arrange.setCornerRadius,
-        onApplyFillet: actions.applyFillet,
-        onApplyChamfer: actions.applyChamfer,
+        onApplyFillet: () => {
+            clearGuidePlacement();
+            drawing.setDrawTool(null);
+            drawing.setActiveTool('select');
+            actions.applyFillet();
+        },
+        onApplyChamfer: () => {
+            clearGuidePlacement();
+            drawing.setDrawTool(null);
+            drawing.setActiveTool('select');
+            actions.applyChamfer?.();
+        },
         onApplyDogbone: actions.applyDogbone,
         offsetAmount: arrange.offsetAmount,
         onOffsetAmount: arrange.setOffsetAmount,

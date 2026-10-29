@@ -13,17 +13,22 @@ import { displayValue, lengthUnit, toMm, type UnitSystem } from '../lib/units';
 interface MachineSetupModalProps {
     units: UnitSystem;
     machineProfileId: string;
-    onChoose(profileId: string, limits: MachineTravelLimits): void;
+    onChoose(
+        profileId: string,
+        limits: MachineTravelLimits,
+        units: UnitSystem,
+    ): void;
 }
 
 const fieldClass =
     'mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-robin-500 focus:outline-none focus:ring-2 focus:ring-robin-500/30 dark:border-robin-900 dark:bg-dark dark:text-white';
 
 export function MachineSetupModal({
-    units,
+    units: initialUnits,
     machineProfileId,
     onChoose,
 }: MachineSetupModalProps) {
+    const [units, setUnits] = useState(initialUnits);
     const [profileId, setProfileId] = useState(
         machineProfileId || DEFAULT_MACHINE_PROFILE.id,
     );
@@ -40,21 +45,29 @@ export function MachineSetupModal({
 
     const choose = () => {
         if (selectedProfile) {
-            onChoose(profileId, {
-                maxXTravelMm: selectedProfile.maxXTravelMm,
-                maxYTravelMm: selectedProfile.maxYTravelMm,
-                minZTravelMm: -selectedProfile.maxZTravelMm,
-                maxZTravelMm: null,
-            });
+            onChoose(
+                profileId,
+                {
+                    maxXTravelMm: selectedProfile.maxXTravelMm,
+                    maxYTravelMm: selectedProfile.maxYTravelMm,
+                    minZTravelMm: -selectedProfile.maxZTravelMm,
+                    maxZTravelMm: null,
+                },
+                units,
+            );
             return;
         }
         if (!customValid) return;
-        onChoose(CUSTOM_MACHINE_PROFILE_ID, {
-            maxXTravelMm: toMm(customValues.x, units),
-            maxYTravelMm: toMm(customValues.y, units),
-            minZTravelMm: -toMm(customValues.z, units),
-            maxZTravelMm: null,
-        });
+        onChoose(
+            CUSTOM_MACHINE_PROFILE_ID,
+            {
+                maxXTravelMm: toMm(customValues.x, units),
+                maxYTravelMm: toMm(customValues.y, units),
+                minZTravelMm: -toMm(customValues.z, units),
+                maxZTravelMm: null,
+            },
+            units,
+        );
     };
 
     return (
@@ -80,11 +93,48 @@ export function MachineSetupModal({
                             Choose your CNC machine
                         </h2>
                         <p className="text-sm text-slate-600 dark:text-slate-300">
-                            This sets your machine limits and the canvas
-                            starting size.
+                            Tell us about your machine and preferences to get
+                            started.
                         </p>
                     </div>
                 </div>
+
+                <label className="mt-6 block text-sm font-medium text-slate-800 dark:text-slate-100">
+                    Preferred units
+                    <select
+                        className={fieldClass}
+                        value={units}
+                        onChange={(event) => {
+                            const next = event.target.value as UnitSystem;
+                            setCustom(
+                                (current) =>
+                                    Object.fromEntries(
+                                        Object.entries(current).map(
+                                            ([axis, value]) => [
+                                                axis,
+                                                value === ''
+                                                    ? ''
+                                                    : String(
+                                                          displayValue(
+                                                              toMm(
+                                                                  Number(value),
+                                                                  units,
+                                                              ),
+                                                              next,
+                                                              4,
+                                                          ),
+                                                      ),
+                                            ],
+                                        ),
+                                    ) as typeof current,
+                            );
+                            setUnits(next);
+                        }}
+                    >
+                        <option value="metric">Millimetres (mm)</option>
+                        <option value="imperial">Inches (in)</option>
+                    </select>
+                </label>
 
                 <label
                     className="mt-6 block text-sm font-medium text-slate-800 dark:text-slate-100"

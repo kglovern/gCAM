@@ -334,7 +334,7 @@ export function useBitmapCommands<
                 current.filter((bitmap) => bitmap.id !== replaceBitmapId),
             );
         }
-        options.setStatus(`Traced ${traced.length} vectors — bitmap replaced.`);
+        options.setStatus(`Traced ${traced.length} shapes — bitmap replaced.`);
     };
 
     return {

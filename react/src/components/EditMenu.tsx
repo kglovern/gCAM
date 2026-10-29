@@ -99,7 +99,7 @@ export function EditMenu(props: EditMenuProps) {
             {open && (
                 <div
                     role="menu"
-                    aria-label="Edit vectors"
+                    aria-label="Edit shapes"
                     className="absolute left-0 top-11 z-40 w-72 rounded-xl border border-slate-200 dark:border-robin-900 bg-white dark:bg-dark p-3 space-y-3 shadow-xl max-h-[70vh] overflow-y-auto"
                 >
                     <Section title="Transform">
@@ -282,7 +282,7 @@ export function EditMenu(props: EditMenuProps) {
                             </button>
                         </Row>
                     </Section>
-                    <Section title="Boolean combine">
+                    <Section title="Combine / Subtract">
                         <div className="flex flex-wrap gap-1">
                             {(
                                 [
@@ -301,7 +301,14 @@ export function EditMenu(props: EditMenuProps) {
                                     disabled={!props.canBoolean}
                                     className={`${applyCls} capitalize disabled:opacity-30`}
                                 >
-                                    {op}
+                                    {
+                                        {
+                                            union: 'Combine',
+                                            difference: 'Subtract',
+                                            intersection: 'Keep overlap',
+                                            xor: 'Remove overlap',
+                                        }[op]
+                                    }
                                 </button>
                             ))}
                         </div>

@@ -11,9 +11,9 @@ export function useArrangeWorkspaceState() {
     const [nestBorder, setNestBorder] = useState(5);
     const [nestSpacing, setNestSpacing] = useState(5);
     const [cornerRadius, setCornerRadius] = useState(3);
-    const [cornerTool, setCornerTool] = useState<'fillet' | 'dogbone' | null>(
-        null,
-    );
+    const [cornerTool, setCornerTool] = useState<
+        'fillet' | 'chamfer' | 'dogbone' | null
+    >(null);
     return {
         offsetAmount,
         setOffsetAmount,

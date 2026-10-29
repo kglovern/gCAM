@@ -179,7 +179,7 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
     const compositeSelection = isRasterOp
         ? []
         : compositePocketSeedPaths(selectedLoops);
-    reportProgress(32, 'Unioning vectors');
+    reportProgress(32, 'Combining shapes');
 
     if (
         config.operation === 'engrave' ||
@@ -479,7 +479,7 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
 
     const label =
         options.label ||
-        `${operationLabel} (${selectedLoops.length} vector${selectedLoops.length === 1 ? '' : 's'})`;
+        `${operationLabel} (${selectedLoops.length} shape${selectedLoops.length === 1 ? '' : 's'})`;
     const chamferWidth =
         config.operation === 'chamfer' && Number.isFinite(config.cutterAngle)
             ? 2 * cutDepth * Math.tan((config.cutterAngle * Math.PI) / 360)
@@ -536,7 +536,7 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
                 : config.operation === 'wavy-raster'
                   ? `Wavy - ${selectedLoops.length} bitmaps - ${extra.wavyMinDepth}→${extra.wavyMaxDepth}mm`
                   : config.operation === 'laser-cut'
-                    ? `Laser Cut - ${selectedLoops.length} vectors`
+                    ? `Laser Cut - ${selectedLoops.length} shapes`
                     : cardMeta,
         toolDiameter: config.toolDiameter,
         toolRadius: config.toolRadius,

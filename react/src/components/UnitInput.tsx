@@ -24,7 +24,7 @@ interface UnitInputProps
     onChangeMm: (valueMm: number) => void;
     minMm?: number;
     maxMm?: number;
-    stepMm?: number;
+    stepMm?: number | 'any';
     decimals?: number;
 }
 
@@ -65,9 +65,11 @@ export function UnitInput({
                 maxMm == null ? undefined : displayValue(maxMm, units, decimals)
             }
             step={
-                stepMm == null
-                    ? undefined
-                    : displayValue(stepMm, units, decimals)
+                stepMm === 'any'
+                    ? 'any'
+                    : stepMm == null
+                      ? undefined
+                      : displayValue(stepMm, units, decimals)
             }
             onFocus={(event) => {
                 setEditing(true);

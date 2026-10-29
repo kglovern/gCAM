@@ -26,6 +26,38 @@ const isClosed = (points: CornerPoint[]) =>
     points[0].x === points[points.length - 1].x &&
     points[0].y === points[points.length - 1].y;
 
+/** Chamfer only the picked vertex, leaving every other corner unchanged. */
+export function chamferCorner(
+    points: CornerPoint[],
+    index: number,
+    distance: number,
+): CornerPoint[] | null {
+    const closed = isClosed(points);
+    const ring = closed ? points.slice(0, -1) : points.slice();
+    if (
+        !(distance > 0) ||
+        index < (closed ? 0 : 1) ||
+        index >= ring.length - (closed ? 0 : 1)
+    )
+        return null;
+    const prev = ring[(index - 1 + ring.length) % ring.length];
+    const curr = ring[index];
+    const next = ring[(index + 1) % ring.length];
+    const edgeIn = len(sub(prev, curr)),
+        edgeOut = len(sub(next, curr));
+    if (distance >= edgeIn || distance >= edgeOut) return null;
+    const a = norm(sub(prev, curr)),
+        b = norm(sub(next, curr));
+    if (Math.abs(a.x * b.y - a.y * b.x) < 1e-6) return null;
+    const result = ring.flatMap((point, i) =>
+        i === index
+            ? [add(curr, mul(a, distance)), add(curr, mul(b, distance))]
+            : [{ ...point }],
+    );
+    if (closed) result.push({ ...result[0] });
+    return result;
+}
+
 /** Apply a tangent fillet to one vertex, matching CAM Canvas corner behavior. */
 export function filletCorner(
     points: CornerPoint[],
@@ -60,13 +92,10 @@ export function filletCorner(
         ),
     );
     if (angle < 1e-6 || Math.PI - angle < 1e-6) return null;
-    const effectiveRadius = Math.min(radius, left / 2, right / 2);
-    const trim = Math.min(
-        effectiveRadius / Math.tan(angle / 2),
-        left / 2,
-        right / 2,
-    );
-    if (!(trim > 1e-9)) return null;
+    const effectiveRadius = radius;
+    const trim = radius / Math.tan(angle / 2);
+    if (!Number.isFinite(trim) || trim <= 1e-9 || trim >= left || trim >= right)
+        return null;
     const a = add(curr, mul(towardPrevious, trim));
     const b = add(curr, mul(towardNext, trim));
     const bisector = norm(add(towardPrevious, towardNext));

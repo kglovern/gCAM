@@ -20,12 +20,16 @@ describe('MachineSetupModal', () => {
             screen.getByRole('button', { name: 'Use this machine' }),
         );
 
-        expect(onChoose).toHaveBeenCalledWith('longmill-router', {
-            maxXTravelMm: 810,
-            maxYTravelMm: 855,
-            minZTravelMm: -120,
-            maxZTravelMm: null,
-        });
+        expect(onChoose).toHaveBeenCalledWith(
+            'longmill-router',
+            {
+                maxXTravelMm: 810,
+                maxYTravelMm: 855,
+                minZTravelMm: -120,
+                maxZTravelMm: null,
+            },
+            'metric',
+        );
     });
 
     it('requires all custom axes and converts inch values to millimetres', () => {
@@ -55,11 +59,35 @@ describe('MachineSetupModal', () => {
         expect(submit).toBeEnabled();
         fireEvent.click(submit);
 
-        expect(onChoose).toHaveBeenCalledWith('custom', {
-            maxXTravelMm: 254,
-            maxYTravelMm: 508,
-            minZTravelMm: -101.6,
-            maxZTravelMm: null,
+        expect(onChoose).toHaveBeenCalledWith(
+            'custom',
+            {
+                maxXTravelMm: 254,
+                maxYTravelMm: 508,
+                minZTravelMm: -101.6,
+                maxZTravelMm: null,
+            },
+            'imperial',
+        );
+    });
+    it('lets the user choose units before confirming the machine', () => {
+        const onChoose = jest.fn();
+        render(
+            <MachineSetupModal
+                units="metric"
+                machineProfileId="longmill-router"
+                onChoose={onChoose}
+            />,
+        );
+        fireEvent.change(screen.getByLabelText('Preferred units'), {
+            target: { value: 'imperial' },
         });
+        expect(screen.getByText(/Working area:.*in/)).toBeInTheDocument();
+        fireEvent.click(screen.getByText('Use this machine'));
+        expect(onChoose).toHaveBeenCalledWith(
+            'longmill-router',
+            expect.objectContaining({ maxXTravelMm: 810 }),
+            'imperial',
+        );
     });
 });

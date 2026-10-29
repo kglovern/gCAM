@@ -81,7 +81,7 @@ export function BitmapImportModal({
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     {choice.isSurfaceModel
                         ? 'On the canvas, it appears as a 2D height map that you can move, resize, or rotate. gCAM keeps the 3D model for cutting.'
-                        : 'Keep it as pixels for laser raster, wavy, halftone, or heightmap work; or trace it into editable cut vectors.'}
+                        : 'Keep it as pixels for laser raster, wavy, halftone, or heightmap work; or trace it into editable cut shapes.'}
                 </p>
                 {choice.isSurfaceModel && choice.surfacePreviewUrl && (
                     <div className="mt-4 overflow-hidden rounded-md border border-slate-200 bg-slate-100 p-2 dark:border-robin-800 dark:bg-dark-lighter">
@@ -219,7 +219,7 @@ export function BitmapImportModal({
                             onClick={onTrace}
                             className="rounded-lg border border-slate-300 px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-100 dark:border-robin-700 dark:text-white dark:hover:bg-dark-lighter"
                         >
-                            Convert to vector
+                            Trace into shapes
                             <span className="mt-1 block text-xs font-normal text-slate-500">
                                 Trace and replace with editable paths
                             </span>

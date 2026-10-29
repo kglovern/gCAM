@@ -189,7 +189,7 @@ export function TraceModal({
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                            Vector preview
+                            Shape preview
                         </div>
                         <canvas
                             ref={previewRef}
@@ -199,7 +199,7 @@ export function TraceModal({
                         <div className="text-xs text-slate-500 dark:text-slate-400">
                             {working
                                 ? 'Scanning…'
-                                : `${vectorCount} vector${vectorCount === 1 ? '' : 's'} found`}
+                                : `${vectorCount} shape${vectorCount === 1 ? '' : 's'} found`}
                         </div>
                     </div>
                     <div className="space-y-3">

@@ -346,7 +346,6 @@ function drawGrid(
     theme: CanvasSceneTheme,
     stockBounds: CanvasSceneInput['stockBounds'],
 ): void {
-    if (!grid.visible) return;
     const left = cam.tx + stockBounds.minX * cam.scale;
     const right = cam.tx + stockBounds.maxX * cam.scale;
     const top = cam.ty - stockBounds.maxY * cam.scale;
@@ -358,7 +357,9 @@ function drawGrid(
     ctx.beginPath();
     ctx.rect(left, top, right - left, bottom - top);
     ctx.clip();
-    if (grid.style === 'dots') {
+    if (!grid.visible) {
+        // The stock boundary remains visible when the grid is hidden.
+    } else if (grid.style === 'dots') {
         ctx.fillStyle = theme.grid;
         ctx.beginPath();
         for (let x = firstX; x <= right; x += step)
@@ -382,9 +383,20 @@ function drawGrid(
         ctx.stroke();
     }
     ctx.restore();
-    ctx.strokeStyle = theme.grid;
-    ctx.lineWidth = 1.5;
+    ctx.save();
+    ctx.strokeStyle = '#0d9488';
+    ctx.lineWidth = 2;
     ctx.strokeRect(left + 0.5, top + 0.5, right - left, bottom - top);
+    if (right > 0 && left < w && bottom > 0 && top < h) {
+        const labelX = Math.max(6, Math.min(w - 74, right - 70));
+        const labelY = Math.max(18, Math.min(h - 8, top + 18));
+        ctx.fillStyle = theme.bg;
+        ctx.fillRect(labelX - 3, labelY - 13, 60, 18);
+        ctx.fillStyle = '#0d9488';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('STOCK', labelX, labelY);
+    }
+    ctx.restore();
 }
 
 function drawBitmaps(

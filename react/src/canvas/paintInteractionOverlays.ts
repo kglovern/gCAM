@@ -1,3 +1,4 @@
+import { intersectionConnector } from '../lib/cornerIntersections';
 /**
  * Purpose: Implementation module for paintInteractionOverlays in the react domain.
  */
@@ -8,7 +9,7 @@ import {
     type DrawTool,
     type Draft,
 } from '../draw/geometry';
-import { dogboneCorner, filletCorner } from '../lib/corners';
+import { chamferCorner, dogboneCorner, filletCorner } from '../lib/corners';
 import type { TransformMode } from '../lib/transform';
 import type { Guide } from '../lib/guides';
 import {
@@ -37,7 +38,7 @@ interface PaintInteractionOverlaysOptions {
         segmentIndex: number;
         removed?: Point[];
     } | null;
-    cornerTool: 'fillet' | 'dogbone' | null;
+    cornerTool: 'fillet' | 'chamfer' | 'dogbone' | null;
     cornerHover: CornerHover | null;
     cornerRadius: number;
     transformMode: TransformMode | null;
@@ -171,11 +172,24 @@ function paintCornerHover({
 }: PaintInteractionOverlaysOptions) {
     if (!cornerTool || !cornerHover) return;
     const loop = loops.find((item) => item.id === cornerHover.loopId);
-    const preview = loop
-        ? cornerTool === 'dogbone'
-            ? dogboneCorner(loop.points, cornerHover.index, cornerRadius)
-            : filletCorner(loop.points, cornerHover.index, cornerRadius)
-        : null;
+    const preview =
+        cornerHover.intersection && cornerTool !== 'dogbone'
+            ? intersectionConnector(
+                  cornerHover.intersection,
+                  cornerRadius,
+                  cornerTool,
+              )
+            : loop
+              ? cornerTool === 'dogbone'
+                  ? dogboneCorner(loop.points, cornerHover.index, cornerRadius)
+                  : cornerTool === 'chamfer'
+                    ? chamferCorner(
+                          loop.points,
+                          cornerHover.index,
+                          cornerRadius,
+                      )
+                    : filletCorner(loop.points, cornerHover.index, cornerRadius)
+              : null;
     if (!preview?.length) return;
     ctx.save();
     ctx.strokeStyle = darkMode ? '#fbbf24' : '#f05a28';

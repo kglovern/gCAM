@@ -25,6 +25,7 @@ interface ConfirmRequest {
     message: string;
     confirmLabel: string;
     destructive: boolean;
+    rememberKey?: string;
 }
 
 interface UseSelectionCommandsOptions<TLoop extends SelectableLoop, TStack> {
@@ -51,10 +52,11 @@ export function useSelectionCommands<TLoop extends SelectableLoop, TStack>(
     const handleDeleteLoop = async (id: string) => {
         const target = options.loops.find((loop) => loop.id === id);
         const confirmed = await options.confirm({
-            title: 'Delete vector?',
-            message: `Delete ${target?.id ?? 'this vector'}? You can undo this with Ctrl+Z.`,
-            confirmLabel: 'Delete vector',
+            title: 'Delete shape?',
+            message: `Delete ${target?.id ?? 'this shape'}? You can undo this with Ctrl+Z.`,
+            confirmLabel: 'Delete shape',
             destructive: true,
+            rememberKey: 'gcam.skipShapeDeletionWarning',
         });
         if (!confirmed) return;
         options.pushHistory();
@@ -71,16 +73,17 @@ export function useSelectionCommands<TLoop extends SelectableLoop, TStack>(
             if (!next.length) options.onEmpty?.();
             return next;
         });
-        options.setStatus('Vector deleted.');
+        options.setStatus('Shape deleted.');
     };
 
     const handleDeleteSelected = async (ids = options.selected) => {
         if (!ids.length) return;
         const confirmed = await options.confirm({
-            title: 'Delete selected vectors?',
-            message: `Delete ${ids.length} selected vector${ids.length === 1 ? '' : 's'}? You can undo this with Ctrl+Z.`,
+            title: 'Delete selected shapes?',
+            message: `Delete ${ids.length} selected shape${ids.length === 1 ? '' : 's'}? You can undo this with Ctrl+Z.`,
             confirmLabel: 'Delete selection',
             destructive: true,
+            rememberKey: 'gcam.skipShapeDeletionWarning',
         });
         if (!confirmed) return;
         options.pushHistory();
@@ -123,13 +126,13 @@ export function useSelectionCommands<TLoop extends SelectableLoop, TStack>(
         options.setStack([]);
         options.setDraftPreview([]);
         options.refreshBounds(next);
-        options.setStatus(`Duplicated ${copies.length} vector(s).`);
+        options.setStatus(`Duplicated ${copies.length} shape(s).`);
     };
 
     const handleGroup = () => {
         const ids = Array.from(new Set(options.selected));
         if (ids.length < 2) {
-            options.setStatus('Select at least two vectors to group.');
+            options.setStatus('Select at least two shapes to group.');
             return;
         }
         if (
@@ -145,13 +148,13 @@ export function useSelectionCommands<TLoop extends SelectableLoop, TStack>(
         options.pushHistory();
         const groupId = createDocumentId('group');
         options.setLoops((current) => groupLoopIds(current, ids, groupId));
-        options.setStatus(`Grouped ${ids.length} vectors.`);
+        options.setStatus(`Grouped ${ids.length} shapes.`);
     };
 
     const handleUngroup = () => {
         const ids = groupIdsForSelection(options.loops, options.selected);
         if (!ids.length) {
-            options.setStatus('Select a grouped vector to ungroup.');
+            options.setStatus('Select a grouped shape to ungroup.');
             return;
         }
         options.pushHistory();

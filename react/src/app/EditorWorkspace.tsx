@@ -1,7 +1,7 @@
 /**
  * Purpose: Application composition module for EditorWorkspace.
  */
-import { useState, type ComponentProps } from 'react';
+import { type ComponentProps } from 'react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { CanvasSelectionActions } from '../canvas/CanvasSelectionActions';
 import { ToolpathWorkspace } from './ToolpathWorkspace';
@@ -64,7 +64,9 @@ export function EditorWorkspace({
     configPanelProps,
     rotaryPanelProps,
 }: EditorWorkspaceProps) {
-    const [additiveSelection, setAdditiveSelection] = useState(false);
+    const additiveSelection = configPanelProps.multipleSelection ?? true;
+    const setAdditiveSelection =
+        configPanelProps.onMultipleSelectionChange ?? (() => {});
     const touchLayout = useMediaQuery('(pointer: coarse), (max-width: 1099px)');
     return (
         <div className="flex-1 min-h-0 min-w-0 flex flex-col md:flex-row">

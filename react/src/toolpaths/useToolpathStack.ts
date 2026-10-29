@@ -113,6 +113,7 @@ export function useToolpathStack(options: ToolpathStackOptions) {
 
         if (
             operationUsesTabs(args.operation) &&
+            args.tabHeight !== 0 &&
             !(args.tabs as PlacedTab[] | undefined)?.length
         ) {
             const defaults = defaultTabsForContours(result.previewContours);

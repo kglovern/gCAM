@@ -50,7 +50,7 @@ test('Select and Transform highlighting are mutually exclusive', () => {
     const { rerender } = render(
         <ToolbarCommands props={props} open={null} close={() => {}} />,
     );
-    const select = screen.getByRole('button', { name: 'Select vectors' });
+    const select = screen.getByRole('button', { name: 'Select shapes' });
     expect(select).toHaveAttribute('aria-pressed', 'false');
     expect(select).not.toHaveClass('bg-robin-500');
     expect(

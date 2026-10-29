@@ -64,7 +64,7 @@ export function useTrimCommands<TLoop extends TrimLoop, TStack>(
             options.hidden,
         );
         if (!hit) {
-            options.setStatus('Click a vector section to trim it.');
+            options.setStatus('Click a shape section to trim it.');
             return;
         }
         options.pushHistory();
@@ -80,7 +80,7 @@ export function useTrimCommands<TLoop extends TrimLoop, TStack>(
             options.refreshBounds(next);
             return next;
         });
-        options.setStatus('Trimmed vector section.');
+        options.setStatus('Trimmed shape section.');
     };
 
     const handleTrimStroke = (points: Point[]) => {
@@ -111,7 +111,7 @@ export function useTrimCommands<TLoop extends TrimLoop, TStack>(
         }
         if (!hits.size) {
             options.setStatus(
-                'Hold Ctrl and drag across vector segments to trim them.',
+                'Hold Ctrl and drag across shape segments to trim them.',
             );
             return;
         }
@@ -128,7 +128,7 @@ export function useTrimCommands<TLoop extends TrimLoop, TStack>(
             return next;
         });
         options.setStatus(
-            `Trimmed ${hits.size} vector segment${hits.size === 1 ? '' : 's'}.`,
+            `Trimmed ${hits.size} shape segment${hits.size === 1 ? '' : 's'}.`,
         );
     };
 

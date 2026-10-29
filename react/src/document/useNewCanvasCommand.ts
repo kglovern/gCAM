@@ -55,7 +55,7 @@ export function useNewCanvasCommand<TLoop, TStack, TBitmap, TGuide>(
             hasLayerContent(options.layers);
         if (
             hasWork &&
-            !window.confirm('Clear the current vectors and toolpaths?')
+            !window.confirm('Clear the current shapes and toolpaths?')
         ) {
             return;
         }

@@ -1,3 +1,4 @@
+import type { CornerIntersection } from '../../lib/cornerIntersections';
 /**
  * Purpose: Implementation module for types in the canvas domain.
  */
@@ -44,7 +45,7 @@ export type CanvasView = {
     guidePlacement: 'edge' | null;
     guideDraft: GuideDraft | null;
     transformMode: TransformMode | null;
-    cornerTool: 'fillet' | 'dogbone' | null;
+    cornerTool: 'fillet' | 'chamfer' | 'dogbone' | null;
     cornerRadius: number;
     bitmaps: {
         id: string;
@@ -118,6 +119,10 @@ export type CanvasPointerControllerProps = {
     progressPointerRef: { current: Point | null };
     transformDragRef: { current: TransformDragState | null };
     onTransformCommit: (transform: TransformCommit | null) => void;
-    onFilletCorner?: (loopId: string, cornerIndex: number) => void;
+    onFilletCorner?: (
+        loopId: string,
+        cornerIndex: number,
+        intersection?: CornerIntersection,
+    ) => void;
     cornerHoverRef: { current: CornerHover | null };
 };

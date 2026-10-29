@@ -51,12 +51,12 @@ export function CanvasNavigationControls({
                         </button>
                     </div>
                     <p>
-                        Tap a vector to select. Turn on Multiple selection to
-                        add or remove vectors.
+                        Tap a shape to select. Turn on Multiple selection to add
+                        or remove shapes.
                     </p>
                     <p className="mt-2">
-                        Drag right to select enclosed vectors; drag left to
-                        select crossing vectors.
+                        Drag right to select enclosed shapes; drag left to
+                        select crossing shapes.
                     </p>
                     <p className="mt-2">
                         Use two fingers to pan and pinch to zoom. Pan view lets

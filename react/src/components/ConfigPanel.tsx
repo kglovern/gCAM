@@ -94,6 +94,8 @@ function machineTravelLimitsForProfile(profileId: string): MachineTravelLimits {
 }
 
 interface ConfigPanelProps {
+    multipleSelection?: boolean;
+    onMultipleSelectionChange?: (value: boolean) => void;
     outputSettings?: OutputSettings;
     onOutputSettingsChange?: (value: OutputSettings) => void;
     darkMode: boolean;
@@ -128,6 +130,8 @@ const inputCls = cx(
  * All state is lifted to App so changes apply live to canvas + toolpaths.
  */
 export function ConfigPanel({
+    multipleSelection = true,
+    onMultipleSelectionChange,
     outputSettings = DEFAULT_OUTPUT,
     onOutputSettingsChange,
     darkMode,
@@ -144,6 +148,26 @@ export function ConfigPanel({
     onMachineTravelLimitsChange,
     onActionsChange,
 }: ConfigPanelProps) {
+    const [warnOnDelete, setWarnOnDelete] = useState(() => {
+        try {
+            return (
+                localStorage.getItem('gcam.skipShapeDeletionWarning') !== 'true'
+            );
+        } catch {
+            return true;
+        }
+    });
+    const changeDeletionWarning = (value: boolean) => {
+        setWarnOnDelete(value);
+        try {
+            localStorage.setItem(
+                'gcam.skipShapeDeletionWarning',
+                String(!value),
+            );
+        } catch {
+            /* Confirmation remains enabled if storage is unavailable. */
+        }
+    };
     const importInputRef = useRef<HTMLInputElement>(null);
     const [toastTimeout, setToastTimeout] = useState(() => {
         if (typeof window === 'undefined') return 3000;
@@ -188,6 +212,8 @@ export function ConfigPanel({
 
     const handleExportConfig = () => {
         const config = {
+            multipleSelection,
+            warnOnDelete,
             outputSettings,
             darkMode,
             grid,
@@ -217,6 +243,10 @@ export function ConfigPanel({
                     ? validateOutput(config.outputSettings)
                     : undefined;
                 if (importedOutput) onOutputSettingsChange?.(importedOutput);
+                if (typeof config.multipleSelection === 'boolean')
+                    onMultipleSelectionChange?.(config.multipleSelection);
+                if (typeof config.warnOnDelete === 'boolean')
+                    changeDeletionWarning(config.warnOnDelete);
                 if (typeof config.darkMode === 'boolean')
                     onDarkModeChange(config.darkMode);
                 if (config.grid) onGridChange(config.grid);
@@ -261,6 +291,8 @@ export function ConfigPanel({
     };
 
     const handleResetConfig = () => {
+        onMultipleSelectionChange?.(true);
+        changeDeletionWarning(true);
         onOutputSettingsChange?.(controllerPreset());
         onDarkModeChange(true);
         onGridChange({
@@ -287,6 +319,9 @@ export function ConfigPanel({
             resetConfig: handleResetConfig,
         });
     }, [
+        multipleSelection,
+        onMultipleSelectionChange,
+        warnOnDelete,
         outputSettings,
         onOutputSettingsChange,
         darkMode,
@@ -624,6 +659,33 @@ export function ConfigPanel({
                 </div>
             </section>
 
+            <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-robin-900">
+                <h3 className="font-semibold text-slate-900 dark:text-white">
+                    Behaviour
+                </h3>
+                <SettingRow
+                    label="Select multiple shapes without Ctrl"
+                    description="Click shapes to add or remove them from the selection."
+                >
+                    <Toggle
+                        label="Select multiple shapes without Ctrl"
+                        checked={multipleSelection}
+                        onChange={(value) => onMultipleSelectionChange?.(value)}
+                    />
+                </SettingRow>
+                <SettingRow
+                    label="Confirm shape deletion"
+                    description="Show a warning before deleting shapes."
+                >
+                    <Toggle
+                        label="Confirm shape deletion"
+                        checked={warnOnDelete}
+                        onChange={(value) => {
+                            changeDeletionWarning(value);
+                        }}
+                    />
+                </SettingRow>
+            </section>
             <GcodeSettings
                 value={outputSettings}
                 onChange={(value) => onOutputSettingsChange?.(value)}

@@ -1,3 +1,7 @@
+import {
+    findCornerIntersection,
+    type CornerIntersection,
+} from '../lib/cornerIntersections';
 /**
  * Purpose: Implementation module for selectionGeometry in the canvas domain.
  */
@@ -80,6 +84,7 @@ export interface TransformDragState {
 }
 
 export interface CornerHover {
+    intersection?: CornerIntersection;
     loopId: string;
     index: number;
     point: { x: number; y: number };
@@ -91,6 +96,7 @@ export function findFilletCorner(
     hidden: string[],
     world: { x: number; y: number },
     scale: number,
+    intersections = true,
 ): CornerHover | null {
     const allowed = selected.length ? new Set(selected) : null;
     const tolerance = 10 / Math.max(scale, 0.01);
@@ -116,6 +122,23 @@ export function findFilletCorner(
             }
         }
     }
+    const crossing = intersections
+        ? findCornerIntersection(loops, selected, hidden, world, tolerance)
+        : null;
+    if (
+        crossing &&
+        (!best ||
+            Math.hypot(
+                crossing.point.x - world.x,
+                crossing.point.y - world.y,
+            ) <= best.distance)
+    )
+        return {
+            loopId: crossing.loopIds[0],
+            index: -1,
+            point: crossing.point,
+            intersection: crossing,
+        };
     return best;
 }
 
@@ -317,7 +340,7 @@ export function findDrawSnapTarget(
                 nearestEdge = {
                     point,
                     kind: 'edge',
-                    label: 'On vector',
+                    label: 'On shape',
                     distancePx,
                 };
             continue;
@@ -348,7 +371,7 @@ export function findDrawSnapTarget(
                 nearestEdge = {
                     point,
                     kind: 'edge',
-                    label: 'On vector',
+                    label: 'On shape',
                     distancePx,
                 };
         }

@@ -31,6 +31,23 @@ export function useAppPreferences() {
             /* Keep in memory if storage is full. */
         }
     }, [outputSettings]);
+    const [multipleSelection, setMultipleSelection] = useState(() => {
+        try {
+            return localStorage.getItem('gcam.multipleSelection') !== 'false';
+        } catch {
+            return true;
+        }
+    });
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                'gcam.multipleSelection',
+                String(multipleSelection),
+            );
+        } catch {
+            /* Keep the preference in memory. */
+        }
+    }, [multipleSelection]);
     const [grid, setGrid] = useState(loadGrid);
     const [sideTab, setSideTab] = useState<SideTab>('toolpaths');
     const [configActions, setConfigActions] = useState<ConfigActions | null>(
@@ -113,6 +130,8 @@ export function useAppPreferences() {
     );
 
     return {
+        multipleSelection,
+        setMultipleSelection,
         outputSettings,
         setOutputSettings,
         grid,

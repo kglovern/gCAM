@@ -93,7 +93,7 @@ export function ToolbarForms({
                     close();
                 }}
                 onCancel={close}
-                title="Offset Vectors"
+                title="Offset Shapes"
                 applyLabel="Offset"
             />
         );
@@ -110,12 +110,15 @@ export function ToolbarForms({
                                     event.target.value as BooleanOperation,
                                 )
                             }
-                            className={numericInput}
+                            className={numericInput.replace(
+                                'w-16',
+                                'w-48 max-w-full',
+                            )}
                         >
-                            <option value="union">Union</option>
-                            <option value="difference">Difference</option>
-                            <option value="intersection">Intersection</option>
-                            <option value="xor">XOR</option>
+                            <option value="union">Combine</option>
+                            <option value="difference">Subtract</option>
+                            <option value="intersection">Keep overlap</option>
+                            <option value="xor">Remove overlap</option>
                         </select>
                     </label>
                 }
@@ -124,8 +127,8 @@ export function ToolbarForms({
                     close();
                 }}
                 onCancel={close}
-                title="Boolean Operation"
-                applyLabel="Apply Boolean"
+                title="Combine / Subtract"
+                applyLabel="Apply"
                 canApply={props.canBoolean}
             />
         );

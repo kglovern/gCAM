@@ -46,7 +46,7 @@ export interface CanvasViewState {
     guidePlacement: 'edge' | null;
     guideDraft: GuideDraft | null;
     transformMode: TransformMode | null;
-    cornerTool: 'fillet' | 'dogbone' | null;
+    cornerTool: 'fillet' | 'chamfer' | 'dogbone' | null;
     cornerRadius: number;
     units: UnitSystem;
     bitmaps: {

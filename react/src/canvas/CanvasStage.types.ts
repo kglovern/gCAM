@@ -1,3 +1,4 @@
+import type { CornerIntersection } from '../lib/cornerIntersections';
 /**
  * Purpose: Defines typed contracts used by CanvasStage.types.
  */
@@ -73,9 +74,13 @@ export type CanvasStageProps = {
     onCommitMandala?: (at: Point) => void;
     transformMode: TransformMode | null;
     onTransformCommit: (t: TransformCommit | null) => void;
-    cornerTool?: 'fillet' | 'dogbone' | null;
+    cornerTool?: 'fillet' | 'chamfer' | 'dogbone' | null;
     cornerRadius?: number;
-    onFilletCorner?: (loopId: string, cornerIndex: number) => void;
+    onFilletCorner?: (
+        loopId: string,
+        cornerIndex: number,
+        intersection?: CornerIntersection,
+    ) => void;
     preserveViewToken?: number;
     viewportCommand?: { type: 'fit' | 'zoomIn' | 'zoomOut'; token: number };
     units?: UnitSystem;
