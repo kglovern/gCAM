@@ -21,7 +21,7 @@ type SidebarProps = ComponentProps<typeof Sidebar>;
 
 interface EditorWorkspaceProps {
     nesting?: ComponentProps<typeof NestProgressDialog> | null;
-    simulationSource: 'toolpaths' | 'rotary';
+    simulationSource: 'toolpaths' | 'rotary' | 'laser';
     activeTab: SidebarProps['activeTab'];
     onTabChange: SidebarProps['onTabChange'];
     canvasProps: ComponentProps<typeof CanvasStage>;
@@ -74,9 +74,17 @@ export function EditorWorkspace({
     return (
         <div className="flex-1 min-h-0 min-w-0 flex flex-col md:flex-row">
             <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
-            {activeTab === 'toolpaths' && (
+            {(activeTab === 'toolpaths' || activeTab === 'laser') && (
                 <ToolpathWorkspace
-                    rail={<ToolpathRail {...toolpathRailProps} />}
+                    rail={
+                        <ToolpathRail
+                            key={activeTab}
+                            {...toolpathRailProps}
+                            workspace={
+                                activeTab === 'laser' ? 'laser' : 'milling'
+                            }
+                        />
+                    }
                     actions={
                         touchLayout && (
                             <CanvasSelectionActions

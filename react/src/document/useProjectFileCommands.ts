@@ -30,6 +30,7 @@ interface UseProjectFileCommandsOptions<
     TBitmap extends ProjectBitmap,
     TGuide extends GuideLike,
 > {
+    cancelPendingImport?(): void;
     outputSettings?: OutputSettings;
     outputUnits?: UnitSystem;
     onLoadOutputUnits?: (units: UnitSystem) => void;
@@ -106,6 +107,7 @@ export function useProjectFileCommands<
     const handleImportProject = async (files: FileList | null) => {
         const file = files?.[0];
         if (!file) return;
+        options.cancelPendingImport?.();
         try {
             const snapshot = await readProjectFile(file);
             options.onLoadOutputSettings?.(

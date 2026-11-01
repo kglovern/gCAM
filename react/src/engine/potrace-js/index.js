@@ -36,9 +36,10 @@ export function traceCanvas(canvas, options) {
     return traceBitmap(bitmap, options);
 }
 
-export function traceBitmap(bitmap, options = OPTIONS) {
-    const pathList = bitmapToPathList(bitmap, options);
-    processPath(pathList, options);
+export function traceBitmap(bitmap, options = {}) {
+    const settings = { ...OPTIONS, ...options };
+    const pathList = bitmapToPathList(bitmap, settings);
+    processPath(pathList, settings);
 
     return pathList;
 }

@@ -10,6 +10,7 @@ import {
 
 test('every public CAM operation is represented by a registry contract', () => {
     expect([...operationRegistry.keys()]).toEqual([
+        'laser-fill',
         'profile-outside',
         'profile-inside',
         'pocket',

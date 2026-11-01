@@ -17,6 +17,8 @@ export const BLOCK_LABELS = {
     coolantOff: 'Coolant off',
     laserStart: 'Laser start',
     laserStop: 'Laser stop',
+    laserAirOn: 'Laser air assist on',
+    laserAirOff: 'Laser air assist off',
     end: 'Program end',
 } as const;
 export type BlockId = keyof typeof BLOCK_LABELS;
@@ -46,6 +48,8 @@ const blocks: OutputSettings['blocks'] = {
     laserStart: 'M4 S0',
     laserStop: 'M5',
     end: '{programEnd}',
+    laserAirOn: 'M8',
+    laserAirOff: 'M9',
 };
 export const CONTROLLERS: { id: ControllerId; label: string; note: string }[] =
     [
@@ -120,7 +124,7 @@ export function controllerPreset(
                     : blocks.spindleStart,
             laserStart:
                 controller === 'marlin'
-                    ? 'M4 I S0'
+                    ? 'M3 I S0'
                     : controller === 'duet'
                       ? 'M3 S0'
                       : blocks.laserStart,
@@ -137,6 +141,11 @@ export function validateOutput(value: unknown): OutputSettings {
     if (!value || typeof value !== 'object')
         throw new Error('Invalid G-code settings.');
     const v = value as OutputSettings;
+    const outputBlocks = { ...v.blocks };
+    if (!Object.prototype.hasOwnProperty.call(outputBlocks, 'laserAirOn'))
+        outputBlocks.laserAirOn = 'M8';
+    if (!Object.prototype.hasOwnProperty.call(outputBlocks, 'laserAirOff'))
+        outputBlocks.laserAirOff = 'M9';
     if (!CONTROLLERS.some((item) => item.id === v.controller))
         throw new Error('Unknown controller preset.');
     if (
@@ -163,15 +172,24 @@ export function validateOutput(value: unknown): OutputSettings {
         !v.blocks ||
         Object.keys(BLOCK_LABELS).some(
             (key) =>
-                typeof v.blocks[key as BlockId] !== 'string' ||
-                v.blocks[key as BlockId].length > 10000,
+                typeof outputBlocks[key as BlockId] !== 'string' ||
+                outputBlocks[key as BlockId].length > 10000,
         )
     ) {
         throw new Error(
             'Invalid G-code settings. Check numeric values and command blocks.',
         );
     }
-    return { ...v, blocks: { ...v.blocks } };
+    return {
+        ...v,
+        blocks: {
+            ...outputBlocks,
+            // The former Marlin preset selected feed-derived power instead of inline S values.
+            ...(v.controller === 'marlin' && v.blocks.laserStart === 'M4 I S0'
+                ? { laserStart: 'M3 I S0' }
+                : {}),
+        },
+    };
 }
 export const OUTPUT_STORAGE_KEY = 'gcam.output.v1';
 export function loadOutput(): OutputSettings {

@@ -150,3 +150,17 @@ test('per-toolpath overrides flow into the program', async () => {
     expect(r.toolpath).toMatchObject({ toolNumber: 2, tabWidth: 12 });
     expect(r.gcode).toContain('T2');
 });
+
+test('laser paths preserve zero power and never request an endmill or Z move', async () => {
+    const result = await buildToolpathGcode({
+        loops: [{ points: SQUARE }],
+        operation: 'laser-cut',
+        toolDiameter: 6,
+        cutDepth: 3,
+        laserFeed: 1200,
+        laserPower: 0,
+    });
+    expect(result.gcode).toContain('M4 S0');
+    expect(result.gcode).toMatch(/G1 X[^\n]+ S0 F1200/);
+    expect(result.gcode).not.toMatch(/M6|G[01] Z/);
+});

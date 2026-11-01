@@ -1,3 +1,4 @@
+import { expandGroupedSelection } from '../../lib/groups';
 /**
  * Purpose: Implementation module for selection in the canvas domain.
  */
@@ -173,29 +174,13 @@ function selectAt(
             localY <= entry.y + entry.h
         );
     });
-    if (bitmap) {
-        const linkedId = loops.find((loop) => loop.bitmapId === bitmap.id)?.id;
-        if (linkedId) {
-            deps.selectedGuideRef.current = null;
-            deps.onSelect(
-                (deps.additiveSelection ||
-                    event.shiftKey ||
-                    event.ctrlKey ||
-                    event.metaKey) &&
-                    selected.length === 1 &&
-                    selected[0] === linkedId
-                    ? []
-                    : [linkedId],
-            );
-            return;
-        }
-    }
     const tolerance = 10 / camera.scale;
     let best: string | null = null;
     let bestDistance = Infinity;
     loops.forEach((loop) => {
         if (
             hide.has(loop.id) ||
+            !!loop.bitmapId ||
             !Array.isArray(loop.points) ||
             loop.points.length < 2
         )
@@ -212,18 +197,38 @@ function selectAt(
     });
     if (best !== null && bestDistance <= tolerance) {
         deps.selectedGuideRef.current = null;
+        const members = expandGroupedSelection(loops, [best]);
+        const current = expandGroupedSelection(loops, selected);
+        const additive =
+            deps.additiveSelection ||
+            event.shiftKey ||
+            event.ctrlKey ||
+            event.metaKey;
+        const memberIds = new Set(members);
+        const currentIds = new Set(current);
         deps.onSelect(
-            !(
-                deps.additiveSelection ||
-                event.shiftKey ||
-                event.ctrlKey ||
-                event.metaKey
-            )
-                ? [best]
-                : selected.includes(best)
-                  ? selected.filter((id) => id !== best)
-                  : [...selected, best],
+            !additive
+                ? members
+                : members.every((id) => currentIds.has(id))
+                  ? current.filter((id) => !memberIds.has(id))
+                  : Array.from(new Set([...current, ...members])),
         );
+    } else if (bitmap) {
+        const linkedId = loops.find((loop) => loop.bitmapId === bitmap.id)?.id;
+        if (linkedId) {
+            deps.selectedGuideRef.current = null;
+            deps.onSelect(
+                (deps.additiveSelection ||
+                    event.shiftKey ||
+                    event.ctrlKey ||
+                    event.metaKey) &&
+                    selected.length === 1 &&
+                    selected[0] === linkedId
+                    ? []
+                    : [linkedId],
+            );
+            return;
+        }
     } else if (
         !(
             deps.additiveSelection ||

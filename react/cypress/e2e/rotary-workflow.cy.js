@@ -201,7 +201,7 @@ describe('Rotary workspace', () => {
             'contain.text',
             'Stock L100',
         );
-        cy.get('[aria-label="Toolpaths"]').click();
+        cy.get('[aria-label="Milling"]').click();
         cy.get('[aria-label="Simulation"]').click();
         cy.get('[aria-label="Rotary simulation"]').should('not.exist');
     });
@@ -222,7 +222,7 @@ describe('Rotary workspace', () => {
     });
     it('exports a rotary-only project without requiring a 2D drawing', () => {
         cy.get('[aria-label="Stock length"]').clear().type('100').blur();
-        cy.get('[aria-label="Toolpaths"]').click();
+        cy.get('[aria-label="Milling"]').click();
         cy.snapshot().then((project) => {
             expect(project.loops).to.have.length(0);
             expect(project.rotary.stock.length).to.equal(100);

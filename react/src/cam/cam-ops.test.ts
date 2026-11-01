@@ -10,6 +10,7 @@ import {
 } from './cam-ops.js';
 import { applyBoolean, offsetLoops } from '../lib/engine';
 import { buildGcode } from './gcode/program.js';
+import { strokePoweredPath } from '../canvas/poweredPath';
 
 const SQUARE_DXF = [
     '0',
@@ -69,6 +70,43 @@ const BASE_CONFIG = {
     spindle: 18000,
     toolNumber: 1,
 };
+
+test('pocket depth region reuses the composite with islands and never changes emitted G-code', () => {
+    const outer = squareLoops()[0],
+        hole = {
+            points: [
+                { x: 7, y: 7 },
+                { x: 13, y: 7 },
+                { x: 13, y: 13 },
+                { x: 7, y: 13 },
+                { x: 7, y: 7 },
+            ],
+        };
+    const toolpath = createToolpathFromLoops([outer, hole], {
+        ...BASE_CONFIG,
+        operation: 'pocket',
+    });
+    expect(toolpath.pocketRegion).toHaveLength(2);
+    const before = buildGcode({
+        toolpaths: [toolpath],
+        fileName: 'pocket',
+        forcePolylineArcs: false,
+    });
+    const { pocketRegion: _region, ...legacy } = toolpath;
+    expect(
+        buildGcode({
+            toolpaths: [legacy],
+            fileName: 'pocket',
+            forcePolylineArcs: false,
+        }),
+    ).toBe(before);
+    expect(
+        createToolpathFromLoops([outer], {
+            ...BASE_CONFIG,
+            operation: 'engrave',
+        }).pocketRegion,
+    ).toBeUndefined();
+});
 
 test('profile-outside offsets a 20mm square by the 3mm tool radius', () => {
     const toolpath = createToolpathFromLoops(squareLoops(), {
@@ -392,12 +430,40 @@ test('laser-raster samples synthetic pixels into S moves', async () => {
     expect(r.gcode).toContain('M4 S0');
     expect(r.gcode).toContain('S800');
     expect(r.gcode).toContain('S0');
-    // Preview follows pixel power too: white samples disappear while dark
-    // samples remain as individual scan segments, rather than a rectangle.
-    expect(r.previewContours.length).toBeGreaterThan(1);
-    expect(r.previewContours.every((segment) => segment.length === 2)).toBe(
-        true,
-    );
+    const strokes: {
+        a: { x: number; y: number };
+        b: { x: number; y: number };
+        alpha: number;
+    }[] = [];
+    let a = { x: 0, y: 0 },
+        b = { x: 0, y: 0 };
+    const ctx = {
+        globalAlpha: 1,
+        beginPath() {},
+        moveTo(x: number, y: number) {
+            a = { x, y };
+        },
+        lineTo(x: number, y: number) {
+            b = { x, y };
+        },
+        stroke() {
+            strokes.push({ a, b, alpha: this.globalAlpha });
+        },
+    };
+    for (const row of r.previewContours)
+        strokePoweredPath(
+            ctx as unknown as CanvasRenderingContext2D,
+            row,
+            (x, y) => ({ x, y }),
+        );
+    expect(strokes).toHaveLength(8);
+    for (const segment of strokes) {
+        expect(segment.alpha).toBe(0.8);
+        expect([2.5, 7.5, 12.5, 17.5]).toContain(segment.a.y);
+        expect(segment.b.y).toBe(segment.a.y);
+        expect([0, 10]).toContain(Math.min(segment.a.x, segment.b.x));
+        expect(Math.abs(segment.a.x - segment.b.x)).toBe(5);
+    }
 });
 test('laser-raster overscan extends each scan beyond bitmap bounds', async () => {
     const { buildToolpathGcode } = await import('../lib/engine');
@@ -409,7 +475,13 @@ test('laser-raster overscan extends each scan beyond bitmap bounds', async () =>
         laserSpot: 5,
         laserOverscan: 2,
         bitmap: {
-            imageData: { width: 2, height: 2, data: new Uint8ClampedArray(16) },
+            imageData: {
+                width: 2,
+                height: 2,
+                data: new Uint8ClampedArray([
+                    0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255,
+                ]),
+            },
             bounds: { minX: 0, minY: 0, maxX: 10, maxY: 10 },
         },
     });
@@ -474,7 +546,7 @@ test('halftone drills dark pixels deeper with a v-bit', async () => {
     // Black input produces a visibly larger V-bit hole than white input.
     expect(Math.max(...diameters)).toBeGreaterThan(Math.min(...diameters));
 });
-test('arcs toggle switches circle output between G2 and G1', async () => {
+test('arcs toggle preserves counterclockwise circle output as G3 or G1', async () => {
     const { buildToolpathGcode } = await import('../lib/engine');
     const circle: { x: number; y: number }[] = [];
     for (let i = 0; i <= 64; i += 1) {
@@ -493,7 +565,8 @@ test('arcs toggle switches circle output between G2 and G1', async () => {
         cutDepth: 1,
     };
     const withArcs = (await buildToolpathGcode({ ...base })).gcode;
-    expect(withArcs).toMatch(/G2 X/);
+    expect(withArcs).toMatch(/G3 X/);
+    expect(withArcs).not.toMatch(/G2 X/);
     const linear = (await buildToolpathGcode({ ...base, arcs: false })).gcode;
     expect(linear).not.toMatch(/G2 X|G3 X/);
     expect(linear).toContain('G1');

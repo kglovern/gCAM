@@ -1,3 +1,13 @@
+import { laserLeadEndpoints } from '../laser-leads.js';
+import { laserOvercutPoints } from '../laser-overcut.js';
+import { fitArcRun } from './fit-arc.js';
+import {
+    validateLaserRotary,
+    laserRotaryScale,
+    laserRotaryMove,
+    laserRotaryPosition,
+    laserInverseFeed,
+} from '../laser-rotary.js';
 /**
  * Purpose: Implementation module for program in the cam domain.
  */
@@ -83,8 +93,172 @@ export function buildGcode({
             ? Math.max(1, Math.round(toolpath.toolNumber))
             : null;
         lines.push(`(${toolpath.operationLabel} - ${toolpath.label})`);
+        if (toolpath.laserPaths) {
+            const rotary = validateLaserRotary(toolpath.laserRotary);
+            if (rotary)
+                lines.push(
+                    `(Laser rotary ${rotary.type} axis ${rotary.axis} scale ${laserRotaryScale(rotary)} diameter ${rotary.objectDiameter})`,
+                );
+            const constantPower =
+                toolpath.laserOptions.powerMode === 'constant';
+            lines.push(constantPower ? 'M3 S0' : 'M4 S0');
+            if (toolpath.laserOptions.airAssist) lines.push('M8');
+            const focus =
+                toolpath.laserFocusTest?.mode === 'sweep'
+                    ? toolpath.laserFocusTest
+                    : null;
+            let currentFocusZ = null;
+            for (let pass = 0; pass < toolpath.laserOptions.passes; pass++) {
+                if (!toolpath.laserPassCount)
+                    lines.push(`(Laser pass ${pass + 1})`);
+                for (const path of toolpath.laserPaths) {
+                    if (
+                        Number.isInteger(path.laserPassStart) &&
+                        path.laserPassStart > 0 &&
+                        path.laserPassStart <= 100
+                    )
+                        lines.push(`(Laser pass ${path.laserPassStart})`);
+                    if (path.points.length < 2) continue;
+                    const overcut =
+                        toolpath.operation === 'laser-cut' &&
+                        pass === toolpath.laserOptions.passes - 1
+                            ? laserOvercutPoints(
+                                  path.points,
+                                  toolpath.laserOptions.overcut ?? 0,
+                              )
+                            : undefined;
+                    const leads =
+                        toolpath.operation === 'laser-cut'
+                            ? laserLeadEndpoints(
+                                  path,
+                                  toolpath.laserOptions,
+                                  toolpath.laserPower,
+                                  overcut,
+                              )
+                            : {};
+                    const start = leads.entry ?? path.points[0];
+                    const changeFocus =
+                        focus && currentFocusZ !== path.focusZMm;
+                    if (changeFocus)
+                        lines.push(
+                            'G1 S0',
+                            `G1 Z${formatNumber(focus.travelZMm)} F${formatNumber(focus.zFeedMmMin)} S0`,
+                        );
+                    if (rotary?.axis === 'A') lines.push('G94');
+                    const rotaryStart = rotary
+                        ? laserRotaryPosition(start, rotary)
+                        : null;
+                    const travel = rotary
+                        ? `G0 X${formatNumber(start.x)} ${rotary.axis}${formatNumber(rotaryStart.rotation)}`
+                        : `G0 X${formatNumber(start.x)} Y${formatNumber(start.y)}`;
+                    if (constantPower) lines.push(`${travel} S0`);
+                    else
+                        lines.push(
+                            rotary?.axis === 'A' ? 'S0' : 'G1 S0',
+                            travel,
+                        );
+                    if (changeFocus) {
+                        lines.push(
+                            `G1 Z${formatNumber(path.focusZMm)} F${formatNumber(focus.zFeedMmMin)} S0`,
+                        );
+                        currentFocusZ = path.focusZMm;
+                    }
+                    if (rotary?.axis === 'A') lines.push('G93');
+                    let previousX = formatNumber(start.x),
+                        previousY = formatNumber(start.y),
+                        previousPoint = start;
+                    const entryOffset = leads.entry ? 1 : 0;
+                    const contourCount =
+                        path.points.length + (overcut ? overcut.length - 1 : 0);
+                    const pointCount =
+                        contourCount + entryOffset + (leads.exit ? 1 : 0);
+                    for (let i = 1; i < pointCount; i++) {
+                        const arc =
+                            !forcePolylineArcs &&
+                            !rotary &&
+                            !leads.entry &&
+                            !leads.exit &&
+                            !overcut &&
+                            toolpath.operation === 'laser-cut' &&
+                            fitArcRun(path.points, i - 1);
+                        if (arc) {
+                            const end = path.points[arc.end];
+                            lines.push(
+                                `${arc.command} X${formatNumber(end.x)} Y${formatNumber(end.y)} I${arc.i} J${arc.j} S${Math.round(end.power)} F${formatNumber(path.feed ?? toolpath.laserFeed)}`,
+                            );
+                            previousX = formatNumber(end.x);
+                            previousY = formatNumber(end.y);
+                            previousPoint = end;
+                            i = arc.end;
+                            continue;
+                        }
+                        const index = i - entryOffset;
+                        const p =
+                                entryOffset && i === 1
+                                    ? {
+                                          ...path.points[0],
+                                          power: toolpath.laserPower,
+                                      }
+                                    : index >= contourCount
+                                      ? leads.exit
+                                      : index < path.points.length
+                                        ? path.points[index]
+                                        : overcut[
+                                              index - path.points.length + 1
+                                          ],
+                            feed = path.feed ?? toolpath.laserFeed;
+                        if (rotary) {
+                            const move = laserRotaryMove(
+                                previousPoint,
+                                p,
+                                feed,
+                                rotary,
+                            );
+                            if (move)
+                                lines.push(
+                                    `G1 X${formatNumber(move.x)} ${rotary.axis}${formatNumber(move.rotation)} S${Math.round(p.power)} F${rotary.axis === 'A' ? laserInverseFeed(move.feed) : formatNumber(move.feed)}`,
+                                );
+                        } else {
+                            const x =
+                                    p.x === previousPoint.x
+                                        ? previousX
+                                        : formatNumber(p.x),
+                                y =
+                                    p.y === previousPoint.y
+                                        ? previousY
+                                        : formatNumber(p.y);
+                            let line = 'G1';
+                            if (x !== previousX || y === previousY)
+                                line += ` X${x}`;
+                            if (y !== previousY) line += ` Y${y}`;
+                            // Retain G1 and explicit power for inline-laser dialects; reset feed after every rapid.
+                            line += ` S${Math.round(p.power)}`;
+                            if (i === 1) line += ` F${formatNumber(feed)}`;
+                            lines.push(line);
+                            previousX = x;
+                            previousY = y;
+                        }
+                        previousPoint = p;
+                    }
+                }
+            }
+            if (rotary?.axis === 'A') lines.push('G94');
+            if (toolpath.laserFocusTest) lines.push('G1 S0');
+            if (focus)
+                lines.push(
+                    `G1 Z${formatNumber(focus.travelZMm)} F${formatNumber(focus.zFeedMmMin)} S0`,
+                );
+            lines.push('M5');
+            if (toolpath.laserOptions.airAssist) lines.push('M9');
+            spindleRunning = false;
+            currentSpindle = null;
+            reportProgress(`Writing ${toolpath.operationLabel}`);
+            continue;
+        }
         const requiresToolChange =
-            toolNumber && toolNumber !== currentToolNumber;
+            !['laser-cut', 'laser-raster'].includes(emission) &&
+            toolNumber &&
+            toolNumber !== currentToolNumber;
         if (requiresToolChange) {
             lines.push(`G0 Z${formatNumber(safeZ)}`);
             if (spindleRunning) {
@@ -130,7 +304,7 @@ export function buildGcode({
                     `G0 X${formatNumber(start.x)} Y${formatNumber(start.y)}`,
                 );
                 lines.push(
-                    `G1 F${formatNumber(toolpath.laserFeed || feed)} S${Math.round(toolpath.laserPower || 1000)}`,
+                    `G1 F${formatNumber(toolpath.laserFeed || feed)} S${Math.round(toolpath.laserPower ?? 1000)}`,
                 );
                 for (let i = 1; i < contour.length; i++) {
                     const p = contour[i];
@@ -247,7 +421,7 @@ export function buildGcode({
                                 );
                             else
                                 lines.push(
-                                    `G1 X${formatNumber(p.x)} Y${formatNumber(p.y)} S${Math.round(toolpath.laserSMax || 1000)} F${formatNumber(toolpath.laserFeed || 3000)}`,
+                                    `G1 X${formatNumber(p.x)} Y${formatNumber(p.y)} S${Math.round(toolpath.laserSMax ?? 1000)} F${formatNumber(toolpath.laserFeed || 3000)}`,
                                 );
                         }
                     }
@@ -404,7 +578,7 @@ export function buildGcode({
                         );
                     } else {
                         const sMin = toolpath.laserSMin || 0,
-                            sMax = toolpath.laserSMax || 1000;
+                            sMax = toolpath.laserSMax ?? 1000;
                         const gamma = toolpath.laserGamma || 1;
                         let v2 = lum;
                         if (gamma !== 1) v2 = 255 * Math.pow(v2 / 255, gamma);

@@ -1,3 +1,4 @@
+import { BatchTracePanel } from '../components/BatchTracePanel';
 /**
  * Purpose: Implementation module for CanvasToolbar in the react domain.
  */
@@ -14,6 +15,7 @@ export type { CanvasToolbarProps, ToolbarAction } from './toolbar/types';
 
 /** Composition root for independently maintained canvas toolbar groups. */
 export function CanvasToolbar(props: CanvasToolbarProps) {
+    const [batchTraceOpen, setBatchTraceOpen] = useState(false);
     const phone = useMediaQuery('(max-width: 767px)');
     const [open, setOpen] = useState<ToolbarAction>(null);
     const [booleanOperation, setBooleanOperation] =
@@ -103,6 +105,10 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
                     openAction={toggle}
                     close={close}
                     group={phone ? 'file' : 'all'}
+                    onBatchTrace={() => {
+                        close();
+                        setBatchTraceOpen(true);
+                    }}
                 />
                 <ToolbarCommands
                     props={props}
@@ -128,6 +134,9 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
                     </ToolbarOverflow>
                 )}
             </div>
+            {batchTraceOpen && (
+                <BatchTracePanel onClose={() => setBatchTraceOpen(false)} />
+            )}
             <ToolbarForms
                 props={props}
                 open={open}

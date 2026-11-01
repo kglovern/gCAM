@@ -29,6 +29,7 @@ export function RotarySimulation({
                 <GcodePreview
                     gcode={output.ready ? R.gcode : ''}
                     fileName={R.name}
+                    outputSettings={R.outputSettings}
                 />
             </div>
         </main>

@@ -1,10 +1,33 @@
+import { resolveLinkedImageMask } from './lib/image-mask';
+import { flattenedImageDocument } from './lib/flatten-image-document';
+import { PathRepairPanel } from './components/PathRepairPanel';
+import { ArrangePanel } from './components/ArrangePanel';
+import { PatternPanel } from './components/PatternPanel';
+import {
+    applyArtworkPattern,
+    type PatternSettings,
+} from './lib/pattern-artwork';
+import {
+    assertLayoutSourcesUnchanged,
+    type LayoutSource,
+} from './lib/arrange-artwork';
+import { isOpenShape } from './lib/path-repair';
+import { VectorBitmapPanel } from './components/VectorBitmapPanel';
+import {
+    assertArtworkSourcesUnchanged,
+    laserFillShapeIds,
+    operationsTouchingShapes,
+} from './lib/vector-bitmap-document';
+import { createDocumentId } from './lib/ids';
+import { SvgRasterImportModal } from './document/SvgRasterImportModal';
 import { GeneratorModal } from './draw/GeneratorModal';
 import { MandalaModal } from './draw/MandalaModal';
 import { useVisualViewportHeight } from './hooks/useVisualViewportHeight';
 /**
  * Purpose: Implementation module for App in the react domain.
  */
-import { useState } from 'react';
+import { useState, useMemo, useRef, type ComponentProps } from 'react';
+import type { ToolpathRail } from './toolpaths/ToolpathRail';
 import { fitSurfaceToStock } from './engine/surface-model';
 import type { ViewLoop } from './canvas/types';
 import { useConfirmation } from './components/ConfirmDialog';
@@ -59,9 +82,24 @@ type PlacedBitmap = PlacedBitmapRecord;
  */
 export default function App() {
     useVisualViewportHeight();
+    const svgImageRef = useRef<HTMLInputElement>(null);
+    const [svgRasterFile, setSvgRasterFile] = useState<File | null>(null);
     const [mandalaAnchor, setMandalaAnchor] = useState<{
         x: number;
         y: number;
+    } | null>(null);
+    const [bitmapSource, setBitmapSource] = useState<{
+        shapes: import('./canvas/types').ViewLoop[];
+        fillIds: string[];
+    } | null>(null);
+    const [repairKind, setRepairKind] = useState<
+        'join' | 'duplicates' | 'simplify'
+    >('join');
+    const [repairSource, setRepairSource] = useState<ViewLoop[] | null>(null);
+    const [layoutSource, setLayoutSource] = useState<LayoutSource | null>(null);
+    const [patternSource, setPatternSource] = useState<{
+        shapes: ViewLoop[];
+        kind: PatternSettings['kind'];
     } | null>(null);
     const [generator, setGenerator] = useState<'clock' | null>(null);
     const drawing = useDrawingWorkspaceState();
@@ -181,6 +219,7 @@ export default function App() {
     };
     const document = useDocumentWorkspace({
         initialStock: defaultStock,
+        laserWorkspace: sideTab === 'laser',
         setStatus,
         setDraftPreview,
         setBitmapImportChoice,
@@ -239,7 +278,7 @@ export default function App() {
     const rotaryOutput = useRotaryExport(rotary);
     const [newRotaryProject] = useState(() => rotary.snapshotProject());
     const [simulationSource, setSimulationSource] = useState<
-        'toolpaths' | 'rotary'
+        'toolpaths' | 'rotary' | 'laser'
     >('toolpaths');
 
     const undo = () => {
@@ -321,6 +360,7 @@ export default function App() {
 
     const [loadingSample, setLoadingSample] = useState(false);
     const { handleFiles, handleLoadSample } = useFileLoading({
+        cancelPendingImport: cancelUnitImport,
         isBitmapFile,
         loadBitmap: handleBitmapFile,
         isSurfaceModelFile: (file) => /\.(stl|obj)$/i.test(file.name),
@@ -477,16 +517,33 @@ export default function App() {
         },
     });
 
+    const laserWorkspace =
+        sideTab === 'laser' ||
+        (sideTab === 'preview' && simulationSource === 'laser');
+    const workspaceStack = useMemo(
+        () =>
+            stack.filter(
+                (entry) =>
+                    String(entry.args.operation).startsWith('laser-') ===
+                    laserWorkspace,
+            ),
+        [stack, laserWorkspace],
+    );
     const {
         editingEntry,
         preview,
         tabMarkers,
         gcode,
         gcodeError,
+        gcodeBusy,
         previewToolpaths,
     } = useToolpathPresentation({
+        stockThicknessMm: stock.thicknessMm,
+        maskLoops: loops,
+        maskBitmaps: bitmaps,
         outputSettings,
-        stack,
+        stack: workspaceStack,
+        laserRotary: laserWorkspace ? stock.laserRotary : undefined,
         editingId,
         fileName,
         emitArcs,
@@ -590,8 +647,142 @@ export default function App() {
         },
     });
 
+    const patternIds = new Set(expandedSelectedIds());
+    const patternShapes = loops.filter((s) => patternIds.has(s.id));
     const toolbarProps = {
         ...baseToolbarProps,
+        canPattern:
+            patternShapes.length > 0 && patternShapes.every((s) => !s.bitmapId),
+        onPattern: (kind: PatternSettings['kind']) => {
+            baseToolbarProps.onSelectMode();
+            setRepairSource(null);
+            setBitmapSource(null);
+            setLayoutSource(null);
+            const shapes = patternShapes;
+            if (!shapes.length || shapes.some((s) => s.bitmapId)) {
+                setStatus('Select drawing shapes without images or 3D models.');
+                return;
+            }
+            setPatternSource({
+                shapes: JSON.parse(JSON.stringify(shapes)),
+                kind,
+            });
+        },
+        canArrange:
+            new Set(
+                booleanLoops.map((s) =>
+                    s.groupId ? `group:${s.groupId}` : `shape:${s.id}`,
+                ),
+            ).size >= 2,
+        onArrange: () => {
+            setPatternSource(null);
+            baseToolbarProps.onSelectMode();
+            setRepairSource(null);
+            setBitmapSource(null);
+            const groups = new Set(
+                    booleanLoops.flatMap((s) => (s.groupId ? [s.groupId] : [])),
+                ),
+                ids = new Set(booleanLoops.map((s) => s.id));
+            const shapes = loops.filter(
+                (s) => ids.has(s.id) || (s.groupId && groups.has(s.groupId)),
+            );
+            const bitmapIds = new Set(
+                shapes.flatMap((s) => (s.bitmapId ? [s.bitmapId] : [])),
+            );
+            setLayoutSource(
+                JSON.parse(
+                    JSON.stringify({
+                        shapes,
+                        order: selected,
+                        bitmaps: bitmaps
+                            .filter((b) => bitmapIds.has(b.id))
+                            .map(({ id, x, y, w, h, rotation, dataUrl }) => ({
+                                id,
+                                x,
+                                y,
+                                w,
+                                h,
+                                rotation,
+                                dataUrl,
+                            })),
+                    }),
+                ),
+            );
+        },
+        onSelectOpenShapes: () => {
+            const ids = loops
+                .filter(
+                    (loop) => !hidden.includes(loop.id) && isOpenShape(loop),
+                )
+                .map((loop) => loop.id);
+            setSelected(ids);
+            setStatus(`${ids.length} open shapes selected.`);
+        },
+        onDeleteDuplicates: () => {
+            setPatternSource(null);
+            setLayoutSource(null);
+            baseToolbarProps.onSelectMode();
+            setBitmapSource(null);
+            setRepairKind('duplicates');
+            const hiddenIds = new Set(hidden);
+            setRepairSource(
+                JSON.parse(
+                    JSON.stringify(
+                        loops.filter((loop) => !hiddenIds.has(loop.id)),
+                    ),
+                ),
+            );
+        },
+        onRepairPaths: () => {
+            setPatternSource(null);
+            setLayoutSource(null);
+            setRepairKind('join');
+            baseToolbarProps.onSelectMode();
+            setBitmapSource(null);
+            setRepairSource(
+                JSON.parse(
+                    JSON.stringify(
+                        booleanLoops.filter((loop) => !loop.bitmapId),
+                    ),
+                ),
+            );
+        },
+        onSimplifyPaths: () => {
+            setPatternSource(null);
+            setLayoutSource(null);
+            setRepairKind('simplify');
+            baseToolbarProps.onSelectMode();
+            setBitmapSource(null);
+            setRepairSource(
+                JSON.parse(
+                    JSON.stringify(
+                        booleanLoops.filter((loop) => !loop.bitmapId),
+                    ),
+                ),
+            );
+        },
+        canRepairPaths: booleanLoops.some(isOpenShape),
+        canConvertToBitmap:
+            booleanLoops.length > 0 &&
+            booleanLoops.every((loop) => !loop.bitmapId),
+        onConvertToBitmap: laserWorkspace
+            ? () => {
+                  baseToolbarProps.onSelectMode();
+                  setLayoutSource(null);
+                  setPatternSource(null);
+                  setRepairSource(null);
+                  const shapes = JSON.parse(
+                      JSON.stringify(booleanLoops),
+                  ) as typeof booleanLoops;
+                  setBitmapSource({
+                      shapes,
+                      fillIds: laserFillShapeIds(stack, shapes),
+                  });
+              }
+            : undefined,
+        onImportSvgImage: laserWorkspace
+            ? () => svgImageRef.current?.click()
+            : undefined,
         onDrawTool: (
             tool: Parameters<typeof baseToolbarProps.onDrawTool>[0],
         ) => {
@@ -620,9 +811,61 @@ export default function App() {
         },
     };
     const inspector = buildInspector(units);
-    const toolpathRailProps = {
+    const toolpathRailProps: ComponentProps<typeof ToolpathRail> = {
+        onMaskLink: (id, ids) => {
+            const bitmap = bitmaps.find((b) => b.id === id);
+            if (!bitmap) throw new Error('Source image is missing.');
+            if (ids?.length)
+                resolveLinkedImageMask(
+                    { ...bitmap, maskSourceIds: ids },
+                    loops,
+                );
+            if (
+                JSON.stringify(bitmap.maskSourceIds ?? []) ===
+                JSON.stringify(ids ?? [])
+            )
+                return;
+            const sources = loops.filter((l) => l.bitmapId === id),
+                affected = new Set(operationsTouchingShapes(stack, sources));
+            pushHistory();
+            setBitmaps((current) =>
+                current.map((b) =>
+                    b.id === id
+                        ? {
+                              ...b,
+                              maskSourceIds: ids?.length ? [...ids] : undefined,
+                          }
+                        : b,
+                ),
+            );
+            setStack((current) => current.filter((e) => !affected.has(e)));
+            setEditingId(null);
+            setDraftPreview([]);
+            setStatus(
+                ids?.length ? 'Linked image mask.' : 'Image mask link removed.',
+            );
+        },
+        onFlattenImage: (commit) => {
+            const next = flattenedImageDocument(
+                { loops, bitmaps, stack },
+                commit,
+                createDocumentId('bitmap'),
+            );
+            pushHistory();
+            setLoops(next.loops);
+            setBitmaps(next.bitmaps);
+            setStack(next.stack);
+            setSelected(next.selected);
+            setEditingId(null);
+            setDraftPreview([]);
+            document.refreshBounds(next.loops);
+            setStatus(
+                `Flattened image region. ${next.removed} affected toolpath${next.removed === 1 ? '' : 's'} removed.`,
+            );
+        },
         outputSettings,
         gcodeError,
+        gcodeBusy,
         onStockThickness: (thicknessMm: number) => {
             if (
                 !Number.isFinite(thicknessMm) ||
@@ -668,7 +911,7 @@ export default function App() {
         loops,
         selected,
         bitmaps,
-        stack,
+        stack: workspaceStack,
         gcode,
         fileName,
         units,
@@ -682,8 +925,29 @@ export default function App() {
         tabMode,
         setTabMode,
         setEditingId,
-        setStack,
-        setSideTab,
+        setStack: (update) => {
+            pushHistory();
+            setStack((current) => {
+                const visible = current.filter(
+                    (entry) =>
+                        String(entry.args.operation).startsWith('laser-') ===
+                        laserWorkspace,
+                );
+                const next =
+                    typeof update === 'function' ? update(visible) : update;
+                return [
+                    ...current.filter(
+                        (entry) =>
+                            String(entry.args.operation).startsWith(
+                                'laser-',
+                            ) !== laserWorkspace,
+                    ),
+                    ...next,
+                ];
+            });
+        },
+        setSideTab: (tab) =>
+            setSideTab(tab === 'toolpaths' && laserWorkspace ? 'laser' : tab),
         setStatus,
         setDraftPreview,
         setDraftProgress,
@@ -695,7 +959,12 @@ export default function App() {
         onImportFile: () => fileRef.current?.click(),
     };
     const previewWorkspaceProps = {
+        outputSettings,
+        units,
+        machineTravelLimits,
         toolpaths: previewToolpaths,
+        laserMax: outputSettings.laserMax,
+        laserRotary: laserWorkspace ? stock.laserRotary : undefined,
         gcode,
         fileName,
         darkMode,
@@ -763,6 +1032,9 @@ export default function App() {
         onActionsChange: setConfigActions,
     };
     const workspaceModel = createWorkspaceModel({
+        artworkReview: Boolean(
+            patternSource || layoutSource || repairSource || bitmapSource,
+        ),
         nestPreview,
         nestAttempt,
         nesting: nestProgress
@@ -770,8 +1042,12 @@ export default function App() {
             : null,
         activeTab: sideTab,
         onTabChange: (tab) => {
-            if (tab === 'toolpaths' || tab === 'rotary')
+            if (tab === 'toolpaths' || tab === 'rotary' || tab === 'laser')
                 setSimulationSource(tab);
+            setEditingId(null);
+            setTabMode(false);
+            setDraftPreview([]);
+            setDraftProgress(null);
             setSideTab(tab);
         },
         simulationSource,
@@ -826,7 +1102,7 @@ export default function App() {
             onFilletCorner: handleCorner,
             onAdjustStock: () => {
                 setSelected([]);
-                setSideTab('toolpaths');
+                setSideTab(laserWorkspace ? 'laser' : 'toolpaths');
             },
             preserveViewToken,
             viewportCommand,
@@ -882,6 +1158,219 @@ export default function App() {
 
     return (
         <ErrorBoundary>
+            {patternSource && (
+                <PatternPanel
+                    key={patternSource.kind}
+                    shapes={patternSource.shapes}
+                    initialKind={patternSource.kind}
+                    units={units}
+                    onPreview={setOffsetPreview}
+                    onClose={() => setPatternSource(null)}
+                    onApply={(result) => {
+                        const next = applyArtworkPattern(
+                            loops,
+                            patternSource.shapes,
+                            result,
+                            () => createDocumentId('shape'),
+                        );
+                        pushHistory();
+                        setLoops(next.loops);
+                        setSelected(next.selected);
+                        if (next.changedSources.length)
+                            setStack((current) => {
+                                const affected = new Set(
+                                    operationsTouchingShapes(
+                                        current,
+                                        next.changedSources,
+                                    ),
+                                );
+                                return current.filter((e) => !affected.has(e));
+                            });
+                        setEditingId(null);
+                        setDraftPreview([]);
+                        setDraftProgress(null);
+                        refreshBounds(next.loops);
+                        setPatternSource(null);
+                        setStatus(
+                            result.replace
+                                ? 'Mirrored selection.'
+                                : `Added ${next.selected.length} shapes.`,
+                        );
+                    }}
+                />
+            )}
+            {layoutSource && (
+                <ArrangePanel
+                    source={layoutSource}
+                    stack={stack}
+                    onClose={() => setLayoutSource(null)}
+                    onPreview={setOffsetPreview}
+                    onApply={(result) => {
+                        assertLayoutSourcesUnchanged(
+                            loops,
+                            bitmaps,
+                            layoutSource,
+                        );
+                        const updated = new Map(
+                                result.shapes.map((s) => [s.id, s]),
+                            ),
+                            images = new Map(
+                                result.bitmaps.map((b) => [b.id, b]),
+                            );
+                        const next = loops.map((s) => updated.get(s.id) ?? s);
+                        const changed = new Set(result.changedIds);
+                        const old = layoutSource.shapes.filter((s) =>
+                            changed.has(s.id),
+                        );
+                        pushHistory();
+                        setLoops(next);
+                        setBitmaps((current) =>
+                            current.map((b) => {
+                                const moved = images.get(b.id);
+                                return moved &&
+                                    (moved.x !== b.x || moved.y !== b.y)
+                                    ? { ...b, x: moved.x, y: moved.y }
+                                    : b;
+                            }),
+                        );
+                        setStack((current) => {
+                            const affected = new Set(
+                                operationsTouchingShapes(current, old),
+                            );
+                            return current.filter((e) => !affected.has(e));
+                        });
+                        setEditingId(null);
+                        setDraftPreview([]);
+                        setDraftProgress(null);
+                        refreshBounds(next);
+                        setLayoutSource(null);
+                        setStatus(
+                            `Arranged ${result.movedUnits} shapes or groups.`,
+                        );
+                    }}
+                />
+            )}
+            {repairSource && (
+                <PathRepairPanel
+                    key={repairKind}
+                    shapes={repairSource}
+                    initialMode={repairKind}
+                    stack={stack}
+                    units={units}
+                    onClose={() => setRepairSource(null)}
+                    onPreview={setOffsetPreview}
+                    onApply={(result) => {
+                        assertArtworkSourcesUnchanged(loops, repairSource);
+                        const sources = new Set(repairSource.map((s) => s.id)),
+                            updated = new Map(
+                                result.shapes.map((s) => [s.id, s]),
+                            );
+                        const next = loops.flatMap((loop) =>
+                            sources.has(loop.id)
+                                ? updated.has(loop.id)
+                                    ? [updated.get(loop.id)!]
+                                    : []
+                                : [loop],
+                        );
+                        const changed = new Set(result.changedIds),
+                            old = repairSource.filter((s) => changed.has(s.id));
+                        pushHistory();
+                        setLoops(next);
+                        setSelected(
+                            result.duplicates
+                                ? result.duplicateKeepIds
+                                : result.shapes.map((s) => s.id),
+                        );
+                        setStack((current) => {
+                            const affected = new Set(
+                                operationsTouchingShapes(current, old),
+                            );
+                            return current.filter(
+                                (entry) => !affected.has(entry),
+                            );
+                        });
+                        setDraftPreview([]);
+                        refreshBounds(next);
+                        setRepairSource(null);
+                        setStatus(
+                            repairKind === 'simplify'
+                                ? `Simplified ${result.changedIds.length} shapes: ${result.pointsBefore} to ${result.pointsAfter} points.`
+                                : result.duplicates
+                                  ? `Removed ${result.duplicates} duplicate shapes.`
+                                  : `${result.joined} joins; ${result.closed} shapes closed; ${result.remaining} open shapes remain.`,
+                        );
+                    }}
+                />
+            )}
+
+            {bitmapSource && (
+                <VectorBitmapPanel
+                    shapes={bitmapSource.shapes}
+                    fillIds={bitmapSource.fillIds}
+                    onClose={() => setBitmapSource(null)}
+                    onCommit={({ dataUrl, img, plan }, keep) => {
+                        assertArtworkSourcesUnchanged(
+                            loops,
+                            bitmapSource.shapes,
+                        );
+                        const id = createDocumentId('bitmap');
+                        const { minX: x, minY: y, maxX, maxY } = plan.bounds;
+                        const added = document
+                            .withIds([
+                                {
+                                    points: [
+                                        { x, y },
+                                        { x: maxX, y },
+                                        { x: maxX, y: maxY },
+                                        { x, y: maxY },
+                                        { x, y },
+                                    ],
+                                },
+                            ])
+                            .map((loop) => ({ ...loop, bitmapId: id }));
+                        const ids = new Set(
+                            bitmapSource.shapes.map((shape) => shape.id),
+                        );
+                        const next = [
+                            ...(keep
+                                ? loops
+                                : loops.filter((loop) => !ids.has(loop.id))),
+                            ...added,
+                        ];
+                        pushHistory();
+                        setBitmaps((current) => [
+                            ...current,
+                            {
+                                id,
+                                x,
+                                y,
+                                w: plan.widthMm,
+                                h: plan.heightMm,
+                                dataUrl,
+                                img,
+                            },
+                        ]);
+                        setLoops(next);
+                        setSelected(added.map((loop) => loop.id));
+                        if (!keep)
+                            setStack((current) => {
+                                const affected = new Set(
+                                    operationsTouchingShapes(
+                                        current,
+                                        bitmapSource.shapes,
+                                    ),
+                                );
+                                return current.filter(
+                                    (entry) => !affected.has(entry),
+                                );
+                            });
+                        refreshBounds(next);
+                        setBitmapSource(null);
+                        setStatus('Artwork converted to bitmap.');
+                    }}
+                />
+            )}
+
             {generator && (
                 <GeneratorModal
                     kind={generator}
@@ -958,6 +1447,29 @@ export default function App() {
                 />
 
                 <input
+                    ref={svgImageRef}
+                    type="file"
+                    accept=".svg,image/svg+xml"
+                    aria-label="Import SVG as image"
+                    className="hidden"
+                    onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        if (file) {
+                            cancelUnitImport();
+                            setSvgRasterFile(file);
+                        }
+                        event.currentTarget.value = '';
+                    }}
+                />
+                {svgRasterFile && (
+                    <SvgRasterImportModal
+                        key={svgRasterFile.name + svgRasterFile.lastModified}
+                        file={svgRasterFile}
+                        onImport={handleBitmapFile}
+                        onClose={() => setSvgRasterFile(null)}
+                    />
+                )}
+                <input
                     ref={fileRef}
                     type="file"
                     accept=".dxf,.svg,.png,.jpg,.jpeg,.webp,.bmp,.stl,.obj"
@@ -982,6 +1494,8 @@ export default function App() {
 
                 <AppWorkspace model={workspaceModel} />
                 <AppModalLayer
+                    stock={stock}
+                    laser={sideTab === 'laser'}
                     units={units}
                     machineSetupOpen={machineSetupOpen}
                     machineProfileId={machineProfileId}

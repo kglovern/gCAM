@@ -53,3 +53,52 @@ test('does not offer group operations when multiple 3D models are selected', () 
         }),
     ).toEqual([]);
 });
+
+test('workspace operations stay separate for vectors and bitmaps', () => {
+    const selection = {
+        hasBitmap: false,
+        hasVector: true,
+        hasSurfaceModel: false,
+        surfaceModelSelectedAlone: false,
+    };
+    expect(values({ ...selection, workspace: 'laser' })).toEqual([
+        'laser-fill',
+        'laser-cut',
+    ]);
+    expect(values({ ...selection, workspace: 'milling' })).not.toContain(
+        'laser-cut',
+    );
+    expect(
+        values({
+            ...selection,
+            hasBitmap: true,
+            hasVector: false,
+            workspace: 'laser',
+        }),
+    ).toEqual(['laser-raster']);
+    expect(
+        values({
+            ...selection,
+            hasBitmap: true,
+            hasVector: false,
+            workspace: 'milling',
+        }),
+    ).toEqual(['wavy-raster', 'halftone']);
+});
+
+test('laser mixed image and shape selection can choose a masked raster without changing milling', () => {
+    const mixed = {
+        hasBitmap: true,
+        hasVector: true,
+        hasSurfaceModel: false,
+        surfaceModelSelectedAlone: false,
+    };
+    expect(values({ ...mixed, workspace: 'laser' })).toEqual([
+        'laser-fill',
+        'laser-cut',
+        'laser-raster',
+    ]);
+    expect(values({ ...mixed, workspace: 'milling' })).not.toContain(
+        'laser-raster',
+    );
+});

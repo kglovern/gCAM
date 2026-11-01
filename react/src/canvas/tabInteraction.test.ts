@@ -28,3 +28,27 @@ describe('findTabHover', () => {
         expect(findTabHover(preview, { x: 10, y: 5 }, 2)).toBeNull();
     });
 });
+
+test('laser bridge hover uses physical width and preserves the contour index after ineligible paths', () => {
+    const points = [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+    ];
+    const hit = findTabHover(
+        [
+            { entryId: 'laser', points, tabEligible: false },
+            {
+                entryId: 'laser',
+                points,
+                tabSpan: 0.5,
+                toolDiameter: 6,
+                tabEligible: true,
+            },
+        ],
+        { x: 10, y: 0 },
+        1,
+    );
+    expect(hit?.contourIndex).toBe(1);
+    expect(hit?.start.x).toBeCloseTo(9.75);
+    expect(hit?.end.x).toBeCloseTo(10.25);
+});

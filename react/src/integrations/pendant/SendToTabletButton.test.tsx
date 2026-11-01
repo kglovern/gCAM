@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type {
     PendantBridge,
@@ -55,7 +55,9 @@ test('renders nothing until a tablet is paired', async () => {
     const { container } = render(
         <SendToTabletButton gcode="G0 X0" fileName="part" />,
     );
-    await Promise.resolve();
+    await act(async () => {
+        await Promise.resolve();
+    });
     expect(container).toBeEmptyDOMElement();
 });
 
@@ -71,7 +73,7 @@ test('sends straight to the only paired tablet', async () => {
     expect(await screen.findByText('Sent to Shop Tablet')).toBeInTheDocument();
     expect(sendMock).toHaveBeenCalledWith({
         tabletId: 'tab-1',
-        name: 'part.nc',
+        name: 'part.gcode',
         gcode: 'G0 X0',
     });
 });
@@ -109,4 +111,68 @@ test('shows the failure message', async () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
         'no longer trusts gCAM',
     );
+});
+
+test('uses the selected file extension for a compatible paired tablet', async () => {
+    installBridge([shop]);
+    sendMock.mockResolvedValue({ ok: true });
+    render(
+        <SendToTabletButton
+            gcode="G1 X10 S400"
+            fileName="laser.svg"
+            extension="tap"
+            controller="grbl"
+        />,
+    );
+    fireEvent.click(
+        await screen.findByRole('button', { name: /send to shop tablet/i }),
+    );
+    expect(await screen.findByText('Sent to Shop Tablet')).toBeInTheDocument();
+    expect(sendMock).toHaveBeenCalledWith({
+        tabletId: 'tab-1',
+        name: 'laser.tap',
+        gcode: 'G1 X10 S400',
+    });
+});
+
+test('does not send incompatible output or retain a selectable tablet picker', async () => {
+    installBridge([shop, garage]);
+    const { rerender } = render(
+        <SendToTabletButton gcode="G1 X10" fileName="part" />,
+    );
+    fireEvent.click(
+        await screen.findByRole('button', { name: /send to tablet/i }),
+    );
+    expect(
+        screen.getByRole('button', { name: /garage tablet/i }),
+    ).toBeInTheDocument();
+    rerender(
+        <SendToTabletButton
+            gcode="G1 X10"
+            fileName="part"
+            controller="marlin"
+        />,
+    );
+    expect(
+        screen.getByRole('button', { name: /send to tablet/i }),
+    ).toBeDisabled();
+    expect(
+        screen.queryByRole('button', { name: /garage tablet/i }),
+    ).not.toBeInTheDocument();
+    expect(sendMock).not.toHaveBeenCalled();
+});
+
+test('an open tablet picker cannot hand off a program invalidated by the current document', async () => {
+    installBridge([shop, garage]);
+    const { rerender } = render(
+        <SendToTabletButton gcode="G1 X10 S500" fileName="part" />,
+    );
+    fireEvent.click(
+        await screen.findByRole('button', { name: /send to tablet/i }),
+    );
+    rerender(<SendToTabletButton gcode="" fileName="part" />);
+    const choice = screen.getByRole('button', { name: /shop tablet/i });
+    expect(choice).toBeDisabled();
+    fireEvent.click(choice);
+    expect(sendMock).not.toHaveBeenCalled();
 });

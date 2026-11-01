@@ -1,3 +1,86 @@
+export interface LaserOptions {
+    powerMode?: 'profile' | 'dynamic' | 'constant';
+    passThrough?: boolean;
+    hatchOverscan?: boolean;
+    scanAlignment?: {
+        enabled: boolean;
+        measurements: { feed: number; gap: number }[];
+    };
+    passes?: number;
+    kerf?: number;
+    overcut?: number;
+    leadInLength?: number;
+    leadOutLength?: number;
+    leadInAngle?: number;
+    leadOutAngle?: number;
+    perforation?: boolean;
+    perforationCut?: number;
+    perforationSkip?: number;
+    bridges?: boolean;
+    bridgeMode?: 'automatic' | 'manual';
+    bridgeCount?: number;
+    bridgePlacement?: 'count' | 'spacing';
+    bridgeSpacing?: number;
+    bridgeLimit?: boolean;
+    bridgeMax?: number;
+    bridgeWidth?: number;
+    /** Fraction of the cutting power; zero leaves an uncut bridge. */
+    bridgePower?: number;
+    bridgeSkipInner?: boolean;
+    fillAngle?: number;
+    fillMode?: 'hatch' | 'offset';
+    fillSequence?: 'all' | 'individual' | 'groups';
+    crosshatch?: boolean;
+    bidirectional?: boolean;
+    scanAngle?: number;
+    angleIncrement?: number;
+    trimBlank?: boolean;
+    imageCrop?: { left: number; bottom: number; right: number; top: number };
+    maskSourceIds?: string[];
+    imageMask?: { x: number; y: number }[][];
+    imageMode?:
+        | 'grayscale'
+        | 'threshold'
+        | 'ordered'
+        | 'floyd-steinberg'
+        | 'atkinson'
+        | 'jarvis'
+        | 'stucki'
+        | 'halftone'
+        | 'edge';
+    threshold?: number;
+    halftoneCellSize?: number;
+    halftoneAngle?: number;
+    edgeGain?: number;
+    invert?: boolean;
+    brightness?: number;
+    contrast?: number;
+    grayscale?:
+        | 'luminance'
+        | 'average'
+        | 'red'
+        | 'green'
+        | 'blue'
+        | 'minimum'
+        | 'maximum';
+    shadeCount?: number;
+    smoothing?: number;
+    sharpening?: number;
+    filterRadius?: number;
+    sharpeningDenoise?: number;
+    dotWidthCorrection?: number;
+    innerFirst?: boolean;
+    optimizeTravel?: boolean;
+    preferCornerStarts?: boolean;
+    cutOrder?:
+        | 'none'
+        | 'left-to-right'
+        | 'right-to-left'
+        | 'top-to-bottom'
+        | 'bottom-to-top';
+    removeSharedCuts?: boolean;
+    airAssist?: boolean;
+}
 /**
  * Purpose: Implementation module for toolpathRequest in the react domain.
  */
@@ -13,13 +96,25 @@ export type BitmapImage = {
 
 export type RasterBitmapInput = {
     imageData: BitmapImage;
+    rotation?: number;
     bounds: { minX: number; minY: number; maxX: number; maxY: number };
 };
 
 export type ToolpathRequest = {
+    laserManualTabs?: {
+        contourIndex: number;
+        along: number;
+        anchor?: { x: number; y: number };
+    }[];
     operation: string;
     toolDiameter: number;
     cutDepth: number;
+    chamferWidthMm?: number;
+    vCarveInset?: { depth: number; angle: number; diameter: number };
+    vCarveEdgeFinish?: boolean;
+    vCarvePairId?: string;
+    chamferTipOffsetMm?: number;
+    stockThicknessMm?: number;
     cutterAngle?: number;
     laserFeed?: number;
     laserPower?: number;
@@ -28,6 +123,7 @@ export type ToolpathRequest = {
     laserSMax?: number;
     laserGamma?: number;
     laserOverscan?: number;
+    laserOptions?: LaserOptions;
     wavySpot?: number;
     wavyMinDepth?: number;
     wavyMaxDepth?: number;
@@ -91,6 +187,7 @@ export function makeToolpathConfig(request: ToolpathRequest) {
         laserSMin = 0,
         laserSMax = 1000,
         laserGamma = 1,
+        laserOptions,
         laserOverscan = 2,
         wavySpot = 2,
         wavyMinDepth = 0,
@@ -117,9 +214,26 @@ export function makeToolpathConfig(request: ToolpathRequest) {
         libraryToolName = '',
     } = request;
     return {
+        ...(request.vCarveInset ? { vCarveInset: request.vCarveInset } : {}),
+        ...(request.vCarveEdgeFinish ? { vCarveEdgeFinish: true } : {}),
+        ...(request.vCarvePairId ? { vCarvePairId: request.vCarvePairId } : {}),
+        ...(request.laserManualTabs?.length
+            ? { laserManualTabs: request.laserManualTabs }
+            : {}),
         operation,
         toolDiameter,
         toolRadius: toolDiameter / 2,
+        ...(operation === 'chamfer' &&
+        request.chamferWidthMm !== undefined &&
+        request.stockThicknessMm !== undefined
+            ? { stockThicknessMm: request.stockThicknessMm }
+            : {}),
+        ...(operation === 'chamfer' && request.chamferWidthMm !== undefined
+            ? {
+                  chamferWidthMm: request.chamferWidthMm,
+                  chamferTipOffsetMm: request.chamferTipOffsetMm ?? 0,
+              }
+            : {}),
         cutterAngle,
         overlapPercent,
         cutDepth,
@@ -148,6 +262,7 @@ export function makeToolpathConfig(request: ToolpathRequest) {
         laserSMin,
         laserSMax,
         laserGamma,
+        laserOptions,
         laserOverscan,
         wavySpot,
         wavyMinDepth,
@@ -179,6 +294,7 @@ export function prepareRasterInput<
                 {
                     type: 'BITMAP',
                     _imageData: bitmap.imageData,
+                    rotation: bitmap.rotation,
                     bounds: bitmap.bounds,
                 },
             ],

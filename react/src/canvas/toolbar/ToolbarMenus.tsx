@@ -3,6 +3,14 @@ import { CanvasToolIcon } from './CanvasToolIcon';
  * Purpose: Implementation module for ToolbarMenus in the canvas domain.
  */
 import {
+    Image,
+    FlipHorizontal2,
+    LayoutGrid,
+    RotateCw,
+    AlignLeft,
+    Link2,
+    Copy,
+    ScanLine,
     Download,
     Eye,
     File,
@@ -34,6 +42,7 @@ import {
 import type { CanvasToolbarProps, ToolbarAction } from './types';
 
 interface ToolbarMenusProps {
+    onBatchTrace?(): void;
     latheProfile?: { import(): void; export(): void };
     props: CanvasToolbarProps;
     openAction: (action: Exclude<ToolbarAction, null>) => void;
@@ -50,6 +59,7 @@ export function ToolbarMenus({
     group = 'all',
     activeAction,
     latheProfile,
+    onBatchTrace,
 }: ToolbarMenusProps) {
     return (
         <>
@@ -60,6 +70,20 @@ export function ToolbarMenus({
                         icon={<FolderOpen size={16} />}
                         onClick={() => props.onImportFile?.()}
                     />
+                    {onBatchTrace && (
+                        <ToolbarMenuItem
+                            label="Trace images to SVG…"
+                            icon={<FileCode2 size={16} />}
+                            onClick={onBatchTrace}
+                        />
+                    )}
+                    {props.onImportSvgImage && (
+                        <ToolbarMenuItem
+                            label="Open SVG as image…"
+                            icon={<FileUp size={16} />}
+                            onClick={props.onImportSvgImage}
+                        />
+                    )}
                     <ToolbarMenuSeparator />
                     {latheProfile && (
                         <>
@@ -165,6 +189,103 @@ export function ToolbarMenus({
                             icon={<CanvasToolIcon tool="offset" />}
                             onClick={() => openAction('offset')}
                         />
+                        {props.onArrange && (
+                            <ToolbarMenuItem
+                                label="Arrange…"
+                                icon={<AlignLeft size={16} />}
+                                disabled={!props.canArrange}
+                                onClick={() => {
+                                    props.onArrange?.();
+                                    close();
+                                }}
+                            />
+                        )}
+                        {props.onPattern && (
+                            <>
+                                <ToolbarMenuItem
+                                    label="Mirror…"
+                                    icon={<FlipHorizontal2 size={16} />}
+                                    disabled={!props.canPattern}
+                                    onClick={() => {
+                                        props.onPattern?.('mirror');
+                                        close();
+                                    }}
+                                />
+                                <ToolbarMenuItem
+                                    label="Rectangular pattern…"
+                                    icon={<LayoutGrid size={16} />}
+                                    disabled={!props.canPattern}
+                                    onClick={() => {
+                                        props.onPattern?.('rectangular');
+                                        close();
+                                    }}
+                                />
+                                <ToolbarMenuItem
+                                    label="Circular pattern…"
+                                    icon={<RotateCw size={16} />}
+                                    disabled={!props.canPattern}
+                                    onClick={() => {
+                                        props.onPattern?.('circular');
+                                        close();
+                                    }}
+                                />
+                            </>
+                        )}
+                        {props.onSelectOpenShapes && (
+                            <ToolbarMenuItem
+                                label="Select open shapes"
+                                icon={<ScanLine size={16} />}
+                                disabled={!props.hasGeometry}
+                                onClick={() => {
+                                    props.onSelectOpenShapes?.();
+                                    close();
+                                }}
+                            />
+                        )}
+                        {props.onSimplifyPaths && (
+                            <ToolbarMenuItem
+                                label="Simplify paths…"
+                                icon={<Spline size={16} />}
+                                disabled={!props.canConvertToBitmap}
+                                onClick={() => {
+                                    props.onSimplifyPaths?.();
+                                    close();
+                                }}
+                            />
+                        )}
+                        {props.onDeleteDuplicates && (
+                            <ToolbarMenuItem
+                                label="Delete duplicates…"
+                                icon={<Copy size={16} />}
+                                disabled={!props.hasGeometry}
+                                onClick={() => {
+                                    props.onDeleteDuplicates?.();
+                                    close();
+                                }}
+                            />
+                        )}
+                        {props.onRepairPaths && (
+                            <ToolbarMenuItem
+                                label="Repair paths…"
+                                icon={<Link2 size={16} />}
+                                disabled={!props.canRepairPaths}
+                                onClick={() => {
+                                    props.onRepairPaths?.();
+                                    close();
+                                }}
+                            />
+                        )}
+                        {props.onConvertToBitmap && (
+                            <ToolbarMenuItem
+                                label="Convert to bitmap…"
+                                icon={<Image size={16} />}
+                                disabled={!props.canConvertToBitmap}
+                                onClick={() => {
+                                    props.onConvertToBitmap?.();
+                                    close();
+                                }}
+                            />
+                        )}
                         <ToolbarMenuItem
                             label="Nest…"
                             disabled={!props.canBoolean}

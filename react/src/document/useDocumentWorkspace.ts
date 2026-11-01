@@ -2,11 +2,12 @@
  * Purpose: React hook that owns the DocumentWorkspace workflow.
  */
 import { useLayerCommands } from '../layers/useLayerCommands';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ViewBounds, ViewLoop } from '../canvas/types';
 import { loopBounds } from '../lib/engine';
 import { createDocumentId } from '../lib/ids';
+import { prepareToolpathHistory } from '../toolpaths/toolpathHistory';
 import { cloneHistoryData } from '../lib/history';
 import type { Guide } from '../lib/guides';
 import type { ToolpathStackEntry } from '../toolpaths/useToolpathStack';
@@ -24,6 +25,7 @@ type PreviewPaths = { x: number; y: number }[][];
 
 interface DocumentWorkspaceOptions {
     initialStock?: JobStock;
+    laserWorkspace?: boolean;
     setStatus: Dispatch<SetStateAction<string>>;
     setDraftPreview: Dispatch<SetStateAction<PreviewPaths>>;
     onFitView(): void;
@@ -35,6 +37,7 @@ interface DocumentWorkspaceOptions {
 /** Persistent document model plus bitmap/vector import commands. */
 export function useDocumentWorkspace({
     initialStock,
+    laserWorkspace,
     setStatus,
     setDraftPreview,
     onFitView,
@@ -68,6 +71,11 @@ export function useDocumentWorkspace({
         }),
         onRestore: (snapshot) => setBounds(loopBounds(snapshot.loops)),
     });
+    useEffect(() => {
+        const preparation = new AbortController();
+        void prepareToolpathHistory(document.stack, preparation.signal);
+        return () => preparation.abort();
+    }, [document.stack]);
     const {
         layers,
         setLayers,
@@ -89,8 +97,8 @@ export function useDocumentWorkspace({
         setStock,
         push: pushHistory,
         restore,
-        undo: undoDocument,
-        redo: redoDocument,
+        undo: undoState,
+        redo: redoState,
         canUndo,
         canRedo,
     } = document;
@@ -142,6 +150,8 @@ export function useDocumentWorkspace({
         ToolpathStackEntry,
         PlacedBitmapRecord
     >({
+        stock,
+        laserWorkspace,
         bounds,
         setBitmapImportChoice,
         setLoops,
@@ -164,6 +174,7 @@ export function useDocumentWorkspace({
         cancelUnitImport,
     } = useVectorImport<ViewLoop, ToolpathStackEntry>({
         setLoops,
+        setBitmaps,
         setLayers,
         setActiveLayerId,
         setSelected,
@@ -204,8 +215,14 @@ export function useDocumentWorkspace({
         setStock,
         pushHistory,
         restore,
-        undoDocument,
-        redoDocument,
+        undoDocument: () => {
+            cancelUnitImport();
+            return undoState();
+        },
+        redoDocument: () => {
+            cancelUnitImport();
+            return redoState();
+        },
         canUndo,
         canRedo,
         newLoopId,

@@ -1,12 +1,12 @@
-import { memo, type ComponentProps } from 'react';
+import { memo, useState, type ComponentProps } from 'react';
 import { jest } from '@jest/globals';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ToolpathStackEntry } from './useToolpathStack';
 
 const panelRenders = jest.fn();
 await jest.unstable_mockModule('./ToolpathPanel', () => ({
-    ToolpathPanel: memo(() => {
-        panelRenders();
+    ToolpathPanel: memo((props: Record<string, unknown>) => {
+        panelRenders(props);
         return <div>Toolpath editor</div>;
     }),
 }));
@@ -16,6 +16,47 @@ await jest.unstable_mockModule('../job/JobStockSetup', () => ({
 }));
 
 const { ToolpathRail } = await import('./ToolpathRail');
+
+test('editing a saved laser fill retains its captured artwork groups', () => {
+    const entry: ToolpathStackEntry = {
+        id: 'fill',
+        label: 'Fill',
+        args: {
+            operation: 'laser-fill',
+            loops: [
+                {
+                    id: 'letter',
+                    groupId: 'word',
+                    points: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 1 },
+                    ],
+                },
+            ],
+            toolDiameter: 1,
+            cutDepth: 1,
+            laserOptions: { fillSequence: 'groups' },
+        },
+        toolpath: {},
+        preview: [],
+    };
+    render(
+        <ToolpathRail
+            {...makeProps({
+                workspace: 'laser',
+                editingId: 'fill',
+                editingEntry: entry,
+                stack: [entry],
+            })}
+        />,
+    );
+    const props = panelRenders.mock.calls[
+        panelRenders.mock.calls.length - 1
+    ][0] as { editEntry: { loops: { id: string; groupId?: string }[] } };
+    expect(props.editEntry.loops[0]).toEqual(
+        expect.objectContaining({ id: 'letter', groupId: 'word' }),
+    );
+});
 
 function makeProps(
     overrides: Partial<ComponentProps<typeof ToolpathRail>> = {},
@@ -271,4 +312,152 @@ test('keeps the sidebar editor stable when unrelated parent updates replace even
         );
     }
     expect(panelRenders).toHaveBeenCalledTimes(1);
+});
+
+test('laser artwork stays discoverable and engraving can be ordered before cutting', () => {
+    const onImportFile = jest.fn();
+    const make = (
+        id: string,
+        label: string,
+        operation: 'laser-cut' | 'laser-fill',
+    ): ToolpathStackEntry => ({
+        id,
+        label,
+        args: { operation, loops: [], toolDiameter: 1, cutDepth: 1 },
+        preview: [],
+        toolpath: {},
+    });
+    let stack = [
+        make('cut', 'Cut', 'laser-cut'),
+        make('fill', 'Fill', 'laser-fill'),
+    ];
+    const props = makeProps({
+        workspace: 'laser',
+        stack,
+        onImportFile,
+        setStack: (update) => {
+            stack = typeof update === 'function' ? update(stack) : update;
+        },
+    });
+    render(<ToolpathRail {...props} />);
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Open image or artwork' }),
+    );
+    expect(onImportFile).toHaveBeenCalledTimes(1);
+    expect(
+        screen.getByRole('button', { name: 'Move Cut earlier' }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Fill earlier' }));
+    expect(stack.map((p) => p.id)).toEqual(['fill', 'cut']);
+});
+
+test('laser duplication copies geometry containing runtime methods without sharing mutable arrays', () => {
+    const entry: ToolpathStackEntry = {
+        id: 'original',
+        label: 'Outline',
+        args: {
+            operation: 'laser-cut',
+            loops: [],
+            toolDiameter: 1,
+            cutDepth: 1,
+        },
+        preview: [
+            {
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 10, y: 0 },
+                ],
+            },
+        ],
+        toolpath: {
+            laserPaths: [
+                {
+                    points: [
+                        { x: 0, y: 0, power: 300 },
+                        { x: 10, y: 0, power: 300 },
+                    ],
+                },
+            ],
+            reverse: () => [],
+        },
+    };
+    const props = makeProps({ workspace: 'laser', stack: [entry] });
+    render(<ToolpathRail {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Outline' }));
+    const update = (props.setStack as ReturnType<typeof jest.fn>).mock
+        .calls[0][0] as (current: ToolpathStackEntry[]) => ToolpathStackEntry[];
+    const next = update([entry]);
+    expect(next).toHaveLength(2);
+    expect(next[1].id).not.toBe(entry.id);
+    expect(next[1].label).toBe('Outline copy');
+    expect(next[1].toolpath.reverse).toBeUndefined();
+    next[1].preview[0].points[0].x = 999;
+    expect(entry.preview[0].points[0].x).toBe(0);
+    expect(next[1].toolpath.laserPaths).not.toBe(entry.toolpath.laserPaths);
+});
+
+test('laser bulk actions select independently from output and commit once with deletion confirmation', async () => {
+    const make = (id: string): ToolpathStackEntry => ({
+        id,
+        label: id,
+        args: {
+            operation: 'laser-cut',
+            loops: [],
+            toolDiameter: 1,
+            cutDepth: 1,
+        },
+        preview: [],
+        toolpath: {},
+    });
+    const changes = jest.fn();
+    let allowDelete = false;
+    const confirm = jest.fn(async () => allowDelete);
+    function Job() {
+        const [stack, setStack] = useState([make('A'), make('B')]);
+        return (
+            <ToolpathRail
+                {...makeProps({
+                    workspace: 'laser',
+                    stack,
+                    confirm,
+                    setStack: (update) => {
+                        changes();
+                        setStack(update);
+                    },
+                })}
+            />
+        );
+    }
+    render(<Job />);
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Select laser operations' }),
+    );
+    expect(
+        screen.getByRole('button', { name: 'Disable selected' }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Select all laser operations'));
+    fireEvent.click(screen.getByRole('button', { name: 'Disable selected' }));
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Off')).toHaveLength(2);
+    expect(screen.getByLabelText('Select operation A')).toBeChecked();
+    expect(screen.getByLabelText('Select operation B')).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Enable selected' }));
+    expect(changes).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('Off')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Select all laser operations'));
+    fireEvent.click(screen.getByLabelText('Select operation A'));
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate selected' }));
+    expect(changes).toHaveBeenCalledTimes(3);
+    expect(screen.getByLabelText('Name A copy')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete selected' }));
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    expect(changes).toHaveBeenCalledTimes(3);
+    allowDelete = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Delete selected' }));
+    await waitFor(() =>
+        expect(screen.queryByLabelText('Name A')).not.toBeInTheDocument(),
+    );
+    expect(changes).toHaveBeenCalledTimes(4);
+    expect(screen.getByLabelText('Name B')).toBeInTheDocument();
+    expect(screen.getByLabelText('Name A copy')).toBeInTheDocument();
 });

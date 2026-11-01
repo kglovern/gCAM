@@ -34,7 +34,7 @@ describe('Persistent combined transform', () => {
                 ys = loop.points.map((p) => p.y);
             expect(Math.max(...xs) - Math.min(...xs)).to.be.closeTo(30, 0.2);
             expect(Math.max(...ys) - Math.min(...ys)).to.be.closeTo(30, 0.2);
-            expect(loop.points[0].x).to.be.closeTo(60, 0.2);
+            expect(loop.points[0].x).to.be.closeTo(30, 0.2);
         });
         cy.get('body').type('{esc}');
         cy.get('[aria-label="Transform selection"]').should(

@@ -336,7 +336,8 @@ function cPathsToVCarvePaths(
         for (let j = 0; j < pathSize; j += 1) {
             const x = pathArray[j * 3] / VCARVE_MM_TO_CPP_SCALE;
             const y = pathArray[j * 3 + 1] / VCARVE_MM_TO_CPP_SCALE;
-            let z = -Math.abs(pathArray[j * 3 + 2] / VCARVE_MM_TO_CPP_SCALE);
+            // Roughing passes include positive clearance Z; folding it below stock gouges corners.
+            let z = pathArray[j * 3 + 2] / VCARVE_MM_TO_CPP_SCALE;
             if (maxDepthLimit !== null) {
                 z = Math.max(z, maxDepthLimit);
             }

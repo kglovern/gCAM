@@ -122,7 +122,7 @@ describe('Rotary operation toolpaths', () => {
             'contain',
             'Roughing',
         );
-        cy.get('[aria-label="Toolpaths"]').click();
+        cy.get('[aria-label="Milling"]').click();
         cy.snapshot().then((project) => {
             expect(project.rotary.toolpaths).to.have.length(2);
             expect(project.rotary.toolpaths[0].operation).to.equal('finish');

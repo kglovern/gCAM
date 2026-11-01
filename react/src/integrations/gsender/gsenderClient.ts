@@ -178,3 +178,8 @@ export async function sendGcodeToGsender(
             return failure('failed');
     }
 }
+
+/** gSender's supported controller families, not proof of the connected firmware. */
+export function gsenderSupportsController(controller: string) {
+    return controller === 'grbl' || controller === 'grblhal';
+}

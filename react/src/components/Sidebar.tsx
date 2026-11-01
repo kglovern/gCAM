@@ -1,12 +1,13 @@
 /**
  * Purpose: Implementation module for Sidebar in the components domain.
  */
-import { Box, Cylinder, Layers, Settings } from 'lucide-react';
+import { Box, Cylinder, Layers, Settings, Zap } from 'lucide-react';
 import cx from 'classnames';
 import toolpathsIconUrl from '../../assets/Toolpaths.svg';
+import laserIconUrl from '../../assets/Laser.svg';
 import rotaryIconUrl from '../../assets/Rotary.svg';
 
-export type SideTab = 'toolpaths' | 'preview' | 'config' | 'rotary';
+export type SideTab = 'toolpaths' | 'preview' | 'config' | 'rotary' | 'laser';
 
 interface SidebarProps {
     activeTab: SideTab;
@@ -14,7 +15,8 @@ interface SidebarProps {
 }
 
 const tabs = [
-    { id: 'toolpaths', label: 'Toolpaths', icon: Layers },
+    { id: 'toolpaths', label: 'Milling', icon: Layers },
+    { id: 'laser', label: 'Laser', icon: Zap },
     { id: 'rotary', label: 'Rotary', icon: Cylinder },
     { id: 'preview', label: 'Simulation', icon: Box },
     { id: 'config', label: 'Config', icon: Settings },
@@ -57,12 +59,16 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                             aria-current={isActive ? 'page' : undefined}
                             aria-label={tab.label}
                         >
-                            {tab.id === 'toolpaths' || tab.id === 'rotary' ? (
+                            {tab.id === 'toolpaths' ||
+                            tab.id === 'rotary' ||
+                            tab.id === 'laser' ? (
                                 <img
                                     src={
                                         tab.id === 'rotary'
                                             ? rotaryIconUrl
-                                            : toolpathsIconUrl
+                                            : tab.id === 'laser'
+                                              ? laserIconUrl
+                                              : toolpathsIconUrl
                                     }
                                     alt=""
                                     aria-hidden="true"
@@ -88,7 +94,8 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                                 />
                             )}
                             {(tab.id === 'toolpaths' ||
-                                tab.id === 'rotary') && (
+                                tab.id === 'rotary' ||
+                                tab.id === 'laser') && (
                                 <Icon size={24} className="md:hidden" />
                             )}
                             <span className="text-[10px] lg:text-xs font-medium leading-none">

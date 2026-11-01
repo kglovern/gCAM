@@ -1,3 +1,5 @@
+import { readJpegPhysicalSize } from './jpegMetadata';
+import { readPngPhysicalSize } from './pngMetadata';
 /**
  * Purpose: Implementation module for bitmap in the lib domain.
  */
@@ -17,6 +19,8 @@ export function placeBitmap(
     pixelH: number,
     centerX = 50,
     centerY = 50,
+    stockBounds?: { minX: number; minY: number; maxX: number; maxY: number },
+    physicalSize?: { wMm: number; hMm: number },
 ): BitmapPlacement {
     const safeW = Math.max(1, pixelW);
     const safeH = Math.max(1, pixelH);
@@ -26,9 +30,40 @@ export function placeBitmap(
         hMm = 120;
         wMm = (hMm * safeW) / safeH;
     }
+    if (physicalSize) {
+        if (
+            ![physicalSize.wMm, physicalSize.hMm].every(
+                (v) => Number.isFinite(v) && v > 0,
+            )
+        )
+            throw new Error('Invalid image physical size.');
+        wMm = physicalSize.wMm;
+        hMm = physicalSize.hMm;
+    }
+    let x = centerX - wMm / 2,
+        y = centerY - hMm / 2;
+    if (stockBounds) {
+        const scale = physicalSize
+            ? 1
+            : Math.min(
+                  1,
+                  (stockBounds.maxX - stockBounds.minX) / wMm,
+                  (stockBounds.maxY - stockBounds.minY) / hMm,
+              );
+        wMm *= scale;
+        hMm *= scale;
+        x = Math.max(
+            stockBounds.minX,
+            Math.min(centerX - wMm / 2, stockBounds.maxX - wMm),
+        );
+        y = Math.max(
+            stockBounds.minY,
+            Math.min(centerY - hMm / 2, stockBounds.maxY - hMm),
+        );
+    }
     return {
-        x: centerX - wMm / 2,
-        y: centerY - hMm / 2,
+        x,
+        y,
         wMm,
         hMm,
     };
@@ -59,22 +94,41 @@ export function imageDataOf(img: HTMLImageElement): ImageData {
 }
 
 /** Decode an image file to a data URL plus its pixel dimensions. */
-export function loadBitmapFile(file: File): Promise<{
+export function loadBitmapFile(
+    file: File,
+    usePhysicalSize = false,
+): Promise<{
     dataUrl: string;
     pixelW: number;
     pixelH: number;
+    physicalSize?: { wMm: number; hMm: number };
 }> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             const dataUrl = String(reader.result ?? '');
             const img = new Image();
-            img.onload = () =>
+            img.onload = async () => {
+                const physicalSize = usePhysicalSize
+                    ? await (async () =>
+                          (await readPngPhysicalSize(
+                              file,
+                              img.naturalWidth,
+                              img.naturalHeight,
+                          )) ??
+                          (await readJpegPhysicalSize(
+                              file,
+                              img.naturalWidth,
+                              img.naturalHeight,
+                          )))().catch(() => undefined)
+                    : undefined;
                 resolve({
                     dataUrl,
                     pixelW: img.naturalWidth,
                     pixelH: img.naturalHeight,
+                    ...(physicalSize ? { physicalSize } : {}),
                 });
+            };
             img.onerror = () => reject(new Error('Could not decode image.'));
             img.src = dataUrl;
         };

@@ -154,9 +154,9 @@ test('corrupt saved/imported profiles fall back only on load; explicit import re
 
 test('custom laser commands use configured output values once and missing operation values fail', () => {
     const settings = { ...controllerPreset('marlin'), laserConfirmed: true };
-    settings.blocks.laserStart = 'M4 I S{laserMax}';
+    settings.blocks.laserStart = 'M3 I S{laserMax}';
     const code = renderProgram(laser, settings, 'metric', { laser: true });
-    expect(code).toContain('M4 I S255');
+    expect(code).toContain('M3 I S255');
     expect(code).toContain('G1 X10 S127.5 F600');
     settings.blocks.start = 'G0 Z{safeZ}';
     expect(() =>

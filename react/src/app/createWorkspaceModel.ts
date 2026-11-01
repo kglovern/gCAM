@@ -37,10 +37,11 @@ type DocumentState = ReturnType<typeof useDocumentWorkspace>;
  * untyped escape hatches.
  */
 export interface WorkspaceModelOptions {
+    artworkReview?: boolean;
     nestPreview?: CanvasProps['loops'] | null;
     nestAttempt?: CanvasProps['loops'] | null;
     nesting?: ComponentProps<typeof EditorWorkspace>['nesting'];
-    simulationSource: 'toolpaths' | 'rotary';
+    simulationSource: 'toolpaths' | 'rotary' | 'laser';
     activeTab: ComponentProps<typeof EditorWorkspace>['activeTab'];
     onTabChange: ComponentProps<typeof EditorWorkspace>['onTabChange'];
     drawing: DrawingState;
@@ -133,22 +134,32 @@ export function createWorkspaceModel(
                           points: loop.points,
                           intensity: 0.4,
                       }))
-                    : options.preview,
-                inspectorPreview: options.nesting
-                    ? null
-                    : options.inspectorPreview,
+                    : options.artworkReview
+                      ? []
+                      : options.preview,
+                inspectorPreview:
+                    options.nesting || options.artworkReview
+                        ? null
+                        : options.inspectorPreview,
                 draftPreview: options.nesting
                     ? []
-                    : options.previews.draftPreview.length
-                      ? options.previews.draftPreview
-                      : options.previews.offsetPreview.length
-                        ? options.previews.offsetPreview
-                        : options.previews.booleanPreview,
-                draftProgress: options.previews.draftProgress,
+                    : options.artworkReview
+                      ? options.previews.offsetPreview
+                      : options.previews.draftPreview.length
+                        ? options.previews.draftPreview
+                        : options.previews.offsetPreview.length
+                          ? options.previews.offsetPreview
+                          : options.previews.booleanPreview,
+                draftProgress: options.artworkReview
+                    ? null
+                    : options.previews.draftProgress,
                 darkMode: options.configPanelProps.darkMode,
                 selected: options.document.selected,
                 tabMode: options.drawing.tabMode,
-                tabMarkers: options.nesting ? [] : options.tabMarkers,
+                tabMarkers:
+                    options.nesting || options.artworkReview
+                        ? []
+                        : options.tabMarkers,
                 drawTool:
                     options.drawing.activeTool === 'draw'
                         ? options.drawing.drawTool
@@ -161,6 +172,7 @@ export function createWorkspaceModel(
                 guidePlacement: options.drawing.guidePlacement,
                 guideDraft: options.drawing.guideDraft,
                 bitmaps: options.document.bitmaps,
+                laserMasking: options.activeTab === 'laser',
                 hidden: options.document.hidden,
                 transformMode: options.transforms.transformMode,
                 cornerTool: options.arrange.cornerTool,

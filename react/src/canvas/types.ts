@@ -46,11 +46,18 @@ export interface Camera {
 }
 
 export interface PreviewLoop {
+    depthImage?: import('../lib/cut-depth-preview').DepthPreviewImage;
+    depthPreviewPending?: boolean;
+    depthPreviewError?: string;
+    pocket?: { contours: { x: number; y: number }[][]; depthMm: number };
     points: { x: number; y: number }[];
     entryId: string;
     intensity?: number;
+    laserPower?: number;
+    variableLaserPower?: boolean;
     tabEligible?: boolean;
     tabWidth?: number;
+    tabSpan?: number;
     toolDiameter?: number;
 }
 

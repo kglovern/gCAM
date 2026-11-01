@@ -4,6 +4,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 interface UseFileLoadingOptions {
+    cancelPendingImport?(): void;
     isBitmapFile(file: File): boolean;
     loadBitmap(file: File): Promise<void>;
     isSurfaceModelFile(file: File): boolean;
@@ -18,6 +19,7 @@ export function useFileLoading(options: UseFileLoadingOptions) {
     const handleFiles = async (files: FileList | File[] | null) => {
         const file = files?.[0];
         if (!file) return;
+        options.cancelPendingImport?.();
         if (options.isSurfaceModelFile(file)) {
             await options.loadSurfaceModel(file);
             return;
@@ -30,6 +32,7 @@ export function useFileLoading(options: UseFileLoadingOptions) {
     };
 
     const handleLoadSample = async () => {
+        options.cancelPendingImport?.();
         options.setLoadingSample(true);
         options.setStatus('Loading Tic-Tac-Toe sample…');
         try {

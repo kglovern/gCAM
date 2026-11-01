@@ -1,9 +1,24 @@
+import type { LaserRotarySetup } from '../cam/laser-rotary.js';
 import { prepareGcodePreview } from './prepare-gcode-preview';
 
-self.onmessage = async (event: MessageEvent<string>) => {
+self.onmessage = async (
+    event: MessageEvent<
+        | string
+        | {
+              gcode: string;
+              laser?: boolean;
+              laserMax?: number;
+              laserRotary?: LaserRotarySetup;
+          }
+    >,
+) => {
     try {
-        const data = await prepareGcodePreview(event.data, (progress) =>
-            self.postMessage({ progress }),
+        const request =
+            typeof event.data === 'string' ? { gcode: event.data } : event.data;
+        const data = await prepareGcodePreview(
+            request.gcode,
+            (progress) => self.postMessage({ progress }),
+            request,
         );
         self.postMessage(
             { data },
@@ -13,6 +28,7 @@ self.onmessage = async (event: MessageEvent<string>) => {
                     ...data.chunks.flatMap((chunk) => [
                         chunk.positions,
                         chunk.attrs,
+                        ...(chunk.power ? [chunk.power] : []),
                     ]),
                 ],
             },

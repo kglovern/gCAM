@@ -211,23 +211,30 @@ export function ToolbarCommands({
                         }}
                     />
                     <ToolbarMenuSeparator />
-                    {drawTools
-                        .filter(
-                            (tool) =>
-                                tool.value === 'clock' ||
-                                tool.value === 'mandala',
-                        )
-                        .map((tool) => (
-                            <ToolbarMenuItem
-                                key={tool.value}
-                                label={`${tool.label}…`}
-                                icon={tool.icon}
-                                onClick={() => {
-                                    props.onDrawTool(tool.value);
-                                    close();
-                                }}
-                            />
-                        ))}
+                    <details className="group">
+                        <summary className="cursor-pointer rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-dark-lighter">
+                            Plugins
+                        </summary>
+                        <div className="ml-3 border-l border-slate-200 dark:border-robin-900">
+                            {drawTools
+                                .filter(
+                                    (tool) =>
+                                        tool.value === 'clock' ||
+                                        tool.value === 'mandala',
+                                )
+                                .map((tool) => (
+                                    <ToolbarMenuItem
+                                        key={tool.value}
+                                        label={`${tool.label}…`}
+                                        icon={tool.icon}
+                                        onClick={() => {
+                                            props.onDrawTool(tool.value);
+                                            close();
+                                        }}
+                                    />
+                                ))}
+                        </div>
+                    </details>
                 </ToolbarMenu>
             )}
             {secondary && (

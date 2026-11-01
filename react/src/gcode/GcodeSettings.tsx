@@ -41,6 +41,8 @@ export function GcodeSettings({
                       .replace(/T\d M6\n/g, '')
                       .replace(/M3 S\d+/g, 'M4 S0')
                       .replace(/G1 X/g, 'G1 S500 X')
+                      .replace(/M4 S0/g, 'M4 S0\nM8')
+                      .replace(/M5/g, 'M5\nM9')
                 : previewMode === 'rotary'
                   ? 'G21\nG90\nG17\nG94\nG0 Z20\nM3 S12000\nG93\nG1 X10 A90 F4\nG94\nG0 Z20\nM5\nM2'
                   : sample,
@@ -273,7 +275,7 @@ export function GcodeSettings({
                         <p className="my-3 text-xs text-slate-500 dark:text-slate-400">
                             Export values:{' '}
                             {
-                                '{jobName}, {operationName}, {toolNumber}, {toolName}, {toolDiameter}, {feedRate}, {plungeRate}, {safeZ}, {spindleSpeed}, {spindleSlot}, {delay}, {delaySeconds}, {laserMax}, {programEnd}'
+                                '{jobName}, {operationName}, {toolNumber}, {toolName}, {toolDiameter}, {feedRate}, {plungeRate}, {safeZ}, {spindleSpeed}, {spindleSlot}, {delay}, {delaySeconds}, {laserMax}, {laserMode}, {programEnd}'
                             }
                             . Write block distances in mm and feeds in mm/min;
                             export converts them to the application units.

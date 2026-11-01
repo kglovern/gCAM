@@ -1,3 +1,9 @@
+import { linkedMaskExportError } from '../lib/image-mask';
+import { pocketPreviewRegion } from '../canvas/pocketDepthPreview';
+import { useCutDepthPreview } from './useCutDepthPreview';
+import type { ViewLoop } from '../canvas/types';
+import type { PlacedBitmapRecord } from '../document/useBitmapCommands';
+import type { LaserRotarySetup } from '../cam/laser-rotary.js';
 /**
  * Purpose: React hook that owns the ToolpathPresentation workflow.
  */
@@ -7,24 +13,41 @@ import type { PlacedTab } from '../lib/engine';
 import type { UnitSystem } from '../lib/units';
 import { operationUsesTabs } from '../lib/tabs';
 import type { ToolpathStackEntry } from './useToolpathStack';
-import { exportToolpaths } from '../gcode/exportToolpaths';
-import {
-    DEFAULT_OUTPUT,
-    outputError,
-    type OutputSettings,
-} from '../gcode/profiles';
+import { useProgramExport } from '../gcode/useProgramExport';
+import { DEFAULT_OUTPUT, type OutputSettings } from '../gcode/profiles';
 
 interface ToolpathPresentationOptions {
+    stockThicknessMm?: number;
+    maskLoops?: ViewLoop[];
+    maskBitmaps?: PlacedBitmapRecord[];
     outputSettings?: OutputSettings;
     stack: ToolpathStackEntry[];
     editingId: string | null;
     fileName: string;
     emitArcs: boolean;
     units: UnitSystem;
+    laserRotary?: LaserRotarySetup;
 }
 
 /** Stable derived presentation data for canvas and preview panels. */
 export function useToolpathPresentation(options: ToolpathPresentationOptions) {
+    const depthPreview = useCutDepthPreview(
+        options.stack,
+        options.editingId,
+        options.stockThicknessMm,
+    );
+    const maskError = useMemo(
+        () =>
+            options.maskLoops && options.maskBitmaps
+                ? linkedMaskExportError(
+                      options.stack,
+                      options.maskLoops,
+                      options.maskBitmaps,
+                  )
+                : '',
+        [options.stack, options.maskLoops, options.maskBitmaps],
+    );
+    const safeOutput = useMemo(() => (maskError ? [] : null), [maskError]);
     const editingEntry =
         options.editingId === null
             ? null
@@ -33,23 +56,71 @@ export function useToolpathPresentation(options: ToolpathPresentationOptions) {
     const preview = useMemo(
         () =>
             options.stack.flatMap((entry) =>
-                Array.isArray(entry.preview)
-                    ? entry.preview.map((loop) => ({
+                entry.outputEnabled !== false &&
+                Array.isArray(entry.preview) &&
+                !(
+                    entry.id === options.editingId &&
+                    entry.args.operation.startsWith('laser-')
+                )
+                    ? entry.preview.map((loop, contourIndex) => ({
+                          contourIndex,
                           ...loop,
                           entryId: entry.id,
-                          tabEligible: operationUsesTabs(entry.args.operation),
+                          ...(contourIndex === 0 &&
+                          entry.id !== options.editingId
+                              ? {
+                                    pocket:
+                                        pocketPreviewRegion(
+                                            entry.args.operation,
+                                            entry.toolpath,
+                                        ) ?? undefined,
+                                }
+                              : {}),
+                          tabEligible:
+                              operationUsesTabs(entry.args.operation) &&
+                              (entry.args.operation !== 'laser-cut' ||
+                                  (loop.points.length > 3 &&
+                                      Math.hypot(
+                                          loop.points[0].x -
+                                              loop.points[
+                                                  loop.points.length - 1
+                                              ].x,
+                                          loop.points[0].y -
+                                              loop.points[
+                                                  loop.points.length - 1
+                                              ].y,
+                                      ) < 1e-7)),
+                          ...(entry.args.operation === 'laser-cut'
+                              ? {
+                                    tabSpan:
+                                        Number(
+                                            entry.args.laserOptions
+                                                ?.bridgeWidth,
+                                        ) || 0.5,
+                                }
+                              : {}),
                           tabWidth: Number(entry.args.tabWidth) || 9,
-                          toolDiameter: Number(entry.args.toolDiameter) || 6,
+                          toolDiameter:
+                              entry.args.operation === 'laser-cut'
+                                  ? Number(entry.args.laserSpot) || 0.2
+                                  : Number(entry.args.toolDiameter) || 6,
                       }))
                     : [],
             ),
-        [options.stack],
+        [options.stack, options.editingId],
     );
     const tabMarkers = useMemo(
         () =>
             options.stack.flatMap((entry) =>
                 ((entry.args.tabs as PlacedTab[] | undefined) ?? []).flatMap(
                     (tab, tabIndex) => {
+                        if (
+                            entry.args.operation === 'laser-cut' &&
+                            entry.args.laserOptions?.bridgeMode !== undefined &&
+                            (!entry.args.laserOptions.bridges ||
+                                entry.args.laserOptions.bridgeMode !== 'manual')
+                        )
+                            return [];
                         const contour = Array.isArray(entry.preview)
                             ? entry.preview[tab.contourIndex]?.points
                             : undefined;
@@ -64,25 +135,12 @@ export function useToolpathPresentation(options: ToolpathPresentationOptions) {
                         ) {
                             return [];
                         }
-                        let previewIndex = -1;
-                        let seen = 0;
-                        for (const other of options.stack) {
-                            for (
-                                let index = 0;
-                                index < other.preview.length;
-                                index += 1
-                            ) {
-                                if (
-                                    other.id === entry.id &&
-                                    index === tab.contourIndex
-                                ) {
-                                    previewIndex = seen;
-                                    break;
-                                }
-                                seen += 1;
-                            }
-                            if (previewIndex >= 0) break;
-                        }
+                        const previewIndex = preview.findIndex(
+                            (loop) =>
+                                loop.entryId === entry.id &&
+                                loop.contourIndex === tab.contourIndex,
+                        );
+                        if (previewIndex < 0) return [];
                         return [
                             {
                                 entryId: entry.id,
@@ -97,46 +155,59 @@ export function useToolpathPresentation(options: ToolpathPresentationOptions) {
                     },
                 ),
             ),
-        [options.stack],
+        [options.stack, preview],
     );
-    const { gcode, gcodeError } = useMemo(() => {
-        try {
-            return {
-                gcode: exportToolpaths(
-                    options.stack.map((entry) => entry.toolpath),
-                    options.fileName || 'gcam',
-                    options.emitArcs,
-                    options.units,
-                    options.outputSettings ?? DEFAULT_OUTPUT,
+    const outputToolpaths = useMemo(
+        () =>
+            options.stack
+                .filter((entry) => entry.outputEnabled !== false)
+                .map((entry) =>
+                    entry.args.operation.startsWith('laser-')
+                        ? {
+                              ...entry.toolpath,
+                              laserRotary: options.laserRotary,
+                          }
+                        : entry.toolpath,
                 ),
-                gcodeError: '',
-            };
-        } catch (error) {
-            return { gcode: '', gcodeError: outputError(error) };
-        }
-    }, [
-        options.stack,
-        options.fileName,
+        [options.stack, options.laserRotary],
+    );
+    const { gcode, gcodeError, gcodeBusy } = useProgramExport(
+        safeOutput ?? outputToolpaths,
+        options.fileName || 'gcam',
         options.emitArcs,
         options.units,
-        options.outputSettings,
-    ]);
+        options.outputSettings ?? DEFAULT_OUTPUT,
+    );
     const previewToolpaths = useMemo(
         () =>
-            options.stack.map((entry) => ({
-                ...entry.toolpath,
-                cutterType: entry.args.cutterType ?? 'flat',
-                cutterAngle: entry.args.cutterAngle,
-            })),
+            options.stack
+                .filter((entry) => entry.outputEnabled !== false)
+                .map((entry) => ({
+                    ...entry.toolpath,
+                    cutterType: entry.args.cutterType ?? 'flat',
+                    cutterAngle: entry.args.cutterAngle,
+                })),
         [options.stack],
     );
 
     return {
         editingEntry,
-        preview,
+        preview: maskError
+            ? []
+            : preview.map((p, i) =>
+                  i
+                      ? p
+                      : {
+                            ...p,
+                            depthImage: depthPreview.image,
+                            depthPreviewPending: depthPreview.pending,
+                            depthPreviewError: depthPreview.error,
+                        },
+              ),
         tabMarkers,
-        gcode,
-        gcodeError,
-        previewToolpaths,
+        gcode: maskError ? '' : gcode,
+        gcodeError: maskError || gcodeError,
+        gcodeBusy: maskError ? false : gcodeBusy,
+        previewToolpaths: maskError ? [] : previewToolpaths,
     };
 }

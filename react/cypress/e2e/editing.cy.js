@@ -136,7 +136,7 @@ describe('Canvas selection and editing', () => {
         });
         cy.get('[aria-label="Select shapes"]').click();
         cy.worldDrag([25, 35], [75, 75]);
-        cy.snapshot().then((p) => expect(p.selected).to.have.length(2));
+        cy.snapshot().then((p) => expect(p.selected).to.have.length(3));
     });
 });
 describe('Boolean and trim operations', () => {
