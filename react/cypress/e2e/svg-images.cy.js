@@ -18,22 +18,25 @@ describe('Embedded SVG images', () => {
                         img.src = url;
                     });
                 const canvas = win.document.createElement('canvas');
-                canvas.width = 8;
-                canvas.height = 4;
+                // Use a resolved bitmap; magnifying an 8x4 image mostly measures platform interpolation kernels.
+                canvas.width = 80;
+                canvas.height = 40;
                 const ctx = canvas.getContext('2d');
                 for (const [color, x, y] of [
                     ['red', 0, 0],
-                    ['green', 4, 0],
-                    ['blue', 0, 2],
-                    ['#999', 4, 2],
+                    ['green', 40, 0],
+                    ['blue', 0, 20],
+                    ['#999', 40, 20],
                 ]) {
                     ctx.fillStyle = color;
-                    ctx.fillRect(x, y, 4, 2);
+                    ctx.fillRect(x, y, 40, 20);
                 }
                 const png = canvas.toDataURL('image/png'),
                     jpeg = canvas.toDataURL('image/jpeg');
                 const cases = [
                     ['plain', '', png],
+                    ['misplaced-control', '', png],
+                    ['recoloured-control', '', png],
                     ['clone', '', png],
                     ['nestedclip', '', png],
                     [
@@ -105,11 +108,11 @@ describe('Embedded SVG images', () => {
                                         source
                                             .replace(
                                                 'width="auto"',
-                                                'width="8"',
+                                                'width="80"',
                                             )
                                             .replace(
                                                 'height="auto"',
-                                                'height="4"',
+                                                'height="40"',
                                             ),
                                     ),
                             );
@@ -137,6 +140,7 @@ describe('Embedded SVG images', () => {
                     a.getContext('2d').drawImage(native, 0, 0, 384, 192);
                     const paint = b.getContext('2d'),
                         density = 384 / 101.6;
+                    if (name === 'misplaced-control') paint.translate(20, 0);
                     for (const bitmap of p.bitmaps) {
                         paint.save();
                         paint.translate(
@@ -153,6 +157,11 @@ describe('Embedded SVG images', () => {
                         );
                         paint.restore();
                     }
+                    if (name === 'recoloured-control') {
+                        paint.globalCompositeOperation = 'source-in';
+                        paint.fillStyle = 'black';
+                        paint.fillRect(0, 0, 384, 192);
+                    }
                     const one = a
                             .getContext('2d')
                             .getImageData(0, 0, 384, 192).data,
@@ -165,17 +174,53 @@ describe('Embedded SVG images', () => {
                     for (let i = 0; i < one.length; i += 4) {
                         if (!one[i + 3] && !two[i + 3]) continue;
                         active++;
-                        let maximum = 0;
-                        for (let c = 0; c < 4; c++) {
-                            const d = Math.abs(
-                                c === 3
-                                    ? one[i + c] - two[i + c]
-                                    : (one[i + c] * one[i + 3]) / 255 -
-                                          (two[i + c] * two[i + 3]) / 255,
+                        // SVG and Canvas can cover fractional edges differently; compare both ways within one output pixel.
+                        const nearbyError = (from, to) => {
+                            let sum = 0,
+                                maximum = 0;
+                            const x = (i / 4) % 384,
+                                y = Math.floor(i / (384 * 4));
+                            for (let c = 0; c < 4; c++) {
+                                let min = 255,
+                                    max = 0;
+                                for (let dy = -1; dy <= 1; dy++)
+                                    for (let dx = -1; dx <= 1; dx++) {
+                                        if (
+                                            x + dx < 0 ||
+                                            x + dx >= 384 ||
+                                            y + dy < 0 ||
+                                            y + dy >= 192
+                                        )
+                                            continue;
+                                        const j = ((y + dy) * 384 + x + dx) * 4;
+                                        const value =
+                                            c === 3
+                                                ? to[j + c]
+                                                : (to[j + c] * to[j + 3]) / 255;
+                                        min = Math.min(min, value);
+                                        max = Math.max(max, value);
+                                    }
+                                const value =
+                                    c === 3
+                                        ? from[i + c]
+                                        : (from[i + c] * from[i + 3]) / 255;
+                                const error = Math.max(
+                                    0,
+                                    min - value,
+                                    value - max,
+                                );
+                                sum += error;
+                                maximum = Math.max(maximum, error);
+                            }
+                            return { sum, maximum };
+                        };
+                        const forward = nearbyError(one, two),
+                            reverse = nearbyError(two, one),
+                            maximum = Math.max(
+                                forward.maximum,
+                                reverse.maximum,
                             );
-                            sum += d;
-                            maximum = Math.max(maximum, d);
-                        }
+                        sum += Math.max(forward.sum, reverse.sum);
                         if (maximum > 12) bad++;
                     }
                     reports.push({
@@ -202,18 +247,27 @@ describe('Embedded SVG images', () => {
                         reports,
                     )
                     .then(() => {
-                        // Nested clipping adds resampling: allow 1% channel error and 5% AA outliers there only.
+                        const controls = reports.filter((r) =>
+                            r.name.endsWith('-control'),
+                        );
+                        expect(controls).to.have.length(2);
+                        for (const control of controls) {
+                            expect(control.meanError, control.name).greaterThan(
+                                2,
+                            );
+                            expect(
+                                control.badFraction,
+                                control.name,
+                            ).greaterThan(0.04);
+                        }
                         const failures = reports
+                            .filter((r) => !r.name.endsWith('-control'))
                             .filter(
                                 (r) =>
                                     !Number.isFinite(r.meanError) ||
                                     !Number.isFinite(r.badFraction) ||
-                                    r.meanError >=
-                                        (r.name === 'nestedclip'
-                                            ? 255 * 0.01
-                                            : 2) ||
-                                    r.badFraction >=
-                                        (r.name === 'nestedclip' ? 0.05 : 0.04),
+                                    r.meanError >= 2 ||
+                                    r.badFraction >= 0.04,
                             )
                             .map(({ name, meanError, badFraction }) => ({
                                 name,
@@ -230,7 +284,7 @@ describe('Embedded SVG images', () => {
                         ).equal(true);
                         expect(
                             reports.find((r) => r.name === 'plain').pixels,
-                        ).deep.equal([8, 4]);
+                        ).deep.equal([80, 40]);
                     }),
             );
     });
