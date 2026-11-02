@@ -6,9 +6,9 @@ export const toolbarButtonBase =
 
 export const toolbarButton = `${toolbarButtonBase} justify-center w-10 h-10`;
 
-export const toolbarLabeledButton = `${toolbarButton} w-10 gap-0 px-0 md:w-auto md:gap-1.5 md:px-3`;
+export const toolbarLabeledButton = `${toolbarButton} w-10 gap-0 px-0 min-[900px]:w-auto min-[900px]:gap-1.5 min-[900px]:px-3`;
 
-export const toolbarLabel = 'hidden md:inline';
+export const toolbarLabel = 'hidden min-[900px]:inline';
 
 export const toolbarButtonActive =
     'bg-robin-500 text-white hover:bg-robin-500 dark:hover:bg-robin-500';

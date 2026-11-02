@@ -69,7 +69,10 @@ Cypress.Commands.add('menu', (name, item) => {
         cy.contains('summary', 'Plugins').then(($summary) => {
             if (!$summary.parent().prop('open')) cy.wrap($summary).click();
         });
-    cy.contains('[role="menuitem"]', item).should('be.visible').click();
+    cy.contains('[role="menuitem"]', item)
+        .scrollIntoView()
+        .should('be.visible')
+        .click();
 });
 Cypress.Commands.add('importDesign', (file) => {
     cy.get('input[aria-label="Import drawing file"]').selectFile(
