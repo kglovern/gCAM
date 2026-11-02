@@ -84,7 +84,7 @@ describe('Laser planning cancellation', () => {
         cy.contains('button', 'Cancel laser build').click({
             waitForAnimations: false,
         });
-        cy.contains('Laser build cancelled.').should('be.visible');
+        cy.contains('Toolpath build cancelled.').should('be.visible');
         cy.contains('button', /^Add Toolpath/).should('be.enabled');
         cy.snapshot().then((project) =>
             expect(project.stack).to.have.length(0),

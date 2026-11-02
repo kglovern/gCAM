@@ -118,7 +118,7 @@ describe('SVG appearance raster import', () => {
         cy.get('[aria-label="Laser line interval"]')
             .type('{selectall}0.5')
             .blur();
-        cy.contains('label', 'Image mode').find('select').select('grayscale');
+        cy.get('[aria-label="Image mode"]').select('grayscale');
         cy.contains('button', /^Add Toolpath/).click();
         cy.get('input[aria-label^="Name Laser Raster"]', {
             timeout: 30000,

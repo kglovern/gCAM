@@ -157,6 +157,8 @@ it('measures real worker export costs and file reduction for dense circles', () 
             };
         })
         .then((result) =>
-            cy.writeFile('../outputs/arc-fit-performance.json', result),
+            cy.writeFile('../outputs/arc-fit-performance.json', result, {
+                timeout: 60000,
+            }),
         );
 });

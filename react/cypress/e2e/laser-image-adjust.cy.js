@@ -311,9 +311,7 @@ describe('Linked image adjustment workbench', () => {
             .find('select')
             .should('be.disabled');
         cy.get(dialog).contains('button', 'Apply image settings').click();
-        cy.contains('label', 'Pixel pass-through')
-            .find('input')
-            .should('be.checked');
+        cy.get('[aria-label="Pixel pass-through"]').should('be.checked');
         cy.contains('button', /^Add Toolpath/).click();
         cy.get('input[aria-label^="Name Laser Raster"]', {
             timeout: 30000,

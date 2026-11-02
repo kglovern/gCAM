@@ -1,4 +1,12 @@
 function sampleRenderedLaser() {
+    cy.window().then(
+        (win) =>
+            new Promise((resolve) =>
+                win.requestAnimationFrame(() =>
+                    win.requestAnimationFrame(resolve),
+                ),
+            ),
+    );
     return cy.get('[aria-label="G-code preview"] canvas').then(($canvas) =>
         cy.window().then(
             (win) =>
@@ -7,6 +15,9 @@ function sampleRenderedLaser() {
                         const canvas = $canvas[0],
                             gl = canvas.getContext('webgl2');
                         expect(gl).not.equal(null);
+                        expect(
+                            gl.getContextAttributes().preserveDrawingBuffer,
+                        ).equal(true);
                         const w = canvas.width,
                             h = canvas.height,
                             pixels = new Uint8Array(w * h * 4);
@@ -60,6 +71,24 @@ function sampleRenderedLaser() {
 
 describe('Fitted laser WebGL preview', () => {
     it('renders the first laser palette at useful scale, keeps navigation compact and refits after zoom/resize', () => {
+        // Keep GPU pixels readable for this test; production retains its normal discard policy.
+        cy.on('window:before:load', (win) => {
+            const nativeGetContext = win.HTMLCanvasElement.prototype.getContext;
+            win.HTMLCanvasElement.prototype.getContext = function (
+                kind,
+                options,
+                ...rest
+            ) {
+                return nativeGetContext.call(
+                    this,
+                    kind,
+                    kind === 'webgl' || kind === 'webgl2'
+                        ? { ...options, preserveDrawingBuffer: true }
+                        : options,
+                    ...rest,
+                );
+            };
+        });
         cy.viewport(1280, 720);
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
@@ -92,6 +121,7 @@ describe('Fitted laser WebGL preview', () => {
         });
         cy.screenshot('laser-fitted-preview', { capture: 'viewport' });
         let canonical;
+        cy.task('clearDownloads');
         cy.contains('button', /^Save GCODE$/).click();
         cy.readDownload('.gcode').then((code) => {
             canonical = code;

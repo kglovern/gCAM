@@ -21,6 +21,7 @@ export function LaserImageAdjustments({
             <label>
                 Image mode
                 <select
+                    aria-label="Image mode"
                     className={input}
                     value={o.imageMode}
                     onChange={(e) =>
@@ -243,6 +244,7 @@ export function LaserImageAdjustments({
                 <input
                     type="checkbox"
                     checked={o.invert}
+                    aria-label="Invert image"
                     onChange={(e) => update({ invert: e.target.checked })}
                 />{' '}
                 Invert image

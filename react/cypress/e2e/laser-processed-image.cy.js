@@ -11,11 +11,8 @@ describe('Processed laser bitmap export', () => {
         cy.get('[aria-label="Laser power percent"]')
             .type('{selectall}25')
             .blur();
-        cy.contains('label', 'Resolution (DPI)')
-            .find('input')
-            .type('{selectall}254')
-            .blur();
-        cy.contains('label', 'Image mode').find('select').select('threshold');
+        cy.get('[aria-label="Resolution (DPI)"]').type('{selectall}254').blur();
+        cy.get('[aria-label="Image mode"]').select('threshold');
         cy.get('[aria-label="Crop left percent"]').type('{selectall}25').blur();
         cy.get('[aria-label="Crop right percent"]')
             .type('{selectall}75')
@@ -79,9 +76,8 @@ describe('Processed laser bitmap export', () => {
         cy.contains('Embedded size: 40mm × 40mm').should('be.visible');
         cy.screenshot('laser-png-embedded-size', { capture: 'viewport' });
         cy.contains('button', 'Engrave image').click();
-        cy.contains('label', 'Pixel pass-through').find('input').check();
-        cy.contains('label', 'Resolution (DPI)')
-            .find('input')
+        cy.get('[aria-label="Pixel pass-through"]').check();
+        cy.get('[aria-label="Resolution (DPI)"]')
             .should('be.disabled')
             .and('have.value', '254');
         cy.snapshot().then((p) => {

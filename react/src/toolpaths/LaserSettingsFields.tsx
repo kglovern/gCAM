@@ -1215,6 +1215,7 @@ export function LaserSettingsFields({
                                 <input
                                     type="checkbox"
                                     checked={o.passThrough}
+                                    aria-label="Pixel pass-through"
                                     onChange={(e) =>
                                         update({
                                             passThrough: e.target.checked,

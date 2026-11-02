@@ -165,28 +165,23 @@ describe('Laser CAM features', () => {
         cy.contains('summary', 'Image processing')
             .scrollIntoView()
             .should('be.visible');
-        cy.contains('label', 'Image mode')
-            .find('select')
-            .select('floyd-steinberg');
-        cy.contains('label', 'Smoothing')
+        cy.get('[aria-label="Image mode"]').select('floyd-steinberg');
+        cy.contains('label', /^Smoothing$/)
             .find('input')
             .type('{selectall}0.6')
             .blur();
-        cy.contains('label', 'Sharpening')
+        cy.contains('label', /^Sharpening$/)
             .find('input')
             .type('{selectall}0.4')
             .blur();
         cy.get('[aria-label="Grayscale channel"]').select('average');
         cy.get('[aria-label="Grayscale shades"]').type('{selectall}16').blur();
-        cy.contains('label', 'Invert image').find('input').check();
+        cy.get('[aria-label="Invert image"]').check();
         cy.contains('label', 'Skip blank row ends')
             .find('input')
             .uncheck()
             .check();
-        cy.contains('label', 'Resolution (DPI)')
-            .find('input')
-            .type('{selectall}127')
-            .blur();
+        cy.get('[aria-label="Resolution (DPI)"]').type('{selectall}127').blur();
         cy.get('[aria-label="Raster scan angle"]').type('{selectall}45').blur();
         cy.get('[aria-label="Dot-width correction"]')
             .type('{selectall}0.05')
@@ -227,9 +222,10 @@ describe('Laser CAM features', () => {
         cy.contains('summary', 'Image processing')
             .scrollIntoView()
             .should('be.visible');
-        cy.contains('label', 'Image mode')
-            .find('select')
-            .should('have.value', 'floyd-steinberg');
+        cy.get('[aria-label="Image mode"]').should(
+            'have.value',
+            'floyd-steinberg',
+        );
         cy.get('[aria-label="Grayscale channel"]').should(
             'have.value',
             'average',
@@ -239,10 +235,10 @@ describe('Laser CAM features', () => {
             .closest('label')
             .scrollIntoView({ offset: { top: -60, left: 0 } });
         cy.screenshot('laser-image-mapping', { capture: 'viewport' });
-        cy.contains('label', 'Smoothing')
+        cy.contains('label', /^Smoothing$/)
             .find('input')
             .should('have.value', '0.6');
-        cy.contains('label', 'Sharpening')
+        cy.contains('label', /^Sharpening$/)
             .find('input')
             .should('have.value', '0.4');
         cy.get('[aria-label="Dot-width correction"]').should(
@@ -253,7 +249,7 @@ describe('Laser CAM features', () => {
             offset: { top: -80, left: 0 },
         });
         cy.screenshot('laser-image-filters', { capture: 'viewport' });
-        cy.contains('label', 'Image mode').find('select').select('stucki');
+        cy.get('[aria-label="Image mode"]').select('stucki');
         cy.contains('button', /^Save Toolpath/).click();
         cy.contains('button:not([role="menuitem"])', /^Export G-code$/).should(
             'be.enabled',

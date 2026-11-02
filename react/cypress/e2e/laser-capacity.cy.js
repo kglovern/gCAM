@@ -7,8 +7,7 @@ describe('Large flat laser raster', () => {
         cy.contains('button', 'Engrave image').click();
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser power percent"]').type('{selectall}50');
-        cy.contains('label', 'Resolution (DPI)')
-            .find('input')
+        cy.get('[aria-label="Resolution (DPI)"]')
             .type('{selectall}508')
             .blur()
             .should('have.value', '508');

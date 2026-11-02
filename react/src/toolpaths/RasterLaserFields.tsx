@@ -127,6 +127,7 @@ function NumberField({
         <label className="space-y-1">
             <span className="text-slate-500 dark:text-slate-400">{label}</span>
             <input
+                aria-label={label}
                 disabled={disabled}
                 type="number"
                 min={min}

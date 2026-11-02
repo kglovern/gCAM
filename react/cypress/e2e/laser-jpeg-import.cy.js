@@ -110,7 +110,7 @@ describe('JPEG physical dimensions and orientation', () => {
         cy.get('[aria-label="Laser power percent"]')
             .type('{selectall}25')
             .blur();
-        cy.contains('label', 'Pixel pass-through').find('input').check();
+        cy.get('[aria-label="Pixel pass-through"]').check();
         cy.contains('button', /^Add Toolpath/).click();
         cy.get('input[aria-label^="Name Laser Raster"]').should('exist');
         const verify = (p) => {

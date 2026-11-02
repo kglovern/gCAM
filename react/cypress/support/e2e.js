@@ -65,6 +65,10 @@ Cypress.Commands.add('menu', (name, item) => {
     cy.get(`button[aria-label="${name}"]`).then(($button) => {
         if ($button.attr('aria-expanded') !== 'true') cy.wrap($button).click();
     });
+    if (name === 'Draw' && /Mandala|Clock/.test(item))
+        cy.contains('summary', 'Plugins').then(($summary) => {
+            if (!$summary.parent().prop('open')) cy.wrap($summary).click();
+        });
     cy.contains('[role="menuitem"]', item).should('be.visible').click();
 });
 Cypress.Commands.add('importDesign', (file) => {

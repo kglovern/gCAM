@@ -10,19 +10,16 @@ describe('Laser operation settings transfer', () => {
         cy.get('[aria-label="Laser power percent"]')
             .type('{selectall}35')
             .blur();
-        cy.contains('label', 'Resolution (DPI)')
-            .find('input')
-            .type('{selectall}127')
-            .blur();
-        cy.contains('label', 'Gamma')
+        cy.get('[aria-label="Resolution (DPI)"]').type('{selectall}127').blur();
+        cy.contains('label', /^Gamma$/)
             .find('input')
             .type('{selectall}1.4')
             .blur();
-        cy.contains('label', 'Brightness')
+        cy.contains('label', /^Brightness$/)
             .find('input')
             .type('{selectall}0.2')
             .blur();
-        cy.contains('label', 'Image mode').find('select').select('jarvis');
+        cy.get('[aria-label="Image mode"]').select('jarvis');
         cy.get('[aria-label="Crop right percent"]')
             .type('{selectall}50')
             .blur();
@@ -49,10 +46,10 @@ describe('Laser operation settings transfer', () => {
         cy.contains('button', 'Apply settings').click();
         cy.get('[aria-label="Laser feed"]').should('have.value', '1500');
         cy.get('[aria-label="Laser power percent"]').should('have.value', '35');
-        cy.contains('label', 'Gamma').find('input').should('have.value', '1.4');
-        cy.contains('label', 'Image mode')
-            .find('select')
-            .should('have.value', 'jarvis');
+        cy.contains('label', /^Gamma$/)
+            .find('input')
+            .should('have.value', '1.4');
+        cy.get('[aria-label="Image mode"]').should('have.value', 'jarvis');
         cy.get('[aria-label="Crop left percent"]').should('have.value', '25');
         cy.get('[aria-label="Crop right percent"]').should('have.value', '75');
         cy.contains('summary', 'Copy operation settings').scrollIntoView();

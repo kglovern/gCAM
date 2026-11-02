@@ -10,19 +10,25 @@ describe('Pixel-native laser engraving', () => {
         cy.get('[aria-label="Laser power percent"]')
             .type('{selectall}25')
             .blur();
-        cy.contains('label', 'Image mode').find('select').select('jarvis');
-        cy.contains('label', 'Brightness')
+        cy.get('[aria-label="Image mode"]').select('jarvis');
+        cy.contains('label', /^Brightness$/)
             .find('input')
             .type('{selectall}0.5')
             .blur();
-        cy.contains('label', 'Gamma').find('input').type('{selectall}2').blur();
-        cy.contains('label', 'Invert image').find('input').check();
-        cy.contains('label', 'Pixel pass-through').find('input').check();
-        cy.contains('label', 'Brightness').find('input').should('be.disabled');
-        cy.contains('label', 'Image mode').find('select').should('be.disabled');
-        cy.contains('label', 'Gamma').find('input').should('be.disabled');
-        cy.contains('label', 'Resolution (DPI)')
+        cy.contains('label', /^Gamma$/)
             .find('input')
+            .type('{selectall}2')
+            .blur();
+        cy.get('[aria-label="Invert image"]').check();
+        cy.get('[aria-label="Pixel pass-through"]').check();
+        cy.contains('label', /^Brightness$/)
+            .find('input')
+            .should('be.disabled');
+        cy.get('[aria-label="Image mode"]').should('be.disabled');
+        cy.contains('label', /^Gamma$/)
+            .find('input')
+            .should('be.disabled');
+        cy.get('[aria-label="Resolution (DPI)"]')
             .should('be.disabled')
             .and('have.value', '40.64');
         cy.contains('label', 'Skip blank row ends').find('input').uncheck();
@@ -100,10 +106,8 @@ describe('Pixel-native laser engraving', () => {
         cy.reload();
         cy.get('[aria-label="Laser"]').click();
         cy.get('button[aria-label^="Edit Laser Raster"]').click();
-        cy.contains('label', 'Pixel pass-through')
-            .find('input')
-            .should('be.checked');
-        cy.contains('label', 'Brightness')
+        cy.get('[aria-label="Pixel pass-through"]').should('be.checked');
+        cy.contains('label', /^Brightness$/)
             .find('input')
             .should('be.disabled')
             .and('have.value', '0.5');
