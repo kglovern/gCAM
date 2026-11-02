@@ -53,4 +53,6 @@ jobs:
           path: |
             react/cypress/screenshots
             react/cypress/videos
+            outputs/laser-svg-images-native.json
+            outputs/laser-svg-raster-native.json
           if-no-files-found: ignore

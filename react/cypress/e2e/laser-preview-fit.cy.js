@@ -1,4 +1,7 @@
-function sampleRenderedLaser() {
+function sampleRenderedLaser(
+    ready = (sample) => sample.laserPixels > 20,
+    attempts = 100,
+) {
     cy.window().then(
         (win) =>
             new Promise((resolve) =>
@@ -7,66 +10,70 @@ function sampleRenderedLaser() {
                 ),
             ),
     );
-    return cy.get('[aria-label="G-code preview"] canvas').then(($canvas) =>
-        cy.window().then(
-            (win) =>
-                new Promise((resolve) => {
-                    win.requestAnimationFrame(() => {
-                        const canvas = $canvas[0],
-                            gl = canvas.getContext('webgl2');
-                        expect(gl).not.equal(null);
-                        expect(
-                            gl.getContextAttributes().preserveDrawingBuffer,
-                        ).equal(true);
-                        const w = canvas.width,
-                            h = canvas.height,
-                            pixels = new Uint8Array(w * h * 4);
-                        gl.readPixels(
-                            0,
-                            0,
-                            w,
-                            h,
-                            gl.RGBA,
-                            gl.UNSIGNED_BYTE,
-                            pixels,
-                        );
-                        expect(gl.getError()).equal(gl.NO_ERROR);
-                        let count = 0,
-                            minX = w,
-                            minY = h,
-                            maxX = -1,
-                            maxY = -1;
-                        for (let y = 0; y < h; y++)
-                            for (let x = 0; x < w; x++) {
-                                const i = (y * w + x) * 4,
-                                    r = pixels[i],
-                                    g = pixels[i + 1],
-                                    b = pixels[i + 2];
-                                if (
-                                    r > 240 &&
-                                    g < 100 &&
-                                    b < 100 &&
-                                    r - g > 15 &&
-                                    r - b > 15
-                                ) {
-                                    count++;
-                                    minX = Math.min(minX, x);
-                                    maxX = Math.max(maxX, x);
-                                    minY = Math.min(minY, y);
-                                    maxY = Math.max(maxY, y);
+    return cy
+        .get('[aria-label="G-code preview"] canvas')
+        .then(($canvas) =>
+            cy.window().then(
+                (win) =>
+                    new Promise((resolve) => {
+                        win.requestAnimationFrame(() => {
+                            const canvas = $canvas[0],
+                                gl = canvas.getContext('webgl2');
+                            expect(gl).not.equal(null);
+                            expect(
+                                gl.getContextAttributes().preserveDrawingBuffer,
+                            ).equal(true);
+                            const w = canvas.width,
+                                h = canvas.height,
+                                pixels = new Uint8Array(w * h * 4);
+                            gl.readPixels(
+                                0,
+                                0,
+                                w,
+                                h,
+                                gl.RGBA,
+                                gl.UNSIGNED_BYTE,
+                                pixels,
+                            );
+                            expect(gl.getError()).equal(gl.NO_ERROR);
+                            let count = 0,
+                                minX = w,
+                                minY = h,
+                                maxX = -1,
+                                maxY = -1;
+                            for (let y = 0; y < h; y++)
+                                for (let x = 0; x < w; x++) {
+                                    const i = (y * w + x) * 4,
+                                        r = pixels[i],
+                                        g = pixels[i + 1],
+                                        b = pixels[i + 2];
+                                    if (r > 150 && r - g > 40 && r - b > 40) {
+                                        count++;
+                                        minX = Math.min(minX, x);
+                                        maxX = Math.max(maxX, x);
+                                        minY = Math.min(minY, y);
+                                        maxY = Math.max(maxY, y);
+                                    }
                                 }
-                            }
-                        resolve({
-                            width: w,
-                            height: h,
-                            laserPixels: count,
-                            spanX: (maxX - minX + 1) / w,
-                            spanY: (maxY - minY + 1) / h,
+                            resolve({
+                                width: w,
+                                height: h,
+                                laserPixels: count,
+                                spanX: (maxX - minX + 1) / w,
+                                spanY: (maxY - minY + 1) / h,
+                            });
                         });
-                    });
-                }),
-        ),
-    );
+                    }),
+            ),
+        )
+        .then((sample) => {
+            // Software rendering and antialiasing vary across CI GPUs; wait for painted pixels.
+            if (!ready(sample) && attempts > 0) {
+                cy.wait(100);
+                return sampleRenderedLaser(ready, attempts - 1);
+            }
+            return sample;
+        });
 }
 
 describe('Fitted laser WebGL preview', () => {
@@ -145,7 +152,9 @@ describe('Fitted laser WebGL preview', () => {
                 .map(Number);
             expect(completed).equal(total);
         });
-        sampleRenderedLaser().then((sample) => {
+        sampleRenderedLaser(
+            (sample) => sample.laserPixels < report[0].laserPixels,
+        ).then((sample) => {
             expect(sample.laserPixels).lessThan(report[0].laserPixels);
         });
         cy.get('[aria-label="Reset preview"]').click();

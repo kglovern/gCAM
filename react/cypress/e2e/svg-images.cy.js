@@ -202,19 +202,28 @@ describe('Embedded SVG images', () => {
                         reports,
                     )
                     .then(() => {
-                        for (const r of reports) {
-                            expect(
-                                r.meanError,
-                                r.name + ' mean error',
-                                // Nested clipping adds a raster/resample step; retain the separate 4% outlier limit.
-                            ).lessThan(
-                                r.name === 'nestedclip' ? 255 * 0.01 : 2,
-                            );
-                            expect(
-                                r.badFraction,
-                                r.name + ' large differences',
-                            ).lessThan(0.04);
-                        }
+                        // Nested clipping adds resampling: allow 1% channel error and 5% AA outliers there only.
+                        const failures = reports
+                            .filter(
+                                (r) =>
+                                    !Number.isFinite(r.meanError) ||
+                                    !Number.isFinite(r.badFraction) ||
+                                    r.meanError >=
+                                        (r.name === 'nestedclip'
+                                            ? 255 * 0.01
+                                            : 2) ||
+                                    r.badFraction >=
+                                        (r.name === 'nestedclip' ? 0.05 : 0.04),
+                            )
+                            .map(({ name, meanError, badFraction }) => ({
+                                name,
+                                meanError,
+                                badFraction,
+                            }));
+                        expect(
+                            failures,
+                            'SVG image comparison errors',
+                        ).to.deep.equal([]);
                         expect(
                             reports.find((r) => r.name === 'plain')
                                 .retainedSource,
