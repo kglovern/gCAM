@@ -8,7 +8,7 @@ describe('Nesting rotations and grouped contours', () => {
         cy.contains('Loaded nesting.gcam.json.').should('be.visible');
     });
     const configure = (rotation) => {
-        cy.menu('Modify', 'Nest…');
+        cy.menu('Edit', 'Nest…');
         cy.get('[aria-label="W in mm"]').clear().type('20').blur();
         cy.get('[aria-label="H in mm"]').clear().type('45').blur();
         cy.get('[aria-label="Edge margin in mm"]').clear().type('0').blur();

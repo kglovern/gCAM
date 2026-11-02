@@ -3,17 +3,13 @@
  */
 import {
     Circle,
-    Copy,
     Hexagon,
     MousePointer2,
     Move,
     PenTool,
     Redo2,
     Ruler,
-    Scissors,
-    ScanLine,
     Spline,
-    Trash2,
     Type,
     Undo2,
 } from 'lucide-react';
@@ -140,20 +136,6 @@ export function ToolbarCommands({
                 <>
                     <ToolbarSeparator />
                     <button
-                        title="Trim shapes"
-                        aria-label="Trim shapes"
-                        aria-pressed={props.activeTool === 'trim'}
-                        disabled={!props.hasGeometry}
-                        onClick={() => props.onTrim?.()}
-                        className={cx(
-                            labeledButton,
-                            props.activeTool === 'trim' && toolbarButtonActive,
-                        )}
-                    >
-                        <Scissors size={18} />
-                        <span className={labelClass}>Trim</span>
-                    </button>
-                    <button
                         title="Transform selection"
                         aria-label="Transform selection"
                         aria-pressed={props.transformMode !== null}
@@ -237,32 +219,6 @@ export function ToolbarCommands({
                     </details>
                 </ToolbarMenu>
             )}
-            {secondary && (
-                <>
-                    <ToolbarSeparator />
-                    <button
-                        title="Clone selection"
-                        aria-label="Clone selection"
-                        disabled={!props.hasSelection}
-                        onClick={props.onDuplicate}
-                        className={labeledButton}
-                    >
-                        <Copy size={18} />
-                        <span className={labelClass}>Clone</span>
-                    </button>
-                    <button
-                        title="Delete selection"
-                        aria-label="Delete selection"
-                        disabled={!props.hasSelection}
-                        onClick={() => props.onDeleteSelected()}
-                        className={cx(labeledButton, 'hover:!text-red-400')}
-                    >
-                        <Trash2 size={18} />
-                        <span className={labelClass}>Delete</span>
-                    </button>
-                    <ToolbarSeparator />
-                </>
-            )}
             {primary && (
                 <button
                     title="Undo"
@@ -291,20 +247,6 @@ export function ToolbarCommands({
                         {group === 'secondary' && <span>Redo</span>}
                     </button>
                     <ToolbarSeparator />
-                    {props.showTrace && (
-                        <button
-                            title="Trace bitmap"
-                            aria-label="Trace bitmap"
-                            disabled={props.tracing}
-                            onClick={props.onTrace}
-                            className={cx(labeledButton, 'text-sm font-medium')}
-                        >
-                            <ScanLine size={18} className="xl:hidden" />
-                            <span className={labelClass}>
-                                {props.tracing ? 'Tracing…' : 'Trace'}
-                            </span>
-                        </button>
-                    )}
                 </>
             )}
         </>

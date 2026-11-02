@@ -12,6 +12,7 @@ function setup(hidden: string[] = [], selected: string[] = []) {
         duplicate: jest.fn(),
         delete: jest.fn(),
         transform: jest.fn(),
+        shortcuts: [{ label: 'Mirror…', run: jest.fn() }],
     };
     function Harness() {
         const [selection, setSelection] = useState(selected);
@@ -155,7 +156,7 @@ test('arrow keys navigate actions and clicking outside dismisses the menu', () =
     fireEvent.contextMenu(canvas, { clientX: 20, clientY: 0 });
     expect(
         screen.getAllByRole('menuitem').map((item) => item.textContent),
-    ).toEqual(['Transform', 'Clone', 'Delete', 'Properties']);
+    ).toEqual(['Transform', 'Clone', 'Delete', 'Mirror…', 'Properties']);
     const transform = screen.getByRole('menuitem', { name: 'Transform' });
     expect(transform).toHaveFocus();
     fireEvent.keyDown(transform, { key: 'ArrowUp' });
@@ -168,5 +169,52 @@ test('arrow keys navigate actions and clicking outside dismisses the menu', () =
     fireEvent.keyDown(properties, { key: 'ArrowDown' });
     expect(transform).toHaveFocus();
     fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+});
+
+test.each([true, false])(
+    'bitmap context trace respects single-image eligibility (%s)',
+    (canTrace) => {
+        const canvasRef = createRef<HTMLCanvasElement>(),
+            trace = jest.fn();
+        render(
+            <VectorContextMenu
+                canvasRef={canvasRef}
+                cameraRef={{ current: { tx: 0, ty: 0, scale: 1 } }}
+                loops={[{ id: 'image-loop', bitmapId: 'image', points: [] }]}
+                bitmaps={[{ id: 'image', x: 0, y: -50, w: 100, h: 100 }]}
+                hidden={[]}
+                selected={canTrace ? ['image-loop'] : ['image-loop', 'other']}
+                onSelect={jest.fn()}
+                actions={{
+                    trace,
+                    canTrace,
+                    duplicate: jest.fn(),
+                    delete: jest.fn(),
+                    transform: jest.fn(),
+                }}
+            >
+                <canvas ref={canvasRef} data-testid="trace-canvas" />
+            </VectorContextMenu>,
+        );
+        fireEvent.contextMenu(screen.getByTestId('trace-canvas'), {
+            clientX: 50,
+            clientY: 0,
+        });
+        const command = screen.getByRole('menuitem', {
+            name: 'Trace into shapes…',
+        });
+        if (canTrace) expect(command).toBeEnabled();
+        else expect(command).toBeDisabled();
+        fireEvent.click(command);
+        expect(trace.mock.calls).toEqual(canTrace ? [[]] : []);
+    },
+);
+
+test('context shortcuts call existing commands and dismiss the menu', () => {
+    const { canvas, actions } = setup();
+    fireEvent.contextMenu(canvas, { clientX: 20, clientY: 0 });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mirror…' }));
+    expect(actions.shortcuts[0].run).toHaveBeenCalledWith();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 });

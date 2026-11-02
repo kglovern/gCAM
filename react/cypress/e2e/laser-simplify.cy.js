@@ -25,7 +25,7 @@ const load = (snapshot) =>
         { force: true },
     );
 const open = () => {
-    cy.menu('Modify', 'Simplify paths…');
+    cy.menu('Edit', 'Simplify paths…');
     cy.contains(/2 shapes simplified/, { timeout: 30000 }).should('be.visible');
 };
 it('stages bounded line fitting, preserves holes/groups and unrelated jobs through cancel/history/export/reload', () => {
@@ -174,7 +174,7 @@ it('rejects fitting captured before source edits and recalculates tolerance with
         guides: [],
         fileName: 'Stale curve',
     });
-    cy.menu('Modify', 'Simplify paths…');
+    cy.menu('Edit', 'Simplify paths…');
     cy.contains('1 shapes simplified', { timeout: 30000 }).should('be.visible');
     cy.get('[aria-label="Path repair tolerance"]')
         .type('{selectall}0.1')

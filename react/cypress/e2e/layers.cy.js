@@ -103,7 +103,7 @@ describe('Drawing layers', () => {
     it('removes a vacated layer while keeping occupied layers, and restores it on undo', () => {
         openLayers();
         cy.get('[aria-label="Select layer Cuts"]').click();
-        cy.get('[aria-label="Delete selection"]').click();
+        cy.menu('Edit', 'Delete');
         cy.contains(
             '[role="alertdialog"] button',
             /^Delete selection$/,
@@ -117,7 +117,7 @@ describe('Drawing layers', () => {
         openLayers();
         cy.worldDrag([0, 100], [100, 0]);
         cy.snapshot().then((p) => expect(p.selected).to.have.length(2));
-        cy.get('[aria-label="Delete selection"]').click();
+        cy.menu('Edit', 'Delete');
         cy.contains(
             '[role="alertdialog"] button',
             /^Delete selection$/,

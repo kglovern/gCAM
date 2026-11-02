@@ -74,7 +74,7 @@ it('bakes native colour/alpha with crop and holes, preserves placement, supports
             { force: true },
         );
     });
-    cy.contains('button', 'Engrave image').click();
+    cy.contains(/Bitmap .+ placed/).should('exist');
     cy.menu('Draw', 'Rectangle');
     cy.worldClick(30, 30);
     cy.worldClick(70, 70);
@@ -83,7 +83,7 @@ it('bakes native colour/alpha with crop and holes, preserves placement, supports
     cy.get('[aria-label="Select shapes"]').click();
     cy.get('[aria-label="Select layer Default"]').click();
     cy.contains('button', /^Laser Raster$/).click();
-    cy.contains('button', 'Use selected shapes as mask').click();
+    cy.contains('button', 'Mask image to selected shapes').click();
     cy.contains('button', /^Change$/).click();
     cy.get('[aria-label="Laser power percent"]').type('{selectall}50').blur();
     cy.contains('label', /^Pixel pass-through/)

@@ -44,7 +44,7 @@ describe('Canvas selection and editing', () => {
         cy.snapshot().then((p) =>
             expect(p.loops.some((loop) => loop.groupId)).to.equal(false),
         );
-        cy.menu('Modify', 'Nest…');
+        cy.menu('Edit', 'Nest…');
         cy.get('[aria-label="W in mm"]').clear().type('100');
         cy.get('[aria-label="H in mm"]').clear().type('100');
         cy.contains('button', /^Nest$/).click();
@@ -91,9 +91,9 @@ describe('Canvas selection and editing', () => {
             });
         cy.menu('View', 'Fit View');
         cy.worldClick(20, 50);
-        cy.get('[aria-label="Clone selection"]').click();
+        cy.menu('Edit', 'Clone');
         cy.snapshot().then((p) => expect(p.loops).to.have.length(4));
-        cy.get('[aria-label="Delete selection"]').click();
+        cy.menu('Edit', 'Delete');
         cy.contains(
             '[role="alertdialog"] button',
             /^Delete selection$/,
@@ -151,7 +151,7 @@ describe('Boolean and trim operations', () => {
             cy.importDesign('overlap.svg');
             cy.worldClick(25, 40);
             cy.worldClick(45, 40, { ctrlKey: true });
-            cy.menu('Modify', 'Combine / Subtract…');
+            cy.menu('Edit', 'Combine / Subtract…');
             cy.contains('label', 'Operation').find('select').select(operation);
             cy.contains('button', /^Apply$/).click();
             cy.snapshot().then((p) =>
@@ -163,7 +163,7 @@ describe('Boolean and trim operations', () => {
     }
     it('removes only the segment between crossing vectors', () => {
         cy.importDesign('trim.svg');
-        cy.get('[aria-label="Trim shapes"]').click();
+        cy.menu('Edit', 'Trim');
         cy.worldClick(40, 50);
         cy.snapshot().then((p) => {
             expect(p.loops).to.have.length(4);
@@ -181,7 +181,7 @@ describe('Boolean and trim operations', () => {
     });
     it('trims an unsegmented crossing with a Ctrl brush and supports undo', () => {
         cy.importDesign('trim.svg');
-        cy.get('[aria-label="Trim shapes"]').click();
+        cy.menu('Edit', 'Trim');
         cy.worldDrag([40, 45], [40, 55], { ctrlKey: true });
         cy.snapshot().then((p) => expect(p.loops).to.have.length(4));
         cy.get('[aria-label="Undo"]').click();
@@ -196,7 +196,7 @@ describe('Boolean and trim operations', () => {
     it('offsets a selected closed shape', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
-        cy.menu('Modify', 'Offset…');
+        cy.menu('Edit', 'Offset…');
         cy.get('[aria-label="Amount in mm"]')
             .clear()
             .type('2')
@@ -216,7 +216,7 @@ describe('Boolean and trim operations', () => {
     it('fillets one corner without changing the other parts', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
-        cy.menu('Modify', 'Fillet…');
+        cy.menu('Edit', 'Fillet…');
         cy.worldClick(20, 40, { force: true });
         cy.get('[aria-label="Radius (mm)"]').clear().type('2').blur();
         cy.contains('[role=dialog] button', /^Apply$/).click();
@@ -230,7 +230,7 @@ describe('Boolean and trim operations', () => {
     it('chamfers the selected rectangle by the requested distance', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
-        cy.menu('Modify', 'Chamfer…');
+        cy.menu('Edit', 'Chamfer…');
         cy.worldClick(20, 40, { force: true });
         cy.get('[aria-label="Distance (mm)"]').clear().type('2').blur();
         cy.contains('[role=dialog] button', /^Apply$/).click();
@@ -242,7 +242,7 @@ describe('Boolean and trim operations', () => {
     it('adds dogbone relief at a clicked corner', () => {
         cy.importDesign('vectors.svg');
         cy.worldClick(20, 50);
-        cy.menu('Modify', /^Dogbone$/);
+        cy.menu('Edit', /^Dogbone$/);
         cy.worldClick(20, 40);
         cy.snapshot().then((p) => {
             expect(p.loops).to.have.length(3);

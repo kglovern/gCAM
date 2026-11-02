@@ -1,110 +1,189 @@
-const dialog = '[role="dialog"][aria-label="Edit image mask"]';
-function dragNative() {
-    cy.get(`${dialog} svg[aria-label="Mask position preview"]`).then(
-        async ($svg) => {
-            const el = $svg[0],
-                win = el.ownerDocument.defaultView,
-                r = el.getBoundingClientRect(),
-                frame =
-                    win.frameElement ??
-                    win.top.document.querySelector('iframe.aut-iframe'),
-                f = frame.getBoundingClientRect(),
-                sx = f.width / win.innerWidth,
-                sy = f.height / win.innerHeight;
-            const x = f.left + (r.left + r.width / 2) * sx,
-                y = f.top + (r.top + r.height / 2) * sy;
-            const send = (type, x, y, buttons) =>
-                Cypress.automation('remote:debugger:protocol', {
-                    command: 'Input.dispatchMouseEvent',
-                    params: {
-                        type,
-                        x,
-                        y,
-                        button: 'left',
-                        buttons,
-                        clickCount: 1,
-                        pointerType: 'mouse',
-                    },
-                });
-            await send('mousePressed', x, y, 1);
-            await send('mouseMoved', x + 30 * sx, y - 15 * sy, 1);
-            await send('mouseReleased', x + 30 * sx, y - 15 * sy, 0);
-        },
-    );
+function luminance(x, y) {
+    return cy.get('[data-testid="gcam-canvas"]').then(($canvas) => {
+        const c = $canvas[0],
+            camera = JSON.parse(c.dataset.camera),
+            pixel = c
+                .getContext('2d')
+                .getImageData(
+                    Math.round(camera.tx + x * camera.scale),
+                    Math.round(camera.ty - y * camera.scale),
+                    1,
+                    1,
+                ).data;
+        return (pixel[0] + pixel[1] + pixel[2]) / 3;
+    });
 }
-it('edits a mask independently, retains source artwork and supports job Save/Undo', () => {
-    cy.viewport(1280, 720);
-    cy.freshProject({ tools: false });
+it('masks lettering on canvas, preserves holes, edits image independently and releases without losing pixels', () => {
+    cy.viewport(1280, 850);
+    cy.freshProject({ tools: false, multipleSelection: false });
     cy.get('[aria-label="Laser"]').click();
-    cy.importDesign('contrast.png');
-    cy.contains('button', 'Engrave image').click();
-    cy.menu('Draw', 'Rectangle');
-    cy.worldClick(30, 30);
-    cy.worldClick(70, 70);
+    cy.importDesign('mask-lettering.svg');
+    cy.menu('View', 'Snap to Grid');
+    cy.window().then((win) => {
+        const c = win.document.createElement('canvas');
+        c.width = c.height = 128;
+        const ctx = c.getContext('2d');
+        for (let y = 0; y < 128; y++) {
+            const value = Math.round(75 + 40 * Math.sin(y * 0.3));
+            ctx.fillStyle =
+                'rgb(' + (value + 40) + ',' + value + ',' + value / 2 + ')';
+            ctx.fillRect(0, y, 128, 1);
+        }
+        cy.get('input[aria-label="Import drawing file"]').selectFile(
+            {
+                contents: Cypress.Buffer.from(
+                    c.toDataURL('image/png').split(',')[1],
+                    'base64',
+                ),
+                fileName: 'sign-texture.png',
+                mimeType: 'image/png',
+            },
+            { force: true },
+        );
+    });
+    cy.contains(/Bitmap .+ placed/).should('exist');
     cy.get('[aria-label="Select shapes"]').click();
     cy.get('[aria-label="Select layer Default"]').click();
+    cy.menu('Edit', 'Mask image to shapes');
+    cy.get('[role="dialog"][aria-label="Edit image mask"]').should('not.exist');
+    luminance(60, 37).should('be.lessThan', 180);
+    luminance(58, 45).should('be.greaterThan', 200);
+    luminance(87, 37).should('be.greaterThan', 200);
+    luminance(40, 37).should('be.greaterThan', 200);
+    let initial, moved, saved;
+    cy.snapshot().then((p) => {
+        initial = p;
+        expect(p.bitmaps[0].maskSourceIds).to.have.length(5);
+        expect(p.selected).to.have.length(1);
+    });
+    cy.menu('Edit', 'Edit image inside mask');
+    cy.worldDrag([50, 30], [55, 33]);
+    cy.snapshot().then((p) => {
+        moved = p;
+        expect(p.bitmaps[0].x).to.be.closeTo(initial.bitmaps[0].x + 5, 0.1);
+        expect(p.bitmaps[0].y).to.be.closeTo(initial.bitmaps[0].y + 3, 0.1);
+        expect(p.bitmaps[0].dataUrl).to.equal(initial.bitmaps[0].dataUrl);
+        for (const id of p.bitmaps[0].maskSourceIds)
+            expect(p.loops.find((l) => l.id === id).points).to.deep.equal(
+                initial.loops.find((l) => l.id === id).points,
+            );
+    });
+    cy.menu('Edit', 'Edit mask shapes');
+    cy.worldDrag([60, 37], [62, 38]);
+    cy.snapshot().then((p) => {
+        const ids = p.bitmaps[0].maskSourceIds;
+        expect(p.selected).to.deep.equal(ids);
+        expect(p.bitmaps).to.deep.equal(moved.bitmaps);
+        const dx =
+            p.loops.find((l) => l.id === ids[0]).points[0].x -
+            moved.loops.find((l) => l.id === ids[0]).points[0].x;
+        expect(dx).to.be.greaterThan(0);
+        for (const id of ids)
+            expect(p.loops.find((l) => l.id === id).points[0].x).to.be.closeTo(
+                moved.loops.find((l) => l.id === id).points[0].x + dx,
+                1e-8,
+            );
+    });
+    cy.menu('Edit', 'Edit image inside mask');
+    cy.get('[aria-label="Select shapes"]').click();
+    cy.worldClick(40, 15);
+    cy.menu('Edit', 'Release image mask');
+    luminance(40, 37).should('be.lessThan', 180);
+    cy.snapshot().then((p) => {
+        expect(p.bitmaps[0].maskSourceIds).to.be.undefined;
+        expect(p.bitmaps[0].dataUrl).to.equal(initial.bitmaps[0].dataUrl);
+    });
+    cy.get('[aria-label="Undo"]').click();
+    cy.snapshot().then((p) =>
+        expect(p.bitmaps[0].maskSourceIds).to.have.length(5),
+    );
     cy.contains('button', /^Laser Raster$/).click();
-    cy.contains('button', 'Use selected shapes as mask').click();
     cy.contains('button', /^Change$/).click();
     cy.get('[aria-label="Laser power percent"]').type('{selectall}50').blur();
-    cy.contains('button', /^Edit mask/).click();
-    dragNative();
-    cy.get('[aria-label="Mask move X"]').should(($input) =>
-        expect(Number($input.val())).to.be.closeTo(8, 0.1),
-    );
-    cy.get('[aria-label="Mask move Y"]').should(($input) =>
-        expect(Number($input.val())).to.be.closeTo(4, 0.1),
-    );
-    cy.get(dialog).contains('button', 'Cancel').click();
-    cy.contains('button', /^Edit mask/).click();
-    cy.get('[aria-label="Mask move X"]').should('have.value', '0');
-    cy.get('[aria-label="Mask move X"]').type('{selectall}-10').blur();
-    cy.get('[aria-label="Mask scale X"]').type('{selectall}50').blur();
-    cy.screenshot('laser-mask-positioning', { capture: 'viewport' });
-    cy.get(dialog).contains('button', 'Apply mask').click();
+    cy.get('[aria-label="Resolution (DPI)"]').type('{selectall}50').blur();
     cy.contains('button', /^Add Toolpath/).click();
     cy.get('input[aria-label^="Name Laser Raster"]', { timeout: 30000 }).should(
         'exist',
     );
-    let sourcePixels, originalMask;
     cy.snapshot().then((p) => {
-        sourcePixels = p.bitmaps[0].dataUrl;
-        originalMask = p.stack[0].args.laserOptions.imageMask;
-        expect(p.loops).to.have.length(2);
-        expect(
-            p.bitmaps[0].x + originalMask[0][0].x * p.bitmaps[0].w,
-        ).to.be.closeTo(30, 1e-6);
-        for (const { points } of p.stack[0].toolpath.laserPaths)
-            for (let i = 1; i < points.length; i++)
-                if (points[i].power > 0)
-                    for (const point of [points[i - 1], points[i]])
-                        expect(point.x).to.be.within(30 - 1e-6, 50 + 1e-6);
-        expect(p.stack[0].toolpath.laserPaths.length).to.be.greaterThan(0);
+        saved = p;
+        expect(p.stack[0].args.laserOptions.imageMask).to.have.length(5);
+        const sources = p.loops.filter((l) =>
+            p.bitmaps[0].maskSourceIds.includes(l.id),
+        );
+        const holes = sources.filter((l) => {
+            const xs = l.points.map((p) => p.x);
+            return Math.max(...xs) - Math.min(...xs) < 20;
+        });
+        expect(holes).to.have.length(3);
+        const inside = (point, polygon) => {
+            let result = false;
+            for (
+                let i = 0, j = polygon.length - 1;
+                i < polygon.length;
+                j = i++
+            ) {
+                const a = polygon[i],
+                    b = polygon[j];
+                if (
+                    a.y > point.y !== b.y > point.y &&
+                    point.x <
+                        ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+                )
+                    result = !result;
+            }
+            return result;
+        };
+        let segments = 0;
+        for (const path of p.stack[0].toolpath.laserPaths)
+            for (let i = 1; i < path.points.length; i++) {
+                if (path.points[i].power <= 0) continue;
+                const a = path.points[i - 1],
+                    b = path.points[i],
+                    mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+                for (const hole of holes)
+                    expect(
+                        inside(mid, hole.points),
+                        'powered cut avoids letter holes',
+                    ).to.equal(false);
+                segments++;
+            }
+        expect(segments).to.be.greaterThan(20);
     });
+    cy.screenshot('laser-texture-in-lettering', { capture: 'viewport' });
     cy.get('button[aria-label^="Edit Laser Raster"]').click();
-    cy.contains('button', /^Edit mask/).click();
-    cy.get('[aria-label="Mask move X"]').type('{selectall}-5').blur();
-    cy.get(dialog).contains('button', 'Apply mask').click();
-    cy.contains('button', /^Save Toolpath$/).click();
+    cy.menu('Edit', 'Release image mask');
+    cy.contains('button', /^Add Toolpath/).click();
     cy.get('input[aria-label^="Name Laser Raster"]', { timeout: 30000 }).should(
         'exist',
     );
     cy.snapshot().then((p) => {
-        expect(p.bitmaps[0].dataUrl).to.equal(sourcePixels);
-        expect(p.stack[0].args.laserOptions.imageMask).not.to.deep.equal(
-            originalMask,
-        );
+        expect(p.bitmaps[0].maskSourceIds).to.be.undefined;
+        expect(p.stack[0].args.laserOptions.imageMask ?? []).to.have.length(0);
     });
+    cy.get('[aria-label="Undo"]').click();
     cy.get('[aria-label="Undo"]').click();
     cy.snapshot().then((p) =>
         expect(p.stack[0].args.laserOptions.imageMask).to.deep.equal(
-            originalMask,
+            saved.stack[0].args.laserOptions.imageMask,
         ),
     );
     cy.task('clearDownloads');
     cy.contains('button:not([role="menuitem"])', /^Export G-code$/).click();
     cy.readDownload('.gcode').then((code) => {
-        expect(code).to.include('S500');
-        expect(code).not.to.match(/M6|G[01] Z/);
+        expect(code).to.match(/S[1-9]\d*/);
+        expect(code).not.to.match(/NaN|Infinity|undefined|M6|G[01] Z/);
+    });
+    cy.reload();
+    cy.contains('Recovered the last local project.', { timeout: 30000 }).should(
+        'exist',
+    );
+    cy.snapshot().then((p) => {
+        expect(p.bitmaps[0].maskSourceIds).to.deep.equal(
+            saved.bitmaps[0].maskSourceIds,
+        );
+        expect(p.stack[0].args.laserOptions.imageMask).to.deep.equal(
+            saved.stack[0].args.laserOptions.imageMask,
+        );
     });
 });

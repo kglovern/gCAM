@@ -1,7 +1,5 @@
 import { formatLength, type UnitSystem } from '../lib/units';
-import { useEffect, useRef, useState } from 'react';
-import { UnitInput } from '../components/UnitInput';
-import { lengthUnit } from '../lib/units';
+import { useState } from 'react';
 import {
     machineUpToSetupAngles,
     setupAnglesToMachineUp,
@@ -13,7 +11,6 @@ import {
 interface BitmapChoice {
     fileName: string;
     physicalSize?: { wMm: number; hMm: number };
-    laser?: boolean;
     isSurfaceModel?: boolean;
     surfaceMachinableTopDown?: boolean;
     surfacePreviewUrl?: string;
@@ -24,24 +21,15 @@ export interface BitmapImportModalProps {
     choice: BitmapChoice;
     units?: UnitSystem;
     onUseBitmap(): void;
-    onUseHeightmap?(
-        heightMm: number,
-        spacingMm: number,
-        invert: boolean,
-        signal: AbortSignal,
-    ): Promise<void>;
-    onTrace(): void;
     onSetupOrientation?(machineUp: [number, number, number]): Promise<void>;
     onCancel(): void;
 }
 
-/** Explicitly chooses bitmap raster workflow versus destructive trace replace. */
+/** Confirms STL/OBJ placement and machining direction; bitmap files are placed directly. */
 export function BitmapImportModal({
     choice,
     units = 'metric',
     onUseBitmap,
-    onUseHeightmap,
-    onTrace,
     onSetupOrientation,
     onCancel,
 }: BitmapImportModalProps) {
@@ -49,37 +37,6 @@ export function BitmapImportModal({
     const [azimuth, setAzimuth] = useState(initialAngles.azimuthDeg);
     const [elevation, setElevation] = useState(initialAngles.elevationDeg);
     const [updating, setUpdating] = useState(false);
-    const [reliefMm, setReliefMm] = useState(3);
-    const [spacingMm, setSpacingMm] = useState(0.5);
-    const [invert, setInvert] = useState(false);
-    const [heightmapBusy, setHeightmapBusy] = useState(false);
-    const [heightmapError, setHeightmapError] = useState('');
-    const heightmapAbort = useRef<AbortController | null>(null);
-    useEffect(() => () => heightmapAbort.current?.abort(), []);
-    const createHeightmap = async () => {
-        if (!onUseHeightmap || heightmapBusy) return;
-        const controller = new AbortController();
-        heightmapAbort.current = controller;
-        setHeightmapBusy(true);
-        setHeightmapError('');
-        try {
-            await onUseHeightmap(
-                reliefMm,
-                spacingMm,
-                invert,
-                controller.signal,
-            );
-        } catch (error) {
-            if (!controller.signal.aborted)
-                setHeightmapError(
-                    error instanceof Error
-                        ? error.message
-                        : 'Could not create heightmap.',
-                );
-        } finally {
-            setHeightmapBusy(false);
-        }
-    };
     const applyOrientation = async (
         nextAzimuth = azimuth,
         nextElevation = elevation,
@@ -119,18 +76,12 @@ export function BitmapImportModal({
                     id="bitmap-import-title"
                     className="text-lg font-semibold text-slate-900 dark:text-white"
                 >
-                    {choice.isSurfaceModel
-                        ? 'Place this 3D model?'
-                        : choice.laser
-                          ? 'Engrave this image?'
-                          : 'How should this bitmap be used?'}
+                    Place this 3D model?
                 </h2>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    {choice.isSurfaceModel
-                        ? 'On the canvas, it appears as a 2D height map that you can move, resize, or rotate. gCAM keeps the 3D model for cutting.'
-                        : choice.laser
-                          ? 'Keep the image for raster engraving, or trace outlines for line and fill operations.'
-                          : 'Keep the image for Wavy or Halftone, trace editable shapes, or create a 3D heightmap.'}
+                    On the canvas, it appears as a 2D height map that you can
+                    move, resize, or rotate. gCAM keeps the 3D model for
+                    cutting.
                 </p>
                 {choice.physicalSize && (
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
@@ -248,123 +199,25 @@ export function BitmapImportModal({
                             : 'A top-down cutter can only reach surfaces visible from above. Hidden undersides and tucked-under areas will not be cut.'}
                     </p>
                 )}
-                <div
-                    className={`mt-5 grid gap-3 ${choice.isSurfaceModel ? '' : 'sm:grid-cols-2'}`}
-                >
+                <div className="mt-5">
                     <button
                         disabled={
-                            heightmapBusy ||
-                            (choice.isSurfaceModel &&
-                                choice.surfaceMachinableTopDown === false)
+                            choice.surfaceMachinableTopDown === false ||
+                            updating
                         }
                         onClick={onUseBitmap}
-                        className="rounded-lg border border-robin-500 bg-robin-500 px-4 py-3 text-left text-sm font-medium text-white hover:bg-robin-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-lg border border-robin-500 bg-robin-500 px-4 py-3 text-left text-sm font-medium text-white hover:bg-robin-600 disabled:opacity-50"
                     >
-                        {choice.isSurfaceModel
-                            ? choice.surfaceMachinableTopDown === false
-                                ? 'Choose which side faces up'
-                                : 'Place 3D model'
-                            : choice.laser
-                              ? 'Engrave image'
-                              : 'Use as bitmap'}
+                        {choice.surfaceMachinableTopDown === false
+                            ? 'Choose which side faces up'
+                            : 'Place 3D model'}
                         <span className="mt-1 block text-xs font-normal text-white/80">
-                            {choice.isSurfaceModel
-                                ? 'Keep 3D model for machining'
-                                : choice.laser
-                                  ? 'Laser raster engraving'
-                                  : 'Wavy or Halftone'}
+                            Keep 3D model for machining
                         </span>
                     </button>
-                    {!choice.isSurfaceModel && (
-                        <button
-                            disabled={heightmapBusy}
-                            onClick={onTrace}
-                            className="rounded-lg border border-slate-300 px-4 py-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-100 dark:border-robin-700 dark:text-white dark:hover:bg-dark-lighter"
-                        >
-                            Trace into shapes
-                            <span className="mt-1 block text-xs font-normal text-slate-500">
-                                Trace and replace with editable paths
-                            </span>
-                        </button>
-                    )}
                 </div>
-                {!choice.isSurfaceModel && !choice.laser && onUseHeightmap && (
-                    <details className="mt-4 rounded-lg border border-slate-300 p-3 dark:border-robin-700">
-                        <summary className="cursor-pointer text-sm font-medium">
-                            3D heightmap
-                        </summary>
-                        <p className="mt-2 text-xs text-slate-500">
-                            White is high; black is low. Use an opaque image.
-                            Machine it with 3D clearing and finishing.
-                        </p>
-                        <fieldset
-                            disabled={heightmapBusy}
-                            className="mt-3 grid grid-cols-2 gap-3 text-xs"
-                        >
-                            <label>
-                                Relief height ({lengthUnit(units)})
-                                <UnitInput
-                                    aria-label="Heightmap relief height"
-                                    units={units}
-                                    valueMm={reliefMm}
-                                    onChangeMm={setReliefMm}
-                                    minMm={0.01}
-                                    stepMm={0.1}
-                                    className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 dark:bg-dark"
-                                />
-                            </label>
-                            <label>
-                                Image detail ({lengthUnit(units)})
-                                <UnitInput
-                                    aria-label="Heightmap image detail"
-                                    units={units}
-                                    valueMm={spacingMm}
-                                    onChangeMm={setSpacingMm}
-                                    minMm={0.01}
-                                    stepMm={0.1}
-                                    className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 dark:bg-dark"
-                                />
-                            </label>
-                            <label className="col-span-2 flex gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={invert}
-                                    onChange={(event) =>
-                                        setInvert(event.target.checked)
-                                    }
-                                />
-                                Invert heights
-                            </label>
-                        </fieldset>
-                        <button
-                            type="button"
-                            disabled={
-                                heightmapBusy ||
-                                !(reliefMm > 0) ||
-                                !(spacingMm > 0)
-                            }
-                            onClick={() => void createHeightmap()}
-                            className="mt-3 rounded-lg bg-robin-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                        >
-                            {heightmapBusy
-                                ? 'Creating heightmap…'
-                                : 'Use as 3D heightmap'}
-                        </button>
-                        {heightmapError && (
-                            <p
-                                role="alert"
-                                className="mt-2 text-xs text-red-600 dark:text-red-300"
-                            >
-                                {heightmapError}
-                            </p>
-                        )}
-                    </details>
-                )}
                 <button
-                    onClick={() => {
-                        heightmapAbort.current?.abort();
-                        onCancel();
-                    }}
+                    onClick={onCancel}
                     className="mt-4 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white"
                 >
                     Cancel

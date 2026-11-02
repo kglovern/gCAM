@@ -16,7 +16,7 @@ interface TraceModalProps {
     heightMm: number;
     rotation?: number;
     onClose: () => void;
-    onImport: (traced: PlacedTrace[], deleteImage: boolean) => void;
+    onImport: (traced: PlacedTrace[]) => void;
 }
 
 /**
@@ -42,7 +42,6 @@ export function TraceModal({
     const [brightness, setBrightness] = useState(0);
     const [contrast, setContrast] = useState(0);
     const [invert, setInvert] = useState(false);
-    const [deleteImage, setDeleteImage] = useState(true);
     const [traceTransparency, setTraceTransparency] = useState(false);
     const [resolution, setResolution] = useState(800);
     const [error, setError] = useState('');
@@ -214,7 +213,7 @@ export function TraceModal({
                             className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
                         >
                             <ScanLine size={20} className="text-robin-400" />
-                            Trace Bitmap
+                            Trace into shapes
                         </h2>
                         <div className="text-xs text-slate-500 dark:text-slate-400">
                             {fileName}
@@ -404,16 +403,6 @@ export function TraceModal({
                             <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                                 <input
                                     type="checkbox"
-                                    checked={deleteImage}
-                                    onChange={(e) =>
-                                        setDeleteImage(e.target.checked)
-                                    }
-                                />
-                                Delete source image
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                                <input
-                                    type="checkbox"
                                     checked={invert}
                                     onChange={(e) => {
                                         invalidate();
@@ -434,14 +423,15 @@ export function TraceModal({
                         Cancel
                     </button>
                     <button
-                        onClick={() => onImport(tracedRef.current, deleteImage)}
+                        onClick={() => onImport(tracedRef.current)}
                         disabled={working || !vectorCount}
                         className={cx(
                             'rounded-lg bg-robin-500 hover:bg-robin-600 disabled:opacity-40 text-white',
                             'px-4 py-2 text-sm font-medium touch-manipulation',
                         )}
                     >
-                        Import {vectorCount > 0 ? `(${vectorCount})` : ''}
+                        Replace bitmap{' '}
+                        {vectorCount > 0 ? `(${vectorCount})` : ''}
                     </button>
                 </footer>
             </div>

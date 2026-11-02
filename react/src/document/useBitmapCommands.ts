@@ -137,7 +137,7 @@ export function useBitmapCommands<
                     { x: placed.x, y: placed.y },
                 ],
             } as TLoop;
-            options.setBitmapImportChoice({
+            commitBitmapPlacement({
                 entry,
                 rect,
                 fileName: file.name,
@@ -323,7 +323,7 @@ export function useBitmapCommands<
         options.setStatus(
             choice.entry.surfaceMesh
                 ? `3D model ${choice.fileName} placed as a 2D heightmap. Resize/rotate it on the canvas, then add a surface CAM operation.`
-                : `Bitmap ${choice.fileName} placed — choose a raster, Wavy or Halftone toolpath.`,
+                : `Bitmap ${choice.fileName} placed.`,
         );
     };
 

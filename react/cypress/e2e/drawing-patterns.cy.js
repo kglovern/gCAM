@@ -47,7 +47,7 @@ const load = (loops = source()) =>
         { force: true },
     );
 const open = (menu = 'Mirror…') => {
-    cy.menu('Modify', menu);
+    cy.menu('Edit', menu);
     cy.contains('button', /^Apply (mirror|pattern)$/).should('be.enabled');
 };
 const length = (label, value) =>
@@ -224,7 +224,7 @@ it('rejects stale edits and invalid copy settings, and disables tools without dr
         expect(p.loops[0].points[0].x).not.to.equal(20);
     });
     load([]);
-    cy.get('button[aria-label="Modify"]').click();
+    cy.get('button[aria-label="Edit"]').click();
     for (const name of ['Mirror…', 'Rectangular pattern…', 'Circular pattern…'])
         cy.contains('[role="menuitem"]', name).should('be.disabled');
 });

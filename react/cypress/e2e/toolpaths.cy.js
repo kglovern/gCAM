@@ -2,8 +2,8 @@ describe('Image workflows', () => {
     beforeEach(() => cy.freshProject());
     it('traces a bitmap, replaces it with vectors, and machines the result', () => {
         cy.importDesign('contrast.png');
-        cy.contains('button', 'Trace into shapes').click();
-        cy.contains('button', /^Import \(/, { timeout: 30000 })
+        cy.menu('Edit', 'Trace into shapes…');
+        cy.contains('button', /^Replace bitmap \(/, { timeout: 30000 })
             .should('be.enabled')
             .click();
         cy.snapshot().then((project) => {
@@ -16,7 +16,7 @@ describe('Image workflows', () => {
     for (const label of ['Laser Raster', 'Wavy', 'Halftone']) {
         it(`imports and machines an image using ${label}`, () => {
             cy.importDesign('contrast.png');
-            cy.contains('button', 'Use as bitmap').click();
+            cy.contains(/Bitmap .+ placed/).should('exist');
             cy.snapshot().then((project) =>
                 expect(project.bitmaps).to.have.length(1),
             );

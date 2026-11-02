@@ -160,7 +160,7 @@ describe('Duplicate outline cleanup', () => {
         cy.snapshot().then((p) => {
             before = p;
         });
-        cy.menu('Modify', 'Delete duplicates…');
+        cy.menu('Edit', 'Delete duplicates…');
         cy.contains('3 duplicate shapes found', { timeout: 30000 }).should(
             'be.visible',
         );
@@ -179,7 +179,7 @@ describe('Duplicate outline cleanup', () => {
             expect(p.loops).to.deep.equal(before.loops);
             expect(p.stack).to.deep.equal(before.stack);
         });
-        cy.menu('Modify', 'Delete duplicates…');
+        cy.menu('Edit', 'Delete duplicates…');
         cy.contains('3 duplicate shapes found', { timeout: 30000 }).should(
             'be.visible',
         );
@@ -256,9 +256,9 @@ describe('Duplicate outline cleanup', () => {
         snapshot.selected = ['a'];
         snapshot.hidden = [];
         load(snapshot);
-        cy.menu('Modify', 'Repair paths…');
+        cy.menu('Edit', 'Repair paths…');
         cy.get('[aria-label="Path repair mode"]').should('be.visible');
-        cy.menu('Modify', 'Delete duplicates…');
+        cy.menu('Edit', 'Delete duplicates…');
         cy.get('[aria-label="Path repair mode"]').should('not.exist');
         cy.contains('1 duplicate shapes found', { timeout: 30000 }).should(
             'be.visible',
@@ -278,7 +278,7 @@ describe('Duplicate outline cleanup', () => {
             expect(p.loops[0].points[0].x).to.equal(101);
         });
         cy.get('[aria-label="Close duplicate review"]').click();
-        cy.menu('Modify', 'Delete duplicates…');
+        cy.menu('Edit', 'Delete duplicates…');
         cy.contains('0 duplicate shapes found', { timeout: 30000 }).should(
             'be.visible',
         );

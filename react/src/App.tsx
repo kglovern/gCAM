@@ -113,8 +113,6 @@ export default function App() {
         setEmptyStateDismissed,
         bitmapImportChoice,
         setBitmapImportChoice,
-        pendingTraceBitmap,
-        setPendingTraceBitmap,
         traceOpen,
         setTraceOpen,
         tabMode,
@@ -332,10 +330,15 @@ export default function App() {
         showToast,
     });
 
+    const traceSelection = selectedLoops();
     const traceTarget =
-        selected.length === 1 ? (selectedLoops()[0]?.bitmapId ?? null) : null;
+        selected.length === 1 &&
+        traceSelection.length === 1 &&
+        expandedSelectedIds().length === 1
+            ? (traceSelection[0].bitmapId ?? null)
+            : null;
     const traceBitmap = bitmaps.find((b) => b.id === traceTarget) ?? null;
-    const traceSource = pendingTraceBitmap?.entry ?? traceBitmap;
+    const traceSource = traceBitmap;
     const traceImg = traceSource?.img ?? null;
 
     const {
@@ -605,7 +608,7 @@ export default function App() {
         canRedo,
         canGroup,
         canUngroup,
-        traceAvailable: traceImg !== null,
+        traceAvailable: traceImg !== null && !traceSource?.surfaceMesh,
         darkMode,
         snapToGrid: grid.snap,
         fileRef,
@@ -649,8 +652,118 @@ export default function App() {
 
     const patternIds = new Set(expandedSelectedIds());
     const patternShapes = loops.filter((s) => patternIds.has(s.id));
+    const changeImageMask = (id: string, ids?: string[]) => {
+        const bitmap = bitmaps.find((b) => b.id === id);
+        if (!bitmap || bitmap.surfaceMesh)
+            throw new Error('Select a bitmap image.');
+        if (ids?.length)
+            resolveLinkedImageMask({ ...bitmap, maskSourceIds: ids }, loops);
+        if (
+            JSON.stringify(bitmap.maskSourceIds ?? []) ===
+            JSON.stringify(ids ?? [])
+        )
+            return;
+        const sources = loops.filter((l) => l.bitmapId === id),
+            affected = new Set(operationsTouchingShapes(stack, sources));
+        pushHistory();
+        setBitmaps((current) =>
+            current.map((b) =>
+                b.id === id
+                    ? {
+                          ...b,
+                          maskSourceIds: ids?.length ? [...ids] : undefined,
+                      }
+                    : b,
+            ),
+        );
+        setStack((current) => current.filter((e) => !affected.has(e)));
+        if (!ids?.length) setSelected(sources.map((l) => l.id));
+        setEditingId(null);
+        setDraftPreview([]);
+        setStatus(
+            ids?.length ? 'Image masked to shapes.' : 'Image mask released.',
+        );
+    };
+    const imageSelections = booleanLoops.filter((l) => l.bitmapId);
+    const selectedMaskImages =
+        imageSelections.length === 0 && booleanLoops.length
+            ? bitmaps.filter(
+                  (b) =>
+                      b.maskSourceIds?.length &&
+                      booleanLoops.every((l) =>
+                          b.maskSourceIds?.includes(l.id),
+                      ),
+              )
+            : [];
+    const editingImageId = !booleanLoops.length
+        ? (
+              editingEntry?.args.loops.find((l) => (l as ViewLoop).bitmapId) as
+                  | ViewLoop
+                  | undefined
+          )?.bitmapId
+        : undefined;
+    const maskImage =
+        imageSelections.length === 1
+            ? bitmaps.find(
+                  (b) => b.id === imageSelections[0].bitmapId && !b.surfaceMesh,
+              )
+            : selectedMaskImages.length === 1
+              ? selectedMaskImages[0]
+              : bitmaps.find((b) => b.id === editingImageId && !b.surfaceMesh);
+    const maskShapeIds = booleanLoops
+        .filter((l) => !l.bitmapId)
+        .map((l) => l.id);
+    let canMaskImage = false;
+    if (maskImage && imageSelections.length === 1 && maskShapeIds.length) {
+        try {
+            resolveLinkedImageMask(
+                { ...maskImage, maskSourceIds: maskShapeIds },
+                loops,
+            );
+            canMaskImage = true;
+        } catch {
+            /* Only closed, supported shapes can mask an image. */
+        }
+    }
     const toolbarProps = {
         ...baseToolbarProps,
+        ...(laserWorkspace
+            ? {
+                  canMaskImage,
+                  hasImageMask: Boolean(maskImage?.maskSourceIds?.length),
+                  onMaskImage: () => {
+                      if (!maskImage || !canMaskImage) return;
+                      try {
+                          changeImageMask(maskImage.id, maskShapeIds);
+                          baseToolbarProps.onSelectMode();
+                          setSelected(imageSelections.map((l) => l.id));
+                      } catch (e) {
+                          setStatus((e as Error).message);
+                      }
+                  },
+                  onEditMaskedImage: () => {
+                      setSelected(
+                          loops
+                              .filter((l) => l.bitmapId === maskImage?.id)
+                              .map((l) => l.id),
+                      );
+                      baseToolbarProps.onTransformMode('transform');
+                      setStatus(
+                          'Move, rotate or resize the image inside its mask.',
+                      );
+                  },
+                  onEditMaskShapes: () => {
+                      setSelected(maskImage?.maskSourceIds ?? []);
+                      baseToolbarProps.onTransformMode('transform');
+                      setStatus(
+                          'Move, rotate or resize the mask shapes on the drawing.',
+                      );
+                  },
+                  onReleaseImageMask: () => {
+                      if (maskImage) changeImageMask(maskImage.id);
+                  },
+              }
+            : {}),
         canPattern:
             patternShapes.length > 0 && patternShapes.every((s) => !s.bitmapId),
         onPattern: (kind: PatternSettings['kind']) => {
@@ -812,39 +925,7 @@ export default function App() {
     };
     const inspector = buildInspector(units);
     const toolpathRailProps: ComponentProps<typeof ToolpathRail> = {
-        onMaskLink: (id, ids) => {
-            const bitmap = bitmaps.find((b) => b.id === id);
-            if (!bitmap) throw new Error('Source image is missing.');
-            if (ids?.length)
-                resolveLinkedImageMask(
-                    { ...bitmap, maskSourceIds: ids },
-                    loops,
-                );
-            if (
-                JSON.stringify(bitmap.maskSourceIds ?? []) ===
-                JSON.stringify(ids ?? [])
-            )
-                return;
-            const sources = loops.filter((l) => l.bitmapId === id),
-                affected = new Set(operationsTouchingShapes(stack, sources));
-            pushHistory();
-            setBitmaps((current) =>
-                current.map((b) =>
-                    b.id === id
-                        ? {
-                              ...b,
-                              maskSourceIds: ids?.length ? [...ids] : undefined,
-                          }
-                        : b,
-                ),
-            );
-            setStack((current) => current.filter((e) => !affected.has(e)));
-            setEditingId(null);
-            setDraftPreview([]);
-            setStatus(
-                ids?.length ? 'Linked image mask.' : 'Image mask link removed.',
-            );
-        },
+        onMaskLink: changeImageMask,
         onFlattenImage: (commit) => {
             const next = flattenedImageDocument(
                 { loops, bitmaps, stack },
@@ -1065,6 +1146,79 @@ export default function App() {
                 showInspector();
             },
             contextActions: {
+                shortcuts: [
+                    ...(toolbarProps.canGroup
+                        ? [
+                              {
+                                  label: 'Group',
+                                  run: () => toolbarProps.onGroup?.(),
+                              },
+                          ]
+                        : []),
+                    ...(toolbarProps.canUngroup
+                        ? [
+                              {
+                                  label: 'Ungroup',
+                                  run: () => toolbarProps.onUngroup?.(),
+                              },
+                          ]
+                        : []),
+                    ...(toolbarProps.canPattern
+                        ? [
+                              {
+                                  label: 'Mirror…',
+                                  run: () => toolbarProps.onPattern('mirror'),
+                              },
+                              {
+                                  label: 'Fillet…',
+                                  run: toolbarProps.onApplyFillet,
+                              },
+                              {
+                                  label: 'Chamfer…',
+                                  run: () => toolbarProps.onApplyChamfer?.(),
+                              },
+                              {
+                                  label: 'Trim',
+                                  run: () => toolbarProps.onTrim?.(),
+                              },
+                          ]
+                        : []),
+                    ...(toolbarProps.canArrange
+                        ? [
+                              {
+                                  label: 'Arrange…',
+                                  run: () => toolbarProps.onArrange?.(),
+                              },
+                          ]
+                        : []),
+                    ...(toolbarProps.canMaskImage
+                        ? [
+                              {
+                                  label: 'Mask image to shapes',
+                                  run: () => toolbarProps.onMaskImage?.(),
+                              },
+                          ]
+                        : []),
+                    ...(toolbarProps.hasImageMask
+                        ? [
+                              {
+                                  label: 'Edit image inside mask',
+                                  run: () => toolbarProps.onEditMaskedImage?.(),
+                              },
+                              {
+                                  label: 'Edit mask shapes',
+                                  run: () => toolbarProps.onEditMaskShapes?.(),
+                              },
+                              {
+                                  label: 'Release image mask',
+                                  run: () =>
+                                      toolbarProps.onReleaseImageMask?.(),
+                              },
+                          ]
+                        : []),
+                ],
+                trace: () => setTraceOpen(true),
+                canTrace: traceImg !== null && !traceSource?.surfaceMesh,
                 duplicate: handleDuplicateSelected,
                 delete: handleDeleteSelected,
                 transform: (mode) => {
@@ -1494,8 +1648,6 @@ export default function App() {
 
                 <AppWorkspace model={workspaceModel} />
                 <AppModalLayer
-                    stock={stock}
-                    laser={sideTab === 'laser'}
                     units={units}
                     machineSetupOpen={machineSetupOpen}
                     machineProfileId={machineProfileId}
@@ -1532,7 +1684,6 @@ export default function App() {
                         updateSurfaceSetupOrientation
                     }
                     setBitmapImportChoice={setBitmapImportChoice}
-                    setPendingTraceBitmap={setPendingTraceBitmap}
                     traceOpen={traceOpen}
                     setTraceOpen={setTraceOpen}
                     traceSource={traceSource}

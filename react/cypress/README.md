@@ -1,6 +1,6 @@
 # Browser workflows
 
-Run from `react` with Node 20.19+, 22, or 24 and Yarn 1:
+Run from `react` with Node 24 (or a supported Node 22/20.19+ release) and Yarn 1:
 
 ```sh
 yarn install --frozen-lockfile
@@ -8,28 +8,44 @@ yarn test:e2e
 yarn cy:open
 ```
 
-Both commands start a separate Vite server at `http://127.0.0.1:5180` and stop it when Cypress exits. The runner rejects an occupied port. Run one suite at a time. To run one spec:
+Both commands start a separate Vite server at `http://127.0.0.1:5180` and stop it when Cypress exits. The runner rejects an occupied port. Run one Cypress suite at a time; it does not use the development app at port 5174.
+
+To run one spec, or several comma-separated specs:
 
 ```sh
-node scripts/e2e.mjs cypress/e2e/editing.cy.js
+yarn test:e2e cypress/e2e/laser-mask-edit.cy.js
+yarn test:e2e cypress/e2e/laser-mask-edit.cy.js,cypress/e2e/laser-mask-links.cy.js
 ```
 
-Tests clear browser storage on their own origin before each workflow. They never use the working project at port 5176. Machining workflows seed a flat end mill, ball end mill and 60-degree V-bit into the test browser's tool library. The fresh-library workflow starts without cutters, configures all three through the UI, and verifies persistence after reload.
+The equivalent direct runner is `node scripts/e2e.mjs`. Separate performance specs live in `cypress/benchmarks/` and are enabled when explicitly passed to that runner. Benchmarks that inspect compiled workers require `yarn build` first. Read the individual benchmark's setup and assertions before interpreting its results.
 
-| Workflow | Checks |
+## Isolation and assertions
+
+`cy.freshProject()` resets IndexedDB and local storage on the test origin, completes machine setup and starts a new project. By default it seeds flat, ball and V-bit tool slots; tests can request an empty library or different selection behaviour. Fixtures are stored in `fixtures/` and do not require user files.
+
+Shared commands in `support/e2e.js` use the real menus, form fields and canvas camera transform. Geometry and persistence checks read exported `.gcam.json` snapshots; machining checks also inspect toolpath results and downloaded G-code. Controller profiles determine the extension, commonly `.gcode` for grblHAL/Grbl. Use `cy.task('clearDownloads')` before starting a new download assertion so a previous export cannot satisfy it.
+
+Some focused browser specs import calculation modules to compare native image rendering or exercise workers. These supplement the UI workflows; they are not physical machine tests. Unexpected application exceptions fail the workflows.
+
+## Coverage
+
+| Area | Examples |
 | --- | --- |
-| Image → trace → vectors | Import, replacement of the bitmap, selected traced paths, machining and G-code download |
-| Image effects | Laser raster, Wavy and Halftone with retained bitmap, nonempty paths and G-code |
-| STL / OBJ | Units confirmation, retained mesh, clearing, surface finishing and waterline finishing |
-| Vectors | Outside, Inside, Pocket, Engrave, Chamfer, V-Carve, Countersink, Texture Fill and Laser Cut |
-| Drawing | Grid, endpoints, midpoints, guide placement and snapping, circle, polygon, arc, Bezier, polyline and text |
-| Editing | Plain/Ctrl selection, empty click, marquee, move drag, dimensions, zoom, fit, clone, delete, undo and redo |
-| Grouping / nesting | Shared group identity, ungrouping, sheet bounds and nonoverlapping placements |
-| Modify | Union, difference, intersection and XOR areas, segment trim, offset bounds, fillet, chamfer and dogbone |
-| Config | Units, machine, grid style, toast duration, exported settings and persistence |
+| Milling | Profiles, pockets, engraving, chamfer width/tip offset, V-carving, paired clearing/finishing, tabs, image effects and 3D surface operations |
+| Rotary | Profile/model preparation, starter profiles, stock supports, fits, toolpath generation and export |
+| Experimental Laser | Vector cuts/fills, raster image modes, image adjustments, masks, bridges, overscan, materials/calibration jobs, operation controls and export |
+| Drawing and editing | Shape/text tools, rulers/guides, snapping, selection, transforms, Mirror, patterns, Arrange, repair, simplification, duplicate removal and nesting |
+| Layers and tools | Import metadata, visibility/selection, tool catalogue filters and first-install tool setup |
+| Persistence and reliability | Project/config exports, reload/recovery, shared image sources, mask links, cancellation and rejection of obsolete results |
+| Preview | Cut-depth cues, laser power colours, rendering/fit checks, playback/seek/reset and viewport changes |
+| Output and integration | Controller presets, arc output, numeric/motion checks, individual exports and gSender handoff |
 
-Geometry assertions read actual exported `.gcam.json` files. Machining workflows also download `.nc` files and check motion commands, program termination and invalid numeric values. Canvas actions use pointer events mapped through the canvas's rendered `data-camera` transform; they do not call application handlers or manipulate React state. Application exceptions fail tests.
+Some specs cover saved or deferred compatibility paths, including hidden Rotary Laser behaviour. Their presence does not mean those features are exposed as supported user workflows.
 
-Fixtures are committed and need no user files: a 32 × 32 pixel black-and-white PNG, millimetre SVG shapes and crossing segments, and matching closed 20 × 20 × 10 mm pyramid STL/OBJ reliefs. The relief's sloped faces exercise all three surface strategies. Downloads and failure screenshots are ignored by Git; CI uploads failure screenshots.
+Fixtures include bitmap images, embedded-image SVGs, layered/vector artwork, DXFs, STL/OBJ models and saved projects. The test runner summary is the current source for spec/test totals and skips; do not maintain a duplicate count here.
 
-Simulation is excluded. The suite does not invoke simulation controls or validate stock-removal rendering. This is a regression suite for the listed workflows, not exhaustive coverage of every parameter combination or machine controller.
+## CI and limits
+
+[The main CI workflow](../../.github/workflows/ci.yml) calls [Browser workflows](../../.github/workflows/browser-tests.yml), which distributes sorted `e2e/*.cy.js` specs across four shards with fail-fast disabled. Failure artifacts include screenshots, any enabled videos and selected image-comparison reports. Downloads and screenshots are local/generated files, not committed fixtures.
+
+Preview rendering is tested in selected workflows. This does not establish exhaustive stock-removal accuracy, collision safety, every controller/parameter combination, physical Laser readiness or material calibration. Performance cases measure their stated workloads; they are not general speed comparisons with other applications.

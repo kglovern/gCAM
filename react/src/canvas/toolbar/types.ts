@@ -86,6 +86,12 @@ export interface CanvasToolbarProps {
     canUndo?: boolean;
     canRedo?: boolean;
     onImportFile?: () => void;
+    canMaskImage?: boolean;
+    hasImageMask?: boolean;
+    onMaskImage?(): void;
+    onEditMaskedImage?(): void;
+    onEditMaskShapes?(): void;
+    onReleaseImageMask?(): void;
     onSelectOpenShapes?(): void;
     onRepairPaths?(): void;
     onArrange?(): void;

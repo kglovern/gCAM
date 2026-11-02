@@ -15,8 +15,6 @@ export function useDrawingWorkspaceState() {
     const [emptyStateDismissed, setEmptyStateDismissed] = useState(false);
     const [bitmapImportChoice, setBitmapImportChoice] =
         useState<BitmapImportChoice<ViewLoop> | null>(null);
-    const [pendingTraceBitmap, setPendingTraceBitmap] =
-        useState<BitmapImportChoice<ViewLoop> | null>(null);
     const [traceOpen, setTraceOpen] = useState(false);
     const [tabMode, setTabMode] = useState(false);
     const [drawTool, setDrawTool] = useState<DrawTool>(null);
@@ -42,8 +40,6 @@ export function useDrawingWorkspaceState() {
         setEmptyStateDismissed,
         bitmapImportChoice,
         setBitmapImportChoice,
-        pendingTraceBitmap,
-        setPendingTraceBitmap,
         traceOpen,
         setTraceOpen,
         tabMode,

@@ -627,7 +627,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     const { laserOptions, maskLinkError } = useMemo(() => {
         let error = '';
         let options: LaserOptions = storedLaserOptions.maskSourceIds?.length
-            ? { ...storedLaserOptions, maskSourceIds: [] }
+            ? { ...storedLaserOptions, maskSourceIds: [], imageMask: [] }
             : storedLaserOptions;
         if (selectedRasterImage?.maskSourceIds?.length) {
             try {

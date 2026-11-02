@@ -59,14 +59,14 @@ it('links source edits to canvas/raster, preserves Milling, reloads and blocks s
             { force: true },
         );
     });
-    cy.contains('button', 'Engrave image').click();
+    cy.contains(/Bitmap .+ placed/).should('exist');
     cy.menu('Draw', 'Rectangle');
     cy.worldClick(30, 30);
     cy.worldClick(70, 70);
     cy.get('[aria-label="Select shapes"]').click();
     cy.get('[aria-label="Select layer Default"]').click();
     cy.contains('button', /^Laser Raster$/).click();
-    cy.contains('button', 'Link selected shapes as mask').click();
+    cy.contains('button', 'Mask image to selected shapes').click();
     cy.contains('Linked to 1 shape.').should('exist');
     luminance(25, 50).should('be.greaterThan', 150);
     luminance(50, 50).should('be.lessThan', 150);

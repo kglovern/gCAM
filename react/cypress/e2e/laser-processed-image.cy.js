@@ -5,7 +5,7 @@ describe('Processed laser bitmap export', () => {
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
         cy.importDesign('laser-image-modes.png');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser feed"]').type('{selectall}1200').blur();
         cy.get('[aria-label="Laser power percent"]')
@@ -73,9 +73,9 @@ describe('Processed laser bitmap export', () => {
                 { force: true },
             ),
         );
-        cy.contains('Embedded size: 40mm × 40mm').should('be.visible');
+        cy.contains('Bitmap processed.png placed.').should('exist');
         cy.screenshot('laser-png-embedded-size', { capture: 'viewport' });
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.get('[aria-label="Pixel pass-through"]').check();
         cy.get('[aria-label="Resolution (DPI)"]')
             .should('be.disabled')
@@ -95,9 +95,9 @@ describe('Processed laser bitmap export', () => {
                 { force: true },
             ),
         );
-        cy.contains('button', 'Use as bitmap').should('be.visible');
+        cy.contains('Bitmap processed.png placed.').should('exist');
         cy.contains('Embedded size:').should('not.exist');
-        cy.contains('button', 'Use as bitmap').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.snapshot().then((p) => {
             expect(p.bitmaps[0].w).to.be.closeTo(80, 1e-9);
             expect(p.bitmaps[0].h).to.be.closeTo(80, 1e-9);

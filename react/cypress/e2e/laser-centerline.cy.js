@@ -67,23 +67,23 @@ describe('Laser center-line tracing', () => {
                 { force: true },
             );
         });
-        cy.get('[aria-label="Trace bitmap"]').click();
+        cy.menu('Edit', 'Trace into shapes…');
         cy.get('[aria-label="Trace mode"]').select('centerline');
         cy.get('[aria-label="Close trace bitmap"]').click();
         cy.snapshot().then((p) => {
             expect(p.loops).to.have.length(1);
             expect(p.bitmaps).to.have.length(1);
         });
-        cy.get('[aria-label="Trace bitmap"]').click();
+        cy.menu('Edit', 'Trace into shapes…');
         cy.get('[aria-label="Trace mode"]').select('centerline');
         cy.get('[aria-label="Smoothness value"]').should('not.exist');
         cy.get('[role="dialog"]')
-            .contains('button', /^Import \(5\)/, { timeout: 30000 })
+            .contains('button', /^Replace bitmap \(5\)/, { timeout: 30000 })
             .should('be.enabled');
-        cy.contains('label', 'Delete source image').find('input').uncheck();
+        cy.contains('label', 'Delete source image').should('not.exist');
         cy.screenshot('laser-centerline-trace', { capture: 'viewport' });
         cy.get('[role="dialog"]')
-            .contains('button', /^Import \(5\)/)
+            .contains('button', /^Replace bitmap \(5\)/)
             .click();
         const closed = (points) =>
             Math.hypot(
@@ -119,7 +119,7 @@ describe('Laser center-line tracing', () => {
                 1,
             );
             expect(traces[0].groupId).to.be.a('string');
-            expect(p.bitmaps).to.have.length(1);
+            expect(p.bitmaps).to.have.length(0);
             traceLength = length(traces);
             originalTraces = traces;
         });
@@ -140,7 +140,7 @@ describe('Laser center-line tracing', () => {
                 );
                 expect(moved.points[0].y).to.equal(prior.points[0].y);
             }
-            expect(p.bitmaps[0].x).to.equal(100);
+            expect(p.bitmaps).to.have.length(0);
         });
         cy.get('[aria-label="Undo"]').click();
         cy.contains('Calculating toolpath').should('not.exist');

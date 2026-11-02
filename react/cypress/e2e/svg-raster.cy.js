@@ -141,7 +141,7 @@ describe('SVG appearance raster import', () => {
         cy.contains('h2', 'Open SVG as image').should('be.visible');
         cy.get('[aria-label="SVG image DPI"]').should('have.value', '254');
         cy.contains('button', /^Open image$/).click();
-        cy.contains('button', 'Engrave image').should('be.visible').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser power percent"]')
             .type('{selectall}40')

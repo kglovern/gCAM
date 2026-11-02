@@ -75,7 +75,7 @@ describe('Laser planning cancellation', () => {
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
         cy.importDesign('contrast.png');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser power percent"]').type('{selectall}50');
         cy.contains('button', /^Add Toolpath/).click({

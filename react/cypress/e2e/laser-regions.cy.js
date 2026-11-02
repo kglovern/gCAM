@@ -9,7 +9,7 @@ describe('Laser image regions', () => {
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
         cy.importDesign('contrast.png');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
     });
     it('saves a nondestructive crop and restores the whole image on reset', () => {
         cy.snapshot().then((p) =>
@@ -103,7 +103,7 @@ describe('Laser image regions', () => {
         cy.get('[aria-label="Select shapes"]').click();
         cy.get('[aria-label="Select layer Default"]').click();
         cy.contains('button', /^Laser Raster$/).click();
-        cy.contains('button', 'Use selected shapes as mask')
+        cy.contains('button', 'Mask image to selected shapes')
             .should('be.enabled')
             .click();
         cy.contains('button', /^Change$/).click();

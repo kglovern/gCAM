@@ -7,25 +7,20 @@ import { ToolbarCommands } from './ToolbarCommands';
 import type { CanvasToolbarProps } from './types';
 
 describe('ToolbarCommands', () => {
-    it('calls delete without forwarding the click event as selected ids', () => {
-        const calls: unknown[][] = [];
-        const onDeleteSelected = (...args: unknown[]) => calls.push(args);
+    it('keeps selection commands out of the toolbar', () => {
         const props = {
             activeTool: 'select',
             drawTool: 'line',
             transformMode: null,
             hasSelection: true,
             hasGeometry: true,
-            onDeleteSelected,
         } as unknown as CanvasToolbarProps;
 
         render(<ToolbarCommands props={props} open={null} close={() => {}} />);
 
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Delete selection' }),
-        );
-
-        expect(calls).toEqual([[]]);
+        expect(
+            screen.queryByRole('button', { name: 'Delete selection' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Transform selection' }),
         ).toBeInTheDocument();

@@ -35,7 +35,7 @@ describe('Image adjustment responsiveness', () => {
                 { force: true },
             );
         });
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.contains('label', 'Resolution (DPI)')
             .find('input')

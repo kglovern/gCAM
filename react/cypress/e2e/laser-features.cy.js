@@ -155,7 +155,7 @@ describe('Laser CAM features', () => {
         cy.get('[aria-label="Laser"]').click();
         cy.importDesign('contrast.png');
         cy.log('image imported');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.log('bitmap placed');
         cy.contains('button', /^Laser Raster$/).should('be.visible');
         cy.contains('summary', 'Lens / setup').click();

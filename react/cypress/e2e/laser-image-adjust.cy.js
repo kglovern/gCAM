@@ -12,7 +12,7 @@ function setup() {
     cy.freshProject({ tools: false });
     cy.get('[aria-label="Laser"]').click();
     cy.importDesign('laser-image-modes.png');
-    cy.contains('button', 'Engrave image').click();
+    cy.contains(/Bitmap .+ placed/).should('exist');
     cy.contains('button', /^Change$/).click();
     cy.get('[aria-label="Laser power percent"]').type('{selectall}25').blur();
     cy.contains('label', /^Resolution/)

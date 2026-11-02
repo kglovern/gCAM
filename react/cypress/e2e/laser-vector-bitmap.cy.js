@@ -161,7 +161,7 @@ describe('Selected artwork to bitmap', () => {
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
         importSnapshot(base());
-        cy.menu('Modify', 'Convert to bitmap…');
+        cy.menu('Edit', 'Convert to bitmap…');
         cy.get('[aria-label="Bitmap render"]').select('fill');
         cy.get('[aria-label="Bitmap DPI"]').type('{selectall}100').blur();
         cy.get('img[alt="Bitmap preview"]', { timeout: 30000 }).should(
@@ -181,7 +181,7 @@ describe('Selected artwork to bitmap', () => {
             expect(p.loops).to.have.length(3);
             expect(p.bitmaps).to.have.length(0);
         });
-        cy.menu('Modify', 'Convert to bitmap…');
+        cy.menu('Edit', 'Convert to bitmap…');
         cy.get('[aria-label="Bitmap render"]').select('fill');
         cy.get('[aria-label="Bitmap DPI"]').type('{selectall}100').blur();
         cy.get('img[alt="Bitmap preview"]', { timeout: 30000 }).should(
@@ -193,9 +193,11 @@ describe('Selected artwork to bitmap', () => {
             expect(p.bitmaps).to.have.length(1);
             importSnapshot(p);
         });
-        cy.get('[aria-label="Trace bitmap"]', { timeout: 30000 }).should(
-            'be.visible',
+        cy.get('button[aria-label="Edit"]').click();
+        cy.contains('[role="menuitem"]', 'Trace into shapes…').should(
+            'be.enabled',
         );
+        cy.get('button[aria-label="Edit"]').click();
         cy.contains('button', /^Laser Raster$/).click();
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser power percent"]')
@@ -227,7 +229,7 @@ describe('Selected artwork to bitmap', () => {
         ];
         snapshot.selected = ['open'];
         importSnapshot(snapshot);
-        cy.menu('Modify', 'Convert to bitmap…');
+        cy.menu('Edit', 'Convert to bitmap…');
         cy.get('[aria-label="Bitmap render"]').select('fill');
         cy.contains('[role="alert"]', 'Fill requires closed shapes').should(
             'be.visible',
@@ -279,7 +281,7 @@ describe('Selected artwork to bitmap', () => {
                 original = { ...base(), loops, stack, selected: ['a', 'b'] };
             })
             .then(() => importSnapshot(original));
-        cy.menu('Modify', 'Convert to bitmap…');
+        cy.menu('Edit', 'Convert to bitmap…');
         cy.get('[aria-label="Bitmap render"]').select('operations');
         cy.get('[aria-label="Bitmap DPI"]').type('{selectall}127').blur();
         cy.get('img[alt="Bitmap preview"]', { timeout: 30000 })

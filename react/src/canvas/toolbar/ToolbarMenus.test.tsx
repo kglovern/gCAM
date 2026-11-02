@@ -2,6 +2,73 @@ import { jest } from '@jest/globals';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ToolbarMenus } from './ToolbarMenus';
 import type { CanvasToolbarProps } from './types';
+
+test.each([false, true])(
+    'trace requires exactly one traceable bitmap (%s)',
+    (available) => {
+        const onTrace = jest.fn();
+        render(
+            <ToolbarMenus
+                props={
+                    {
+                        showTrace: available,
+                        onTrace,
+                    } as unknown as CanvasToolbarProps
+                }
+                openAction={jest.fn()}
+                close={jest.fn()}
+            />,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        const command = screen.getByRole('menuitem', {
+            name: 'Trace into shapes…',
+        });
+        if (available) expect(command).toBeEnabled();
+        else expect(command).toBeDisabled();
+        fireEvent.click(command);
+        expect(onTrace).toHaveBeenCalledTimes(available ? 1 : 0);
+    },
+);
+
+test.each([false, true])(
+    'mask commands require an eligible selection (%s)',
+    (eligible) => {
+        const onMaskImage = jest.fn(),
+            onReleaseImageMask = jest.fn();
+        render(
+            <ToolbarMenus
+                props={
+                    {
+                        onMaskImage,
+                        onReleaseImageMask,
+                        canMaskImage: eligible,
+                        hasImageMask: eligible,
+                    } as unknown as CanvasToolbarProps
+                }
+                openAction={jest.fn()}
+                close={jest.fn()}
+            />,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        const apply = screen.getByRole('menuitem', {
+                name: 'Mask image to shapes',
+            }),
+            release = screen.getByRole('menuitem', {
+                name: 'Release image mask',
+            });
+        if (eligible) {
+            expect(apply).toBeEnabled();
+            expect(release).toBeEnabled();
+        } else {
+            expect(apply).toBeDisabled();
+            expect(release).toBeDisabled();
+        }
+        fireEvent.click(apply);
+        fireEvent.click(release);
+        expect(onMaskImage).toHaveBeenCalledTimes(eligible ? 1 : 0);
+        expect(onReleaseImageMask).toHaveBeenCalledTimes(eligible ? 1 : 0);
+    },
+);
 test.each([false, true])(
     'Arrange requires independent selected objects (%s)',
     (eligible) => {
@@ -18,7 +85,7 @@ test.each([false, true])(
                 close={jest.fn()}
             />,
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Modify' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
         const item = screen.getByRole('menuitem', { name: 'Arrange…' });
         if (eligible) expect(item).toBeEnabled();
         else expect(item).toBeDisabled();
@@ -43,7 +110,7 @@ test.each([0, 1, 2])(
                 close={jest.fn()}
             />,
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Modify' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
         for (const [name, minimum] of [
             ['Combine / Subtract…', 2],
             ['Offset…', 1],
@@ -73,6 +140,9 @@ test('orders file actions with separators around project actions and G-code expo
         <ToolbarMenus props={props} openAction={jest.fn()} close={jest.fn()} />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'File' }));
+    expect(
+        screen.queryByRole('menuitem', { name: /Trace images to SVG/i }),
+    ).not.toBeInTheDocument();
 
     const fileButton = screen.getByRole('button', { name: 'File' });
     const menu = fileButton.parentElement?.querySelector('[role="menu"]');
@@ -100,7 +170,7 @@ test('Modify stays highlighted while a corner editing tool is active', () => {
             close={jest.fn()}
         />,
     );
-    expect(screen.getByRole('button', { name: 'Modify' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute(
         'aria-pressed',
         'true',
     );
@@ -137,11 +207,45 @@ test.each([false, true])(
                 close={jest.fn()}
             />,
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Modify' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
         const item = screen.getByRole('menuitem', { name: 'Simplify paths…' });
         if (eligible) expect(item).toBeEnabled();
         else expect(item).toBeDisabled();
         fireEvent.click(item);
         expect(onSimplifyPaths).toHaveBeenCalledTimes(eligible ? 1 : 0);
+    },
+);
+
+test.each([false, true])(
+    'Edit commands respect selection (%s)',
+    (hasSelection) => {
+        const onDeleteSelected = jest.fn(),
+            onDuplicate = jest.fn(),
+            onTrim = jest.fn();
+        render(
+            <ToolbarMenus
+                props={
+                    {
+                        hasSelection,
+                        hasGeometry: hasSelection,
+                        onDeleteSelected,
+                        onDuplicate,
+                        onTrim,
+                    } as unknown as CanvasToolbarProps
+                }
+                openAction={jest.fn()}
+                close={jest.fn()}
+            />,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        for (const name of ['Trim', 'Clone', 'Delete']) {
+            const item = screen.getByRole('menuitem', { name });
+            if (hasSelection) expect(item).toBeEnabled();
+            else expect(item).toBeDisabled();
+            fireEvent.click(item);
+        }
+        expect(onTrim.mock.calls).toEqual(hasSelection ? [[]] : []);
+        expect(onDuplicate.mock.calls).toEqual(hasSelection ? [[]] : []);
+        expect(onDeleteSelected.mock.calls).toEqual(hasSelection ? [[]] : []);
     },
 );

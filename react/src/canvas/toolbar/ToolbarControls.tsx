@@ -19,7 +19,7 @@ export function ToolbarSeparator() {
     return (
         <span
             aria-hidden="true"
-            className="mx-0 xl:mx-1 h-6 w-px bg-slate-200 dark:bg-robin-900"
+            className="mx-0 md:mx-1 h-6 w-px bg-slate-200 dark:bg-robin-900"
         />
     );
 }
@@ -130,9 +130,9 @@ export function ToolbarMenu({
                     inline
                         ? 'h-11 w-full justify-start gap-2 px-3 text-sm'
                         : [
-                              'h-10 justify-center gap-0 px-0 text-sm xl:gap-1.5 xl:px-2.5',
-                              wide && 'xl:w-auto',
-                              iconOnly ? 'w-10 xl:px-0' : 'w-10 xl:w-auto',
+                              'h-10 justify-center gap-0 px-0 text-sm md:gap-1.5 md:px-2.5',
+                              wide && 'md:w-auto',
+                              iconOnly ? 'w-10 md:px-0' : 'w-10 md:w-auto',
                           ],
                 )}
             >
@@ -141,7 +141,7 @@ export function ToolbarMenu({
                     <span>{label}</span>
                 ) : (
                     !iconOnly && (
-                        <span className="hidden xl:inline">{label}</span>
+                        <span className="hidden md:inline">{label}</span>
                     )
                 )}
             </button>

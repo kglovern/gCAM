@@ -13,6 +13,9 @@ import type { TransformMode } from '../lib/transform';
 import type { CanvasStageProps } from './CanvasStage.types';
 
 export interface VectorContextActions {
+    shortcuts?: { label: string; run(): void }[];
+    trace?(): void;
+    canTrace?: boolean;
     duplicate(): void;
     delete(): void;
     transform(mode: TransformMode): void;
@@ -75,6 +78,19 @@ export function VectorContextMenu({
                   { label: 'Delete', run: () => actions.delete() },
               ]
             : []),
+        ...(actions?.trace &&
+        selected.some((id) =>
+            loops.some((loop) => loop.id === id && loop.bitmapId),
+        )
+            ? [
+                  {
+                      label: 'Trace into shapes…',
+                      run: () => actions.trace?.(),
+                      disabled: !actions.canTrace,
+                  },
+              ]
+            : []),
+        ...(actions?.shortcuts ?? []),
         ...(onProperties
             ? [
                   {
@@ -153,7 +169,7 @@ export function VectorContextMenu({
                 setPosition({
                     x: Math.max(
                         0,
-                        Math.min(event.clientX - rect.left, rect.width - 140),
+                        Math.min(event.clientX - rect.left, rect.width - 208),
                     ),
                     y: Math.max(
                         0,
@@ -195,17 +211,24 @@ export function VectorContextMenu({
                             ]?.focus();
                         }
                     }}
-                    style={{ left: position.x, top: position.y }}
-                    className="absolute z-50 w-36 rounded border border-slate-300 bg-white p-1 shadow-lg max-h-full overflow-y-auto dark:border-robin-900 dark:bg-dark-lighter"
+                    style={{
+                        left: position.x,
+                        top: position.y,
+                        maxHeight: `calc(100% - ${position.y}px)`,
+                    }}
+                    className="absolute z-50 w-52 rounded border border-slate-300 bg-white p-1 shadow-lg max-h-full overflow-y-auto dark:border-robin-900 dark:bg-dark-lighter"
                 >
                     {items.map((item, index) => (
                         <Fragment key={item.label}>
-                            {item.label === 'Properties' && index > 0 && (
-                                <div
-                                    role="separator"
-                                    className="my-1 border-t border-slate-200 dark:border-robin-900"
-                                />
-                            )}
+                            {(item.label === actions?.shortcuts?.[0]?.label ||
+                                item.label === 'Properties' ||
+                                item.label === 'Trace into shapes…') &&
+                                index > 0 && (
+                                    <div
+                                        role="separator"
+                                        className="my-1 border-t border-slate-200 dark:border-robin-900"
+                                    />
+                                )}
                             <button
                                 key={item.label}
                                 autoFocus={

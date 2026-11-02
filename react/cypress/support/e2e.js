@@ -84,6 +84,8 @@ Cypress.Commands.add('importDesign', (file) => {
             );
         });
     }
+    if (/\.(png|jpe?g|webp|bmp|gif)$/i.test(file))
+        cy.contains(`Bitmap ${file} placed.`).should('exist');
 });
 Cypress.Commands.add('field', (text, value) => {
     cy.contains('label', text)

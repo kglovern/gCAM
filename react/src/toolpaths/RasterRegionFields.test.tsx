@@ -34,7 +34,7 @@ test('a mask is normalized against image rotation and can be removed without del
         imageCrop: { left: 0, bottom: 0, right: 1, top: 1 },
     });
     expect(
-        screen.getByRole('button', { name: 'Use selected shapes as mask' }),
+        screen.getByRole('button', { name: 'Mask image to selected shapes' }),
     ).toBeDisabled();
 });
 
@@ -62,7 +62,7 @@ test('broken links remain removable and selected closed shapes can create a live
         />,
     );
     fireEvent.click(
-        screen.getByRole('button', { name: 'Link selected shapes as mask' }),
+        screen.getByRole('button', { name: 'Mask image to selected shapes' }),
     );
     expect(onMaskLink).toHaveBeenCalledWith(['replacement']);
     fireEvent.click(screen.getByRole('button', { name: 'Remove mask' }));

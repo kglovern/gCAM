@@ -103,9 +103,9 @@ describe('JPEG physical dimensions and orientation', () => {
                 { force: true },
             ),
         );
-        cy.contains('Embedded size: 20mm × 40mm').should('be.visible');
+        cy.contains('Bitmap rotated-photo.jpg placed.').should('exist');
         cy.screenshot('laser-jpeg-embedded-size', { capture: 'viewport' });
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser power percent"]')
             .type('{selectall}25')

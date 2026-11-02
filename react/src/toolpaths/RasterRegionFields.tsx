@@ -117,11 +117,14 @@ export function RasterRegionFields({
                 <button
                     type="button"
                     disabled={!mask}
-                    title="Select one image and closed shapes together, then choose Laser Raster."
+                    title="Select one image and closed shapes together, or choose Mask image to shapes in the Edit menu."
                     onClick={() =>
                         mask &&
                         (() => {
-                            onMaskLink?.();
+                            if (onMaskLink && maskShapeIds?.length) {
+                                onMaskLink(maskShapeIds);
+                                return;
+                            }
                             onChange({
                                 ...options,
                                 imageMask: mask,
@@ -133,27 +136,19 @@ export function RasterRegionFields({
                     }
                     className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40 dark:border-robin-900"
                 >
-                    Use selected shapes as mask
+                    Mask image to selected shapes
                 </button>
-                {onMaskLink && (
-                    <button
-                        type="button"
-                        disabled={!mask || !maskShapeIds?.length}
-                        className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40 dark:border-robin-900"
-                        onClick={() => onMaskLink(maskShapeIds)}
-                    >
-                        Link selected shapes as mask
-                    </button>
-                )}
-                {Boolean(options.imageMask?.length) && image?.dataUrl && (
-                    <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 dark:border-robin-900"
-                        onClick={() => setEditing(true)}
-                    >
-                        Edit mask…
-                    </button>
-                )}
+                {!linkIds?.length &&
+                    Boolean(options.imageMask?.length) &&
+                    image?.dataUrl && (
+                        <button
+                            type="button"
+                            className="rounded border border-slate-300 px-2 py-1 dark:border-robin-900"
+                            onClick={() => setEditing(true)}
+                        >
+                            Edit saved mask…
+                        </button>
+                    )}
                 {(Boolean(options.imageMask?.length) ||
                     Boolean(linkIds?.length)) && (
                     <button
@@ -182,13 +177,13 @@ export function RasterRegionFields({
             {Boolean(linkIds?.length) && (
                 <p className="text-[10px] text-slate-500">
                     Linked to {linkIds?.length}{' '}
-                    {linkIds?.length === 1 ? 'shape' : 'shapes'}. Independent
-                    mask editing detaches the link.
+                    {linkIds?.length === 1 ? 'shape' : 'shapes'}. Use the Edit
+                    menu to edit the image or mask shapes on the drawing.
                 </p>
             )}
             <p className="text-[10px] text-slate-500">
-                Original image is retained. Edit the mask independently, or
-                reapply selected shapes to replace it.
+                Original image is retained. Removing the mask restores the full
+                image.
             </p>
         </section>
     );

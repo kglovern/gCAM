@@ -4,7 +4,7 @@ describe('Large flat laser raster', () => {
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
         cy.importDesign('contrast.png');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser power percent"]').type('{selectall}50');
         cy.get('[aria-label="Resolution (DPI)"]')

@@ -40,7 +40,7 @@ const base = () => ({
     fileName: 'Arrange artwork',
 });
 const open = () => {
-    cy.menu('Modify', 'Arrange…');
+    cy.menu('Edit', 'Arrange…');
     cy.contains('2 of 3 shapes or groups will move', { timeout: 30000 }).should(
         'be.visible',
     );
@@ -152,7 +152,7 @@ it('stages alignment/distribution with group holes, targeted job cleanup, histor
     });
     cy.get('[aria-label="Redo"]').click();
     cy.snapshot().then((p) => expect(p.loops).to.deep.equal(arranged.loops));
-    cy.menu('Modify', 'Arrange…');
+    cy.menu('Edit', 'Arrange…');
     cy.get('[aria-label="Arrangement action"]').select('spaceY');
     cy.contains('1 of 3 shapes or groups will move', { timeout: 30000 }).should(
         'be.visible',
@@ -228,7 +228,7 @@ it('moves rotated image pixels and placement together while retaining the source
         };
         load(source);
     });
-    cy.menu('Modify', 'Arrange…');
+    cy.menu('Edit', 'Arrange…');
     cy.get('[aria-label="Arrangement action"]').select('bottom');
     cy.contains('1 of 2 shapes or groups will move', { timeout: 30000 }).should(
         'be.visible',
@@ -263,7 +263,7 @@ it('keeps hidden group members together and rejects stale arrangement after draw
         expect(saved.loops[1].points[0]).to.deep.equal({ x: 260, y: 110 });
         expect(saved.hidden).to.deep.equal(['hole']);
     });
-    cy.menu('Modify', 'Arrange…');
+    cy.menu('Edit', 'Arrange…');
     cy.get('[aria-label="Arrangement action"]').select('packX');
     cy.contains('2 of 3 shapes or groups will move', { timeout: 30000 }).should(
         'be.visible',

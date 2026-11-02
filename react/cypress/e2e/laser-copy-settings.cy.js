@@ -4,7 +4,7 @@ describe('Laser operation settings transfer', () => {
         cy.freshProject({ tools: false });
         cy.get('[aria-label="Laser"]').click();
         cy.importDesign('laser-image-modes.png');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.contains('button', /^Change$/).click();
         cy.get('[aria-label="Laser feed"]').type('{selectall}1500').blur();
         cy.get('[aria-label="Laser power percent"]')
@@ -32,7 +32,7 @@ describe('Laser operation settings transfer', () => {
             original = p.stack[0];
         });
         cy.importDesign('contrast.png');
-        cy.contains('button', 'Engrave image').click();
+        cy.contains(/Bitmap .+ placed/).should('exist');
         cy.get('[aria-label="Crop left percent"]').type('{selectall}25').blur();
         cy.get('[aria-label="Crop right percent"]')
             .type('{selectall}75')

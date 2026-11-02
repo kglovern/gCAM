@@ -17,6 +17,14 @@
 - `toolpaths/` owns CAM form/UI state. `tools/` owns the cutter library UI.
 - `cam/` owns operation contracts, operation modules, toolpath generation,
   texture geometry, tabs, and G-code emission.
+- `gcode/` owns controller output profiles/templates, export coordination,
+  and program timing/playback preparation. `cam/gcode/` contains the lower-level
+  motion/program emitters.
+- `rotary/` owns rotary stock, profile/model preparation, CAM and preview.
+- `layers/` owns layer identity, import metadata and layer controls.
+- `platform/` owns browser/native file delivery, startup and updates;
+  `integrations/` owns gSender handoff. Native shells and the file bridge live
+  outside the React app in `packaging/`.
 - `geometry/` owns reusable pure geometry primitives. `engine/` owns workers,
   rendering integrations, font loading, and low-level calculation adapters.
 - `components/` holds reusable presentational controls only; they request
@@ -26,15 +34,31 @@
 
 ## Persistence
 
-Portable `.gcam.json` exports use project envelope v2. Version 1 and legacy
-CamCanvas envelopes remain importable. Bitmap source files are cached locally
-in IndexedDB by asset ID; exports retain their data URL so they remain portable.
+Portable `.gcam.json` exports choose the lowest envelope version needed:
+
+- v2 stores the snapshot with inline bitmap data URLs.
+- v3 stores shared bitmap data URLs once in `bitmapSources`, with each bitmap
+  referring to its source index.
+- v4 uses that source table and preserves live image-mask links.
+
+Version 1 and legacy CamCanvas envelopes remain importable. Older readers must
+reject versions they cannot preserve. Bitmap source files are also cached in
+IndexedDB by asset ID; portable exports contain their source data and do not
+depend on that local cache. Raster previews are compacted on save and restored
+from validated laser paths on load. See `lib/project.ts` for the format contract.
 
 ## Quality gate
 
-Every pull request runs Jest, TypeScript, Biome lint/format checks, and the
-production Vite build. Third-party CAM/vendor code is explicitly excluded from
-authored-source formatting and lint checks.
+`.github/workflows/ci.yml` coordinates pull requests, main pushes, version tags
+and manual builds. Quality includes Jest, TypeScript, Biome, the production
+build and native shell/startup/file-bridge tests. Four Cypress shards exercise
+browser workflows. Desktop builds run alongside those checks; tablet builds
+wait for quality and browser success. Pages deployment and draft release
+assembly have their own event conditions and depend on the build matrix.
+
+Third-party CAM/vendor code is explicitly excluded from authored-source
+formatting and lint checks. Automated preview/export checks do not establish
+physical machining safety or calibrated Laser settings.
 
 ## Navigation rule
 

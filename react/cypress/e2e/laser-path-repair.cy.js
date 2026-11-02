@@ -71,11 +71,11 @@ describe('Laser open-path repair', () => {
         cy.get('[aria-label="Laser"]').click();
         const original = base();
         load(original);
-        cy.menu('Modify', 'Select open shapes');
+        cy.menu('Edit', 'Select open shapes');
         cy.snapshot().then((p) =>
             expect(p.selected).to.deep.equal(['a', 'b', 'c', 'd']),
         );
-        cy.menu('Modify', 'Repair paths…');
+        cy.menu('Edit', 'Repair paths…');
         cy.contains('4 open shapes · 3 joins · 1 closed', {
             timeout: 30000,
         }).should('be.visible');
@@ -86,7 +86,7 @@ describe('Laser open-path repair', () => {
         cy.snapshot().then((p) =>
             expect(p.loops).to.deep.equal(original.loops),
         );
-        cy.menu('Modify', 'Repair paths…');
+        cy.menu('Edit', 'Repair paths…');
         cy.contains('4 open shapes · 3 joins · 1 closed', {
             timeout: 30000,
         }).should('be.visible');
@@ -143,7 +143,7 @@ describe('Laser open-path repair', () => {
         ];
         snapshot.selected = ['gap'];
         load(snapshot);
-        cy.menu('Modify', 'Repair paths…');
+        cy.menu('Edit', 'Repair paths…');
         cy.get('[aria-label="Path repair mode"]').select('close');
         cy.contains('1 open shapes · 0 joins · 0 closed', {
             timeout: 30000,
@@ -165,7 +165,7 @@ describe('Laser open-path repair', () => {
             expect(p.loops[0].points[0].x).to.be.closeTo(100.1, 1e-8);
         });
         cy.get('[aria-label="Undo"]').click();
-        cy.menu('Modify', 'Repair paths…');
+        cy.menu('Edit', 'Repair paths…');
         cy.get('[aria-label="Path repair mode"]').select('close');
         cy.get('[aria-label="Path repair tolerance"]')
             .type('{selectall}0.3')
@@ -176,7 +176,7 @@ describe('Laser open-path repair', () => {
         cy.contains('button', 'Apply repair').click();
         cy.snapshot().then((p) => expect(p.loops[0].points).to.have.length(5));
         cy.get('[aria-label="Undo"]').click();
-        cy.menu('Modify', 'Repair paths…');
+        cy.menu('Edit', 'Repair paths…');
         cy.get('[aria-label="Path repair mode"]').select('close');
         cy.get('[aria-label="Path repair tolerance"]')
             .type('{selectall}0.3')
