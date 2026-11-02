@@ -22,6 +22,11 @@ export function ToolpathOperationPicker<T extends string = Operation>({
 }: ToolpathOperationPickerProps<T>) {
     const descriptions: Record<string, string | undefined> =
         suppliedDescriptions ?? {
+            'laser-fill': 'Engrave inside closed shapes, preserving holes.',
+            'laser-cut':
+                'Follow selected shapes with speed and laser power. No Z cutting moves.',
+            'laser-raster':
+                'Engrave an image with brightness mapped to laser power.',
             'profile-outside':
                 'Cut around the outside edge to shape or release a part.',
             'profile-inside':

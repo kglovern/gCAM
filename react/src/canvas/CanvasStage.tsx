@@ -60,6 +60,7 @@ import type {
     ViewLoop,
 } from './types';
 import { MM_PER_INCH } from '../lib/units';
+import { CutDepthLegend } from './CutDepthLegend';
 
 /**
  * 2D canvas: fitted vector view with wheel-zoom, drag-pan (middle/right
@@ -79,6 +80,7 @@ export type {
 export type { DrawTool } from './types';
 
 export function CanvasStage({
+    laserMasking = false,
     onShowProperties,
     contextActions,
     activeTool,
@@ -207,6 +209,8 @@ export function CanvasStage({
     const cornerHoverRef = useRef<CornerHover | null>(null);
     // Center-on-origin once for the empty canvas; imports fit instead.
     const centeredRef = useRef(false);
+    const laserMaskingRef = useRef(laserMasking);
+    laserMaskingRef.current = laserMasking;
     const viewRef = useRef<CanvasViewState>({
         loops,
         bounds,
@@ -405,6 +409,7 @@ export function CanvasStage({
             if (canvas.dataset.camera !== renderedCamera)
                 canvas.dataset.camera = renderedCamera;
             drawCanvasScene({
+                laserMasking: laserMaskingRef.current,
                 ctx,
                 width: canvas.width,
                 height: canvas.height,
@@ -957,8 +962,15 @@ export function CanvasStage({
 
     return (
         <div
-            className={`h-full flex flex-col rounded border overflow-hidden ${chrome}`}
+            className={`relative h-full flex flex-col rounded border overflow-hidden ${chrome}`}
         >
+            {!laserMasking && (
+                <CutDepthLegend
+                    preview={preview}
+                    units={units}
+                    dark={darkMode}
+                />
+            )}
             <div className="flex shrink-0">
                 <div
                     aria-hidden="true"

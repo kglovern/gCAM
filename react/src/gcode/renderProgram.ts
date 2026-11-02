@@ -1,3 +1,4 @@
+import { laserStartBlock } from './laserPowerMode';
 import {
     DEFAULT_OUTPUT,
     type BlockId,
@@ -18,6 +19,7 @@ export interface ProgramContext {
 }
 const numericWord = /([A-Z])([+-]?(?:\d+\.?\d*|\.\d+))/gi;
 function splitComments(line: string): { code: string; comments: string[] } {
+    if (!/[();]/.test(line)) return { code: line.trim(), comments: [] };
     let code = '',
         comment = '',
         depth = 0;
@@ -122,6 +124,8 @@ export function renderProgram(
                 ? Math.round(settings.delaySeconds * 1000)
                 : settings.delaySeconds,
         laserMax: settings.laserMax,
+        laserPowerMode: 'profile',
+        laserMode: ['duet', 'marlin'].includes(controller) ? 3 : 4,
         programEnd: context.rotary && controller === 'grblhal' ? 'M2' : 'M30',
     };
     for (const [key, value] of Object.entries(
@@ -140,13 +144,33 @@ export function renderProgram(
         });
     // Keep the established grblHAL output byte-for-byte, including rotary feed precision.
     if (
+        !context.laser &&
         units === 'metric' &&
         JSON.stringify(settings) === JSON.stringify(DEFAULT_OUTPUT)
     )
         return canonical.endsWith('\n') ? canonical : `${canonical}\n`;
-    const lines: string[] = [];
-    const emit = (id: BlockId) =>
-        lines.push(...expandBlock(settings.blocks[id], values));
+    const lines: string[] = context.laser
+        ? [`(Laser power max S${settings.laserMax})`]
+        : [];
+    const emit = (id: BlockId) => {
+        const block =
+            id === 'laserStart'
+                ? laserStartBlock(settings, String(values.laserPowerMode))
+                : settings.blocks[id];
+        const expanded = expandBlock(block, values);
+        if (
+            id === 'laserStart' &&
+            controller === 'marlin' &&
+            expanded.some((line) => {
+                const code = stripComments(line).toUpperCase();
+                return /M0?4(?=[^0-9]|$)/.test(code) && /I/.test(code);
+            })
+        )
+            throw new Error(
+                'Marlin S-value output requires continuous inline M3 I; M4 I derives power from feed rate.',
+            );
+        lines.push(...expanded);
+    };
     let started = false;
     let operation = false;
     let pendingOperation = false;
@@ -156,13 +180,21 @@ export function renderProgram(
     const requestedTools = new Set(
         [...canonical.matchAll(/\bT(\d+)\s*M6/g)].map((match) => match[1]),
     );
-    const markers = new Map(context.operations?.map((op) => [op.marker, op]));
+    const markers = new Map<
+        string,
+        NonNullable<ProgramContext['operations']>[number][]
+    >();
+    for (const op of context.operations ?? []) {
+        const queue = markers.get(op.marker) ?? [];
+        queue.push(op);
+        markers.set(op.marker, queue);
+    }
     for (const raw of canonical.split(/\r?\n/)) {
         let outputRaw = raw;
         if (!raw.trim()) continue;
-        if (markers.has(raw)) {
+        const current = markers.get(raw)?.shift();
+        if (current) {
             if (operation && !pendingOperation) emit('operationEnd');
-            const current = markers.get(raw)!;
             values.operationName = cleanText(current.name);
             for (const [key, value] of Object.entries(current.values ?? {}))
                 values[key] =
@@ -174,11 +206,30 @@ export function renderProgram(
             continue;
         }
         const code = stripComments(raw);
-        const words = [...code.matchAll(numericWord)];
-        const word = (letter: string) =>
-            words.find((m) => m[1] === letter)?.[2];
-        const m = Number(word('M'));
-        const t = word('T');
+        let mValue: string | undefined,
+            tValue: string | undefined,
+            gValue: string | undefined,
+            sValue: string | undefined;
+        let wordCount = 0;
+        for (const match of code.matchAll(numericWord)) {
+            wordCount++;
+            switch (match[1]) {
+                case 'M':
+                    mValue ??= match[2];
+                    break;
+                case 'T':
+                    tValue ??= match[2];
+                    break;
+                case 'G':
+                    gValue ??= match[2];
+                    break;
+                case 'S':
+                    sValue ??= match[2];
+                    break;
+            }
+        }
+        const m = Number(mValue);
+        const t = tValue;
         if (t !== undefined) {
             tool = Number(t);
             values.toolNumber = tool;
@@ -191,6 +242,8 @@ export function renderProgram(
             m !== 6
         ) {
             emit('start');
+            if (context.laser && ['grblhal', 'grbl'].includes(controller))
+                lines.push('G94');
             if (!context.laser) emit('coolantOn');
             started = true;
             if (pendingOperation) {
@@ -200,7 +253,7 @@ export function renderProgram(
         }
         if (m === 2 || m === 30) continue;
         // Request the change; the host/firmware owns the actual procedure.
-        if (m === 6 || (t !== undefined && words.length === 1)) {
+        if (m === 6 || (t !== undefined && wordCount === 1)) {
             if (context.laser) continue;
             if (controller === 'duet') lines.push(`T${tool}`);
             else if (controller === 'grbl' || controller === 'marlin') {
@@ -212,7 +265,7 @@ export function renderProgram(
             continue;
         }
         if ((m === 3 || m === 4) && !context.laser) {
-            values.spindleSpeed = Number(word('S') ?? 0);
+            values.spindleSpeed = Number(sValue ?? 0);
             if (
                 controller === 'grblhal' &&
                 settings.blocks.spindleStart === 'M3 S{spindleSpeed}'
@@ -235,17 +288,21 @@ export function renderProgram(
             laserActive = false;
             continue;
         }
+        if (context.laser && (m === 7 || m === 8 || m === 9)) {
+            emit(m === 9 ? 'laserAirOff' : 'laserAirOn');
+            continue;
+        }
         if (context.laser) {
-            const motion = Number(word('G'));
-            if (word('S') !== undefined) canonicalPower = Number(word('S'));
+            const motion = Number(gValue);
+            if (sValue !== undefined) canonicalPower = Number(sValue);
             if (motion === 0 && controller === 'duet') lines.push('G1 S0');
             if (motion === 1 && !laserActive) {
                 emit('laserStart');
                 laserActive = true;
             }
             // Every powered move has its own value in Marlin/Duet; canonical input retains modal S otherwise.
-            if (word('S') !== undefined) {
-                const power = Number(word('S'));
+            if (sValue !== undefined) {
+                const power = Number(sValue);
                 if (!Number.isFinite(power) || power < 0 || power > 1000)
                     throw new Error('Laser power must be between 0 and 1000.');
                 outputRaw = raw.replace(
@@ -257,7 +314,7 @@ export function renderProgram(
             if (
                 ['marlin', 'duet'].includes(controller) &&
                 [1, 2, 3].includes(motion) &&
-                word('S') === undefined
+                sValue === undefined
             ) {
                 lines.push(
                     `${outputRaw} S${(canonicalPower / 1000) * settings.laserMax}`,
@@ -279,12 +336,10 @@ export function renderProgram(
         const parts = splitComments(line);
         const comments = parts.comments.map(cleanText);
         let code = parts.code;
-        const words = [...code.matchAll(numericWord)];
-        for (const w of words)
-            if (w[1].toUpperCase() === 'G') {
-                if (Number(w[2]) === 93) inverse = true;
-                if (Number(w[2]) === 94) inverse = false;
-            }
+        for (const match of code.matchAll(/G([+-]?(?:\d+\.?\d*|\.\d+))/gi)) {
+            if (Number(match[1]) === 93) inverse = true;
+            if (Number(match[1]) === 94) inverse = false;
+        }
         code = code
             .replace(numericWord, (all, letter: string, raw: string) => {
                 letter = letter.toUpperCase();

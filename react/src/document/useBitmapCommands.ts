@@ -1,6 +1,8 @@
+import { groupLoopIds } from '../lib/groups';
 /**
  * Purpose: React hook that owns the BitmapCommands workflow.
  */
+import { jobStockBounds, type JobStock } from '../job/stock';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { isBitmapFile, loadBitmapFile, placeBitmap } from '../lib/bitmap';
 import { BitmapAssetStore } from '../lib/assets';
@@ -30,6 +32,7 @@ interface BitmapLoop {
 }
 
 export interface PlacedBitmapRecord {
+    maskSourceIds?: string[];
     id: string;
     x: number;
     y: number;
@@ -47,6 +50,7 @@ export interface BitmapImportChoice<TLoop extends BitmapLoop> {
     entry: PlacedBitmapRecord;
     rect: TLoop;
     fileName: string;
+    physicalSize?: { wMm: number; hMm: number };
 }
 
 interface UseBitmapCommandsOptions<
@@ -54,6 +58,8 @@ interface UseBitmapCommandsOptions<
     TStack,
     TBitmap extends PlacedBitmapRecord,
 > {
+    stock?: JobStock;
+    laserWorkspace?: boolean;
     bounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
     setBitmapImportChoice: Dispatch<
         SetStateAction<BitmapImportChoice<TLoop> | null>
@@ -83,14 +89,22 @@ export function useBitmapCommands<
 
     const handleBitmapFile = async (file: File) => {
         try {
-            const { dataUrl, pixelW, pixelH } = await loadBitmapFile(file);
+            const { dataUrl, pixelW, pixelH, physicalSize } =
+                await loadBitmapFile(file, options.laserWorkspace);
             const cx = options.bounds
                 ? (options.bounds.minX + options.bounds.maxX) / 2
                 : 50;
             const cy = options.bounds
                 ? (options.bounds.minY + options.bounds.maxY) / 2
                 : 50;
-            const placed = placeBitmap(pixelW, pixelH, cx, cy);
+            const placed = placeBitmap(
+                pixelW,
+                pixelH,
+                cx,
+                cy,
+                options.stock ? jobStockBounds(options.stock) : undefined,
+                physicalSize,
+            );
             const img = new Image();
             await new Promise<void>((resolve, reject) => {
                 img.onload = () => resolve();
@@ -123,7 +137,12 @@ export function useBitmapCommands<
                     { x: placed.x, y: placed.y },
                 ],
             } as TLoop;
-            options.setBitmapImportChoice({ entry, rect, fileName: file.name });
+            options.setBitmapImportChoice({
+                entry,
+                rect,
+                fileName: file.name,
+                physicalSize,
+            });
         } catch (error) {
             options.setStatus(
                 error instanceof Error ? error.message : 'Bitmap load failed',
@@ -295,7 +314,7 @@ export function useBitmapCommands<
         options.setLoops((current) => {
             const next = [...current, choice.rect];
             options.setSelected([choice.rect.id]);
-            options.setStack([]);
+            if (!options.laserWorkspace) options.setStack([]);
             options.refreshBounds(next);
             return next;
         });
@@ -304,7 +323,7 @@ export function useBitmapCommands<
         options.setStatus(
             choice.entry.surfaceMesh
                 ? `3D model ${choice.fileName} placed as a 2D heightmap. Resize/rotate it on the canvas, then add a surface CAM operation.`
-                : `Bitmap ${choice.fileName} placed — choose a raster, wavy, halftone, or heightmap toolpath.`,
+                : `Bitmap ${choice.fileName} placed — choose a raster, Wavy or Halftone toolpath.`,
         );
     };
 
@@ -317,14 +336,23 @@ export function useBitmapCommands<
             return;
         }
         options.pushHistory();
-        const stamped = options.withIds(traced);
+        const added = options.withIds(traced);
+        const stamped =
+            added.length > 1
+                ? groupLoopIds(
+                      added,
+                      added.map((loop) => loop.id),
+                      createDocumentId('group'),
+                  )
+                : added;
         options.setLoops((current) => {
             const retained = replaceBitmapId
                 ? current.filter((loop) => loop.bitmapId !== replaceBitmapId)
                 : current;
             const next = [...retained, ...stamped];
             options.setSelected(stamped.map((loop) => loop.id));
-            options.setStack([]);
+            if (!options.laserWorkspace || replaceBitmapId)
+                options.setStack([]);
             options.setDraftPreview([]);
             options.refreshBounds(next);
             return next;
@@ -334,7 +362,9 @@ export function useBitmapCommands<
                 current.filter((bitmap) => bitmap.id !== replaceBitmapId),
             );
         }
-        options.setStatus(`Traced ${traced.length} shapes — bitmap replaced.`);
+        options.setStatus(
+            `Traced ${traced.length} shapes - ${replaceBitmapId ? 'bitmap replaced' : 'source image kept'}.`,
+        );
     };
 
     return {

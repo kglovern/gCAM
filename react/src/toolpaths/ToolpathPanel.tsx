@@ -1,3 +1,16 @@
+import { resolveLinkedImageMask } from '../lib/image-mask';
+import { createDocumentId } from '../lib/ids';
+import { edgeChamferDimensions } from '../cam/chamfer.js';
+import { ChamferFields } from './ChamferFields';
+import { expandGroupedSelection } from '../lib/groups';
+import { LaserImageFlatten } from './LaserImageFlatten';
+import type { FlattenImageCommit } from '../lib/flatten-image-document';
+import type { LaserSettingsSource } from './copy-laser-settings';
+import { LaserImageExport } from './LaserImageExport';
+import { RasterRegionFields } from './RasterRegionFields';
+import { LaserRasterPreview } from './LaserRasterPreview';
+import { LaserSettingsFields } from './LaserSettingsFields';
+import type { LaserOptions } from './toolpathRequest';
 import { jobStockBounds } from '../job/stock';
 /**
  * Purpose: Implementation module for ToolpathPanel in the react domain.
@@ -49,6 +62,9 @@ import { flattenTracedPaths } from '../lib/trace';
 
 type DraftContour = { x: number; y: number }[] & {
     _intensity?: number;
+    _laserPower?: number;
+    _laserVariablePower?: boolean;
+    _laserInterval?: number;
     _solidPreview?: boolean;
 };
 
@@ -60,6 +76,9 @@ function canvasDraftContours(
     return contours.map((points) =>
         Object.assign([...points], {
             _intensity: (points as DraftContour)._intensity,
+            _laserPower: (points as DraftContour)._laserPower,
+            _laserVariablePower: (points as DraftContour)._laserVariablePower,
+            _laserInterval: (points as DraftContour)._laserInterval,
             _solidPreview: true,
         }),
     );
@@ -125,6 +144,8 @@ function surfaceFootprintLoops(bitmap: {
 }
 
 export const ToolpathPanel = memo(function ToolpathPanel({
+    workspace,
+    laserSettingsSources,
     loops,
     selected,
     bitmaps,
@@ -142,7 +163,13 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     stock,
     onStockThickness,
     onFitSurface,
+    onFlattenImage,
+    onMaskLink,
 }: {
+    onMaskLink?: (id: string, ids?: string[]) => void;
+    onFlattenImage?: (value: FlattenImageCommit) => void;
+    workspace?: 'milling' | 'laser';
+    laserSettingsSources?: LaserSettingsSource[];
     loops: ViewLoop[];
     selected: string[];
     bitmaps: {
@@ -152,6 +179,9 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         w: number;
         h: number;
         img?: HTMLImageElement;
+        dataUrl?: string;
+        maskSourceIds?: string[];
+        rotation?: number;
         surfaceMesh?: import('../engine/surface-model').StoredSurfaceMesh;
         surfaceMachinableTopDown?: boolean;
     }[];
@@ -176,9 +206,16 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     onStockThickness?: (value: number) => void;
     onFitSurface?: (id: string, mode: 'uniform' | 'z') => void;
 }) {
-    const [operation, setOperation] = useState<Operation>('profile-outside');
+    const [flattening, setFlattening] = useState(false);
+    const [operation, setOperation] = useState<Operation>(
+        workspace === 'laser' ? 'laser-cut' : 'profile-outside',
+    );
     const [toolDiameter, setToolDiameter] = useState(6);
     const [cutDepth, setCutDepth] = useState(stock.thicknessMm);
+    const [clearingEnabled, setClearingEnabled] = useState(false);
+    const [clearingSlot, setClearingSlot] = useState(0);
+    const [chamferWidth, setChamferWidth] = useState<number | null>(0.5);
+    const [chamferTipOffset, setChamferTipOffset] = useState(0.25);
     const [countersinkHeadDiameter, setCountersinkHeadDiameter] = useState(8);
     const [autoCutDepth, setAutoCutDepth] = useState(true);
     const [trochoid, setTrochoid] = useState(false);
@@ -188,6 +225,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     const [laserPower, setLaserPower] = useState(1000);
     const [laserSpot, setLaserSpot] = useState(0.2);
     const [laserGamma, setLaserGamma] = useState(1);
+    const [laserSettingsReady, setLaserSettingsReady] = useState(false);
+    const [storedLaserOptions, setLaserOptions] = useState<LaserOptions>({});
     const [laserOverscan, setLaserOverscan] = useState(2);
     const [wavySpacing, setWavySpacing] = useState(2);
     const [wavyShallow, setWavyShallow] = useState(0);
@@ -253,7 +292,9 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         operation === 'chamfer' ||
         operation === 'countersink'
             ? 'engrave'
-            : operation === 'laser-cut' || operation === 'laser-raster'
+            : operation === 'laser-cut' ||
+                operation === 'laser-raster' ||
+                operation === 'laser-fill'
               ? null
               : operation;
     const recommendation = (() => {
@@ -289,15 +330,20 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     ];
     const vbitMismatch =
         NEEDS_VBIT.includes(operation) && activeSlot?.toolType !== 'v-bit';
-    const LASER_OPS: Operation[] = ['laser-cut', 'laser-raster'];
+    const LASER_OPS: Operation[] = ['laser-cut', 'laser-raster', 'laser-fill'];
     const [busy, setBusy] = useState(false);
+    const laserAbortControllerRef = useRef<AbortController | null>(null);
+    const laserDraftControllerRef = useRef<AbortController | null>(null);
+    const [laserBuildProgress, setLaserBuildProgress] = useState<
+        number | undefined
+    >();
     const [status, setStatus] = useState(
         loops.length ? 'Shapes ready.' : 'Import shapes first.',
     );
     // In edit mode the entry's own source loops drive it instead.
     const byId = new Map(loops.map((l) => [l.id, l]));
-    const selectedLoops = selected.flatMap((id) =>
-        byId.has(id) ? [byId.get(id)!] : [],
+    const selectedLoops = expandGroupedSelection(loops, selected).flatMap(
+        (id) => (byId.has(id) ? [byId.get(id)!] : []),
     );
     const selectionHasVector = selectedLoops.some((loop) => !loop.bitmapId);
     const selectionHasBitmap = selectedLoops.some((loop) =>
@@ -346,37 +392,79 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         ? editEntry.loops
         : selected.length > 0
           ? selectionHasVector && selectionHasBitmap
-              ? selectedLoops.filter((loop) => !loop.bitmapId)
+              ? selectedLoops.filter((loop) =>
+                    operation === 'laser-raster'
+                        ? Boolean(loop.bitmapId)
+                        : !loop.bitmapId,
+                )
               : selectedLoops
           : loops;
+
+    const regionImageId = (editEntry?.loops ?? selectedLoops).find(
+        (l) => l.bitmapId,
+    )?.bitmapId;
+    const regionImageRef = useRef(regionImageId);
+    useEffect(() => {
+        if (!editEntry && regionImageRef.current !== regionImageId)
+            setLaserOptions((current) => ({
+                ...current,
+                imageCrop: { left: 0, bottom: 0, right: 1, top: 1 },
+                imageMask: [],
+            }));
+        regionImageRef.current = regionImageId;
+    }, [regionImageId, editEntry]);
 
     // Load a created toolpath back into the form for editing (legacy parity).
     const editId = editEntry?.id ?? null;
     useEffect(() => {
         if (!editEntry) {
+            setClearingEnabled(false);
             setAutoCutDepth(true);
+            setChamferWidth(0.5);
+            setChamferTipOffset(0.25);
             setCutDepth(stock.thicknessMm);
             setManualCuttingParams(false);
             return;
         }
         const a = editEntry.args as ProfileArgs & Record<string, unknown>;
+        setClearingEnabled(Boolean(a.vCarveClearingTool));
+        setClearingSlot(a.vCarveClearingTool?.toolNumber ?? 0);
         const num = (v: unknown, fallback: number) =>
             typeof v === 'number' && Number.isFinite(v) ? v : fallback;
         setOperation(a.operation);
         setToolDiameter(num(a.toolDiameter, 6));
         setCutDepth(num(a.cutDepth, stock.thicknessMm));
+        setChamferWidth(
+            a.operation === 'chamfer' && a.chamferWidthMm === undefined
+                ? null
+                : num(a.chamferWidthMm, 0.5),
+        );
+        setChamferTipOffset(num(a.chamferTipOffsetMm, 0.25));
         setCountersinkHeadDiameter(num(a.countersinkHeadDiameterMm, 8));
         setAutoCutDepth(false);
         setTrochoid(Boolean(a.trochoidEnabled));
         setHelicalEntry(Boolean(a.helicalEntryEnabled));
         setEngagement(num(a.trochoidEngagementPercent, 10));
         setLaserFeed(num(a.laserFeed, 3000));
-        setLaserPower(num(a.laserPower, 1000));
+        setLaserPower(
+            num(
+                a.operation === 'laser-raster' ? a.laserSMax : a.laserPower,
+                1000,
+            ),
+        );
         setLaserSpot(num(a.laserSpot, 0.2));
         setLaserSMin(num(a.laserSMin, 0));
         setLaserSMax(num(a.laserSMax, 1000));
         setLaserGamma(num(a.laserGamma, 1));
         setLaserOverscan(num(a.laserOverscan, 2));
+        setLaserOptions({
+            ...a.laserOptions,
+            ...(a.operation === 'laser-cut' &&
+            a.tabs?.length &&
+            a.laserOptions?.bridgeMode === undefined
+                ? { bridges: true, bridgeMode: 'manual' as const }
+                : {}),
+        });
         setWavySpacing(num(a.wavySpot, 2));
         setWavyShallow(num(a.wavyMinDepth, 0));
         setWavyDeep(num(a.wavyMaxDepth, 3));
@@ -392,7 +480,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         setPlungeRate(num(a.plungeRate, 600));
         setSpindle(num(a.spindle, 18000));
         setManualCuttingParams(true);
-        setSafeZ(num(a.safeZ, 6));
+        setSafeZ(num(a.safeZ, 5));
         setPassDepth(num(a.passDepth, num(a.cutDepth, stock.thicknessMm)));
         setArcs(a.arcs !== false);
         setToolNumber(Math.max(1, Math.round(num(a.toolNumber, 1))));
@@ -415,13 +503,13 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     }, [editId]);
 
     useEffect(() => {
-        if (autoCutDepth)
+        if (!editEntry && autoCutDepth)
             setCutDepth(
                 operation === 'pocket'
                     ? Math.min(3, stock.thicknessMm / 3)
                     : stock.thicknessMm,
             );
-    }, [stock.thicknessMm, autoCutDepth, operation]);
+    }, [stock.thicknessMm, autoCutDepth, operation, editEntry]);
 
     // Only offer operations that fit the selection: bitmap ops need a
     // placed bitmap, vector ops need vector geometry.
@@ -499,12 +587,17 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         () => () => {
             surfaceAbortControllerRef.current?.abort();
             surfaceAbortControllerRef.current = null;
+            laserAbortControllerRef.current?.abort();
+            laserAbortControllerRef.current = null;
         },
         [],
     );
     const visibleOps = operationsForSelection({
-        hasBitmap,
-        hasVector,
+        workspace,
+        hasBitmap:
+            workspace === 'laser' ? selectionHasBitmap || hasBitmap : hasBitmap,
+        hasVector:
+            workspace === 'laser' ? selectionHasVector || hasVector : hasVector,
         hasSurfaceModel: Boolean(selectedSurfaceModel),
         surfaceModelSelectedAlone: Boolean(selectedSurfaceBitmap),
     });
@@ -519,15 +612,125 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             setOperation(visibleOps[0]?.value ?? 'profile-outside');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hasBitmap, hasVector, selectedSurfaceBitmap?.id]);
+    }, [
+        hasBitmap,
+        hasVector,
+        selectionHasBitmap,
+        selectionHasVector,
+        workspace,
+        selectedSurfaceBitmap?.id,
+    ]);
+
+    const selectedRasterImage = bitmaps.find(
+        (b) => b.id === active.find((l) => l.bitmapId)?.bitmapId,
+    );
+    const { laserOptions, maskLinkError } = useMemo(() => {
+        let error = '';
+        let options: LaserOptions = storedLaserOptions.maskSourceIds?.length
+            ? { ...storedLaserOptions, maskSourceIds: [] }
+            : storedLaserOptions;
+        if (selectedRasterImage?.maskSourceIds?.length) {
+            try {
+                options = {
+                    ...storedLaserOptions,
+                    imageMask: resolveLinkedImageMask(
+                        selectedRasterImage,
+                        loops,
+                    ),
+                    maskSourceIds: selectedRasterImage.maskSourceIds,
+                };
+            } catch (e) {
+                error = (e as Error).message;
+            }
+        }
+        return { laserOptions: options, maskLinkError: error };
+    }, [storedLaserOptions, selectedRasterImage, loops]);
+    // Track input identity without rereading raster pixels on every render.
+    const buildInputs = useMemo(
+        () => ({}),
+        [
+            workspace,
+            operation,
+            loops,
+            selected,
+            bitmaps,
+            editEntry,
+            stock,
+            machineProfileId,
+            defaultArcs,
+            chamferWidth,
+            clearingEnabled,
+            clearingSlot,
+            slots,
+            chamferTipOffset,
+            cutterAngle,
+            cutDepth,
+            effectivePassDepth,
+            laserFeed,
+            laserPower,
+            laserSpot,
+            laserSMin,
+            laserSMax,
+            laserGamma,
+            laserOverscan,
+            laserOptions,
+            surfaceResolution,
+            surfaceStepover,
+            surfaceStepdown,
+            surfaceAllowance,
+            surfaceBoundary,
+            surfaceBoundaryMode,
+            safeZ,
+            effectiveFeedRate,
+            effectivePlungeRate,
+            effectiveSpindle,
+            activeSlot?.slot,
+            activeSlot?.toolType,
+            activeSlot?.cuttingDiameterMm,
+            activeSlot?.libraryToolId,
+            activeSlot?.name,
+            machineTravelLimits?.maxXTravelMm,
+            machineTravelLimits?.maxYTravelMm,
+            machineTravelLimits?.minZTravelMm,
+            machineTravelLimits?.maxZTravelMm,
+        ],
+    );
+    const currentBuildInputs = useRef(buildInputs);
+    currentBuildInputs.current = buildInputs;
+    useEffect(() => {
+        for (const controller of [
+            laserAbortControllerRef.current,
+            surfaceAbortControllerRef.current,
+        ]) {
+            if (controller && !controller.signal.aborted) {
+                controller.abort();
+                setStatus('Artwork or settings changed. Generate again.');
+            }
+        }
+    }, [buildInputs]);
+    const nativePixelSize =
+        selectedRasterImage?.img?.naturalWidth &&
+        selectedRasterImage.img.naturalHeight
+            ? {
+                  x:
+                      selectedRasterImage.w /
+                      selectedRasterImage.img.naturalWidth,
+                  y:
+                      selectedRasterImage.h /
+                      selectedRasterImage.img.naturalHeight,
+              }
+            : undefined;
 
     const resolveRasterBitmap = (): RasterBitmap => {
+        if (active.filter((l) => l.bitmapId).length > 1)
+            throw new Error('Select one image per raster toolpath.');
         const loop = active.find((l) => l.bitmapId);
         const entry = loop && bitmaps.find((b) => b.id === loop.bitmapId);
         if (!entry?.img)
             throw new Error('Select an imported bitmap for Laser Raster.');
         return {
             imageData: imageDataOf(entry.img),
+            rotation: entry.rotation,
             bounds: {
                 minX: entry.x,
                 minY: entry.y,
@@ -543,6 +746,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     }, [cutDepth, autoTabHeight]);
 
     const buildArgs = () => {
+        if (maskLinkError) throw new Error(maskLinkError);
         let bitmap: RasterBitmap | undefined;
         if (
             operation === 'laser-raster' ||
@@ -552,12 +756,88 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             bitmap = resolveRasterBitmap();
         }
         // Editing preserves the entry's existing tabs.
-        const tabs = !tabsEnabled
-            ? []
-            : editEntry
-              ? (((editEntry.args as ProfileArgs).tabs as PlacedTab[]) ?? [])
-              : [];
+        const tabs = LASER_OPS.includes(operation)
+            ? ((editEntry?.args.tabs as PlacedTab[] | undefined) ?? [])
+            : !tabsEnabled
+              ? []
+              : editEntry
+                ? (((editEntry.args as ProfileArgs).tabs as PlacedTab[]) ?? [])
+                : [];
+        const chamfer =
+            operation === 'chamfer' && chamferWidth !== null
+                ? edgeChamferDimensions(
+                      chamferWidth,
+                      chamferTipOffset,
+                      cutterAngle,
+                      toolDiameter,
+                  )
+                : null;
+        let clearingTool: ProfileArgs['vCarveClearingTool'];
+        if (operation === 'vcarve' && clearingEnabled) {
+            const tool = slots.find(
+                (s) =>
+                    s.slot === clearingSlot &&
+                    s.toolType === 'flat' &&
+                    isConfigured(s),
+            );
+            if (!tool) throw new Error('Choose a flat endmill for clearing.');
+            if (tool.cuttingLengthMm && cutDepth > tool.cuttingLengthMm)
+                throw new Error(
+                    'Clearing depth exceeds the endmill cutting length.',
+                );
+            const saved = editEntry?.args.vCarveClearingTool;
+            if (saved?.toolNumber === clearingSlot) clearingTool = saved;
+            else {
+                const recipe = recommendCuttingParameters({
+                    material,
+                    machine,
+                    operation: 'pocket',
+                    stockDepthMm: stock.thicknessMm,
+                    cutter: {
+                        toolType: 'flat',
+                        diameterMm: tool.cuttingDiameterMm!,
+                        flutes: tool.flutes!,
+                        cuttingLengthMm: tool.cuttingLengthMm,
+                        cutterMaterial: tool.cutterMaterial || undefined,
+                    },
+                });
+                clearingTool = {
+                    toolDiameter: tool.cuttingDiameterMm!,
+                    toolNumber: tool.slot,
+                    libraryToolId: tool.libraryToolId ?? undefined,
+                    libraryToolName: tool.name,
+                    feedRate: recipe.feedMmMin,
+                    plungeRate: recipe.plungeMmMin,
+                    spindle: recipe.rpm,
+                    passDepth: recipe.passDepthMm,
+                };
+            }
+        }
+        if (
+            editEntry?.args.vCarveInset &&
+            (activeSlot?.toolType !== 'flat' || operation !== 'pocket')
+        )
+            throw new Error(
+                'Linked V-carve clearing must remain a Pocket operation with a flat endmill.',
+            );
         return {
+            ...(editEntry?.args.vCarveInset
+                ? { vCarveInset: editEntry.args.vCarveInset }
+                : {}),
+            ...(clearingTool ? { vCarveClearingTool: clearingTool } : {}),
+            ...(clearingTool || editEntry?.args.vCarvePairId
+                ? {
+                      vCarvePairId:
+                          editEntry?.args.vCarvePairId ??
+                          createDocumentId('vcarve-pair'),
+                  }
+                : {}),
+            ...(chamfer
+                ? {
+                      chamferWidthMm: chamferWidth!,
+                      chamferTipOffsetMm: chamferTipOffset,
+                  }
+                : {}),
             loops:
                 operation === 'profile-outside' && selectedSurfaceBitmap
                     ? surfaceFootprintLoops(selectedSurfaceBitmap)
@@ -569,7 +849,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     ? countersinkHeadDiameter /
                       2 /
                       Math.tan((cutterAngle * Math.PI) / 360)
-                    : cutDepth,
+                    : (chamfer?.cutDepth ?? cutDepth),
             countersinkHeadDiameterMm: countersinkHeadDiameter,
             cutterAngle,
             cutterType: activeSlot?.toolType ?? 'flat',
@@ -577,9 +857,10 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             laserPower,
             laserSpot,
             laserSMin,
-            laserSMax,
+            laserSMax: operation === 'laser-raster' ? laserPower : laserSMax,
             laserGamma,
             laserOverscan,
+            laserOptions,
             wavySpot: wavySpacing,
             wavyMinDepth: wavyShallow,
             wavyMaxDepth: wavyDeep,
@@ -616,8 +897,12 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     : operation === 'texture-fill'
                       ? cutDepth
                       : effectivePassDepth,
-            libraryToolId: activeSlot?.libraryToolId ?? undefined,
-            libraryToolName: activeSlot?.name || undefined,
+            libraryToolId: LASER_OPS.includes(operation)
+                ? undefined
+                : (activeSlot?.libraryToolId ?? undefined),
+            libraryToolName: LASER_OPS.includes(operation)
+                ? undefined
+                : activeSlot?.name || undefined,
             surfaceBitmapId: selectedSurfaceBitmap?.id,
             surfaceResolutionMm: surfaceResolution,
             surfaceStepoverMm: surfaceStepover,
@@ -628,7 +913,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             arcs: defaultArcs,
             overlapPercent: overlap,
             tabWidth,
-            tabHeight: tabsEnabled ? tabHeight : 0,
+            tabHeight:
+                !LASER_OPS.includes(operation) && tabsEnabled ? tabHeight : 0,
             toolNumber,
             tabs,
             fileName: 'gcam',
@@ -636,6 +922,10 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     };
 
     const handleGenerate = () => {
+        if (LASER_OPS.includes(operation) && !laserSettingsReady) {
+            setStatus('Choose calibrated laser settings or use manual values.');
+            return;
+        }
         // Laser ops don't use endmills; mill ops need a configured slot.
         if (!LASER_OPS.includes(operation)) {
             if (!activeSlot || !isConfigured(activeSlot)) {
@@ -664,6 +954,17 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         if (operation === 'countersink' && args.cutDepth > stock.thicknessMm) {
             setStatus(
                 `That V-bit countersink needs ${args.cutDepth.toFixed(2)} mm depth, deeper than the ${stock.thicknessMm.toFixed(2)} mm stock. Use a smaller head diameter or a wider-angle V-bit.`,
+            );
+            setBusy(false);
+            return;
+        }
+        if (
+            operation === 'chamfer' &&
+            args.chamferWidthMm !== undefined &&
+            args.cutDepth > stock.thicknessMm
+        ) {
+            setStatus(
+                'Chamfer tip would go below the stock. Reduce width or tip offset.',
             );
             setBusy(false);
             return;
@@ -746,6 +1047,13 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             const controller = new AbortController();
             surfaceAbortControllerRef.current?.abort();
             surfaceAbortControllerRef.current = controller;
+            const inputs = currentBuildInputs.current;
+            const discardChangedResult = () => {
+                if (inputs === currentBuildInputs.current) return false;
+                controller.abort();
+                setStatus('Artwork or settings changed. Generate again.');
+                return true;
+            };
             void generateSurfaceCamPaths(
                 mesh,
                 {
@@ -773,11 +1081,15 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     },
                     resolutionMm: surfaceResolution,
                 },
-                (progress) => onDraftProgress?.(progress),
+                (progress) => {
+                    if (!controller.signal.aborted && !discardChangedResult())
+                        onDraftProgress?.(progress);
+                },
                 controller.signal,
             )
                 .then((generated) => {
-                    if (controller.signal.aborted) return;
+                    if (controller.signal.aborted || discardChangedResult())
+                        return;
                     const result = buildSurfaceToolpathResult({
                         operation,
                         paths: generated.paths,
@@ -814,9 +1126,67 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     );
                 })
                 .finally(() => {
-                    if (surfaceAbortControllerRef.current === controller)
-                        surfaceAbortControllerRef.current = null;
+                    if (surfaceAbortControllerRef.current !== controller)
+                        return;
+                    surfaceAbortControllerRef.current = null;
                     onDraftProgress?.(null);
+                    setBusy(false);
+                });
+            return;
+        }
+        if (
+            (LASER_OPS.includes(operation) ||
+                operation === 'chamfer' ||
+                operation === 'vcarve' ||
+                Boolean(args.vCarveInset)) &&
+            typeof Worker !== 'undefined'
+        ) {
+            laserDraftControllerRef.current?.abort();
+            draftToken.current += 1;
+            onDraftProgress?.(null);
+            const controller = new AbortController();
+            laserAbortControllerRef.current?.abort();
+            laserAbortControllerRef.current = controller;
+            const inputs = currentBuildInputs.current;
+            const discardChangedResult = () => {
+                if (inputs === currentBuildInputs.current) return false;
+                controller.abort();
+                setStatus('Artwork or settings changed. Generate again.');
+                return true;
+            };
+            setLaserBuildProgress(0);
+            void buildToolpathGcodeAsync({
+                ...args,
+                signal: controller.signal,
+                onProgress: (percent, label) => {
+                    if (controller.signal.aborted || discardChangedResult())
+                        return;
+                    setLaserBuildProgress(Math.round(percent));
+                    setStatus(label);
+                },
+            })
+                .then((result) => {
+                    if (controller.signal.aborted || discardChangedResult())
+                        return;
+                    if (editEntry && onUpdate)
+                        onUpdate(editEntry.id, result, args);
+                    else onResult(result, args);
+                    setStatus(
+                        `${result.label} — ${result.gcode.split('\n').length} lines.`,
+                    );
+                })
+                .catch((error: unknown) => {
+                    if (!controller.signal.aborted)
+                        setStatus(
+                            error instanceof Error
+                                ? error.message
+                                : 'Toolpath build failed.',
+                        );
+                })
+                .finally(() => {
+                    if (laserAbortControllerRef.current !== controller) return;
+                    laserAbortControllerRef.current = null;
+                    setLaserBuildProgress(undefined);
                     setBusy(false);
                 });
             return;
@@ -846,9 +1216,17 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     // the worker is unavailable. Unlike commit, the draft uses the live
     // form values directly so a preview renders even before a tool slot
     // is configured.
+    const [rasterDraft, setRasterDraft] = useState<DraftContour[]>([]);
+    const publishDraft = (contours: { x: number; y: number }[][] | null) => {
+        setRasterDraft(operation === 'laser-raster' ? (contours ?? []) : []);
+        onDraftPreview?.(contours);
+    };
     const draftToken = useRef(0);
     const draftCallbacksRef = useRef({ onDraftPreview, onDraftProgress });
-    draftCallbacksRef.current = { onDraftPreview, onDraftProgress };
+    draftCallbacksRef.current = {
+        onDraftPreview: publishDraft,
+        onDraftProgress,
+    };
     useEffect(
         () => () => {
             // The panel unmounts when the user clears the canvas selection.
@@ -862,18 +1240,23 @@ export const ToolpathPanel = memo(function ToolpathPanel({
     );
     const [draftError, setDraftError] = useState<string | null>(null);
     const solidDraftPreview =
-        operation === 'laser-raster' ||
+        operation.startsWith('laser-') ||
         (operation === 'texture-fill' && textureType === 'crosshatch');
     useEffect(() => {
+        const token = ++draftToken.current;
         if (!onDraftPreview && !onDraftProgress) return;
+        if (busy) {
+            onDraftProgress?.(null);
+            return;
+        }
         if (surfaceOperation) {
-            onDraftPreview?.(null);
+            publishDraft(null);
             onDraftProgress?.(null);
             setDraftError(null);
             return;
         }
-        if (selected.length === 0 || !active.length) {
-            onDraftPreview?.(null);
+        if ((!editEntry && selected.length === 0) || !active.length) {
+            publishDraft(null);
             onDraftProgress?.(null);
             setDraftError(null);
             return;
@@ -883,23 +1266,28 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             // operation — the amber alert above already tells the user to
             // pick a V-bit. Firing anyway only surfaces a cryptic engine
             // error for a condition we can detect locally.
-            onDraftPreview?.(null);
+            publishDraft(null);
             onDraftProgress?.(null);
             setDraftError(null);
             return;
         }
-        const token = ++draftToken.current;
+        const controller = new AbortController();
+        if (operation.startsWith('laser-'))
+            laserDraftControllerRef.current = controller;
         // CAMCanvas shows the worker badge as soon as a draft job starts.
         // Set this before the debounce so a real long-running operation is
         // visible for its whole run rather than only after a later callback.
-        onDraftProgress?.({ percent: 4, label: 'Calculating toolpath' });
+        onDraftProgress?.({
+            percent: 4,
+            label: 'Preview: Calculating toolpath',
+        });
         const timer = window.setTimeout(() => {
             let args: ReturnType<typeof buildArgs>;
             try {
                 args = buildArgs();
             } catch (e) {
                 if (token === draftToken.current) {
-                    onDraftPreview?.(null);
+                    publishDraft(null);
                     onDraftProgress?.(null);
                     setDraftError(
                         e instanceof Error ? e.message : 'Preview unavailable',
@@ -915,21 +1303,24 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     : 0;
                 onDraftProgress?.({
                     percent: safePercent,
-                    label: label || 'Calculating toolpath',
+                    label: `Preview: ${label || 'Calculating toolpath'}`,
                 });
             };
             report(4, 'Calculating toolpath');
             // Race the worker against a timeout so a hung worker still
             // falls back to the sync build instead of stalling the preview.
             const raced = new Promise<ToolpathResult>((resolve, reject) => {
-                const timer = window.setTimeout(
-                    () => reject(new Error('Preview timed out')),
-                    20000,
-                );
+                const timer = window.setTimeout(() => {
+                    const error = new Error('Preview timed out');
+                    reject(error);
+                    controller.abort(error);
+                }, 20000);
                 buildToolpathGcodeAsync({
                     ...args,
-                    tabs: [],
+                    geometryOnly: operation.startsWith('laser-'),
+                    tabs: operation.startsWith('laser-') ? args.tabs : [],
                     onProgress: report,
+                    signal: controller.signal,
                 }).then(
                     (result) => {
                         window.clearTimeout(timer);
@@ -944,7 +1335,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
             raced.then(
                 (result) => {
                     if (token !== draftToken.current) return;
-                    onDraftPreview?.(
+                    publishDraft(
                         canvasDraftContours(
                             [
                                 ...result.previewContours,
@@ -960,11 +1351,24 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     // Worker fallback: sync main-thread build. Keep the
                     // pill up (indeterminate) so the wait is visible.
                     if (token !== draftToken.current) return;
+                    if (
+                        operation.startsWith('laser-') &&
+                        typeof Worker !== 'undefined'
+                    ) {
+                        publishDraft(null);
+                        onDraftProgress?.(null);
+                        setDraftError(
+                            workerError instanceof Error
+                                ? workerError.message
+                                : 'Preview unavailable',
+                        );
+                        return;
+                    }
                     report(4, 'Calculating toolpath');
                     buildToolpathGcode({ ...args, tabs: [] }).then(
                         (result) => {
                             if (token === draftToken.current) {
-                                onDraftPreview?.(
+                                publishDraft(
                                     canvasDraftContours(
                                         [
                                             ...result.previewContours,
@@ -980,7 +1384,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                         },
                         (e) => {
                             if (token === draftToken.current) {
-                                onDraftPreview?.(null);
+                                publishDraft(null);
                                 setDraftError(
                                     e instanceof Error
                                         ? e.message
@@ -996,10 +1400,17 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         }, 400);
         return () => {
             window.clearTimeout(timer);
+            draftToken.current += 1;
+            controller.abort();
+            if (laserDraftControllerRef.current === controller)
+                laserDraftControllerRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+        busy,
         operation,
+        clearingEnabled,
+        clearingSlot,
         surfaceOperation,
         surfaceResolution,
         surfaceStepover,
@@ -1008,6 +1419,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         vbitMismatch,
         toolDiameter,
         cutDepth,
+        chamferWidth,
+        chamferTipOffset,
         cutterAngle,
         trochoid,
         engagement,
@@ -1017,6 +1430,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
         laserSMin,
         laserSMax,
         laserGamma,
+        laserOverscan,
+        laserOptions,
         wavySpacing,
         wavyShallow,
         wavyDeep,
@@ -1069,48 +1484,52 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                 vbitMismatch={vbitMismatch}
                 draftError={draftError}
             />
-            <section className="toolpath-form-tool space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Tool selection
-                </h3>
-                <ToolSelectionFields
-                    slots={surfaceOperation ? compatibleSurfaceTools : slots}
-                    hasAnyConfiguredTool={slots.some(isConfigured)}
-                    slotNum={slotNum}
-                    units={units}
-                    libraryOpen={toolLibOpen}
-                    librarySlot={toolLibSlot}
-                    onOpenLibrary={() => setToolLibOpen(true)}
-                    onSetupTools={() => {
-                        const firstEmptySlot = slots.find(
-                            (tool) => !isConfigured(tool),
-                        );
-                        const setupSlot = firstEmptySlot?.slot ?? null;
-                        if (setupSlot != null) setSlotNum(setupSlot);
-                        setToolLibSlot(setupSlot);
-                        setToolLibOpen(true);
-                    }}
-                    onSelectSlot={(slotNumber) => {
-                        setSlotNum(slotNumber);
-                        const slot = slots.find(
-                            (item) => item.slot === slotNumber,
-                        );
-                        if (slot && isConfigured(slot)) {
-                            applySlot(slot);
-                        } else {
-                            setToolLibSlot(slotNumber);
-                            setToolLibOpen(true);
+            {!LASER_OPS.includes(operation) && (
+                <section className="toolpath-form-tool space-y-2 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Tool selection
+                    </h3>
+                    <ToolSelectionFields
+                        slots={
+                            surfaceOperation ? compatibleSurfaceTools : slots
                         }
-                    }}
-                    onCloseLibrary={() => {
-                        setToolLibOpen(false);
-                        setToolLibSlot(null);
-                        if (typeof window !== 'undefined')
-                            setSlots(loadSlots(window.localStorage));
-                    }}
-                    onConfiguredSlot={applySlot}
-                />
-            </section>
+                        hasAnyConfiguredTool={slots.some(isConfigured)}
+                        slotNum={slotNum}
+                        units={units}
+                        libraryOpen={toolLibOpen}
+                        librarySlot={toolLibSlot}
+                        onOpenLibrary={() => setToolLibOpen(true)}
+                        onSetupTools={() => {
+                            const firstEmptySlot = slots.find(
+                                (tool) => !isConfigured(tool),
+                            );
+                            const setupSlot = firstEmptySlot?.slot ?? null;
+                            if (setupSlot != null) setSlotNum(setupSlot);
+                            setToolLibSlot(setupSlot);
+                            setToolLibOpen(true);
+                        }}
+                        onSelectSlot={(slotNumber) => {
+                            setSlotNum(slotNumber);
+                            const slot = slots.find(
+                                (item) => item.slot === slotNumber,
+                            );
+                            if (slot && isConfigured(slot)) {
+                                applySlot(slot);
+                            } else {
+                                setToolLibSlot(slotNumber);
+                                setToolLibOpen(true);
+                            }
+                        }}
+                        onCloseLibrary={() => {
+                            setToolLibOpen(false);
+                            setToolLibSlot(null);
+                            if (typeof window !== 'undefined')
+                                setSlots(loadSlots(window.localStorage));
+                        }}
+                        onConfiguredSlot={applySlot}
+                    />
+                </section>
+            )}
             <section className="toolpath-form-settings space-y-3 rounded-lg border border-slate-200 bg-white/60 p-2.5 dark:border-robin-900 dark:bg-dark-lighter/50">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Toolpath settings
@@ -1142,7 +1561,8 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                 )}
                 {!LASER_OPS.includes(operation) &&
                     !surfaceOperation &&
-                    operation !== 'countersink' && (
+                    operation !== 'countersink' &&
+                    (operation !== 'chamfer' || chamferWidth === null) && (
                         <label className="block space-y-1">
                             <span className="text-slate-500 dark:text-slate-400">
                                 Cut depth ({units === 'imperial' ? 'in' : 'mm'})
@@ -1153,6 +1573,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                                 stepMm={0.1}
                                 minMm={0.1}
                                 valueMm={cutDepth}
+                                disabled={Boolean(editEntry?.args.vCarveInset)}
                                 onChangeMm={(value) => {
                                     setCutDepth(value);
                                     setAutoCutDepth(false);
@@ -1166,6 +1587,84 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                             </span>
                         </label>
                     )}
+                {operation === 'vcarve' && (
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={clearingEnabled}
+                                onChange={(e) => {
+                                    setClearingEnabled(e.target.checked);
+                                    if (!clearingSlot)
+                                        setClearingSlot(
+                                            slots.find(
+                                                (s) =>
+                                                    s.toolType === 'flat' &&
+                                                    isConfigured(s),
+                                            )?.slot ?? 0,
+                                        );
+                                }}
+                            />
+                            Add clearing toolpath
+                        </label>
+                        {clearingEnabled && (
+                            <>
+                                <label className="block space-y-1">
+                                    Clearing endmill
+                                    <select
+                                        aria-label="Clearing endmill"
+                                        value={clearingSlot}
+                                        onChange={(e) =>
+                                            setClearingSlot(
+                                                Number(e.target.value),
+                                            )
+                                        }
+                                        className="w-full rounded border border-slate-300 bg-slate-100 px-2 py-1 dark:bg-dark-lighter dark:border-robin-900"
+                                    >
+                                        <option value={0}>
+                                            Choose flat endmill
+                                        </option>
+                                        {slots
+                                            .filter(
+                                                (s) =>
+                                                    s.toolType === 'flat' &&
+                                                    isConfigured(s),
+                                            )
+                                            .map((s) => (
+                                                <option
+                                                    key={s.slot}
+                                                    value={s.slot}
+                                                >
+                                                    T{s.slot}: {s.name}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </label>
+                                <p className="text-xs text-slate-500">
+                                    Pocket clearing first, then V-bit finishing.
+                                    Edit cutting settings on each saved
+                                    toolpath.
+                                </p>
+                            </>
+                        )}
+                    </div>
+                )}
+                {editEntry?.args.vCarveInset && (
+                    <p className="text-xs text-slate-500">
+                        Clearing depth follows the linked V-carve.
+                    </p>
+                )}
+                {operation === 'chamfer' && (
+                    <ChamferFields
+                        width={chamferWidth}
+                        tipOffset={chamferTipOffset}
+                        angle={cutterAngle}
+                        diameter={toolDiameter}
+                        units={units}
+                        onWidth={setChamferWidth}
+                        onTipOffset={setChamferTipOffset}
+                    />
+                )}
                 {operation === 'countersink' && (
                     <label className="block space-y-1">
                         <span className="text-slate-500 dark:text-slate-400">
@@ -1191,7 +1690,7 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                         </span>
                     </label>
                 )}
-                {!surfaceOperation && (
+                {!surfaceOperation && !LASER_OPS.includes(operation) && (
                     <CuttingFields
                         operation={operation}
                         units={units}
@@ -1336,7 +1835,154 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                         onCrosshatchAngleChange={setCrosshatchAngle}
                     />
                 )}
+                {LASER_OPS.includes(operation) && (
+                    <LaserSettingsFields
+                        settingsSources={laserSettingsSources}
+                        currentOperationId={editEntry?.id}
+                        onSettingsTransfer={(settings) => {
+                            setLaserFeed(settings.feed);
+                            setLaserPower(settings.power);
+                            setLaserSpot(settings.interval);
+                            setLaserGamma(settings.gamma);
+                            setLaserSMin(settings.minPower);
+                            setLaserSMax(settings.maxPower);
+                            setLaserOverscan(settings.overscan);
+                            setLaserOptions((current) => ({
+                                ...current,
+                                ...settings.options,
+                            }));
+                        }}
+                        nativePixelSize={nativePixelSize}
+                        operation={operation}
+                        units={units}
+                        options={laserOptions}
+                        onChange={setLaserOptions}
+                        gamma={laserGamma}
+                        setGamma={setLaserGamma}
+                        feed={laserFeed}
+                        power={laserPower}
+                        interval={laserSpot}
+                        setFeed={setLaserFeed}
+                        setPower={setLaserPower}
+                        setInterval={setLaserSpot}
+                        overscan={laserOverscan}
+                        setOverscan={setLaserOverscan}
+                        stock={stock}
+                        editing={Boolean(editEntry)}
+                        onReady={setLaserSettingsReady}
+                        material={stock.laserMaterial ?? 'plywood'}
+                        thickness={stock.thicknessMm}
+                        machineId={machineProfileId}
+                    />
+                )}
+                {operation === 'laser-raster' && (
+                    <RasterRegionFields
+                        linkIds={selectedRasterImage?.maskSourceIds}
+                        linkError={maskLinkError}
+                        maskShapeIds={selectedLoops
+                            .filter((l) => !l.bitmapId)
+                            .map((l) => l.id)}
+                        onMaskLink={
+                            selectedRasterImage && onMaskLink
+                                ? (ids) =>
+                                      onMaskLink(selectedRasterImage.id, ids)
+                                : undefined
+                        }
+                        units={units}
+                        options={laserOptions}
+                        onChange={setLaserOptions}
+                        maskShapes={selectedLoops
+                            .filter((l) => !l.bitmapId)
+                            .map((l) => l.points)}
+                        image={bitmaps.find(
+                            (b) =>
+                                b.id ===
+                                active.find((l) => l.bitmapId)?.bitmapId,
+                        )}
+                    />
+                )}
+                {operation === 'laser-raster' &&
+                    onFlattenImage &&
+                    selectedRasterImage?.dataUrl &&
+                    (Boolean(laserOptions.imageMask?.length) ||
+                        (laserOptions.imageCrop &&
+                            (laserOptions.imageCrop.left !== 0 ||
+                                laserOptions.imageCrop.bottom !== 0 ||
+                                laserOptions.imageCrop.right !== 1 ||
+                                laserOptions.imageCrop.top !== 1))) && (
+                        <>
+                            <button
+                                type="button"
+                                className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-robin-900"
+                                disabled={Boolean(maskLinkError)}
+                                onClick={() => setFlattening(true)}
+                            >
+                                Flatten image region…
+                            </button>
+                            {flattening && (
+                                <LaserImageFlatten
+                                    bitmap={{
+                                        ...selectedRasterImage,
+                                        dataUrl: selectedRasterImage.dataUrl,
+                                    }}
+                                    maskSources={loops.filter((l) =>
+                                        selectedRasterImage.maskSourceIds?.includes(
+                                            l.id,
+                                        ),
+                                    )}
+                                    shapes={loops.filter(
+                                        (l) =>
+                                            l.bitmapId ===
+                                            selectedRasterImage.id,
+                                    )}
+                                    options={laserOptions}
+                                    onClose={() => setFlattening(false)}
+                                    onCommit={onFlattenImage}
+                                />
+                            )}
+                        </>
+                    )}
+                {operation === 'laser-raster' && (
+                    <LaserImageExport
+                        sourceImage={selectedRasterImage?.img}
+                        units={units}
+                        onAdjust={(settings) => {
+                            setLaserOptions(settings.options);
+                            setLaserGamma(settings.gamma);
+                            setLaserSpot(settings.interval);
+                        }}
+                        readBitmap={resolveRasterBitmap}
+                        interval={laserSpot}
+                        gamma={laserGamma}
+                        options={laserOptions}
+                    />
+                )}
+                {operation === 'laser-raster' && !draftError && (
+                    <LaserRasterPreview
+                        contours={rasterDraft}
+                        frame={active[0]?.points ?? []}
+                        interval={laserSpot}
+                        maxPower={laserPower}
+                        sourceImage={
+                            bitmaps.find(
+                                (b) =>
+                                    b.id ===
+                                    active.find((l) => l.bitmapId)?.bitmapId,
+                            )?.img
+                        }
+                        crop={laserOptions.imageCrop}
+                        onCrop={(imageCrop) =>
+                            setLaserOptions((current) => ({
+                                ...current,
+                                imageCrop,
+                            }))
+                        }
+                    />
+                )}
                 <RasterLaserFields
+                    nativePixelSize={nativePixelSize}
+                    passThrough={laserOptions.passThrough}
+                    scanAngle={laserOptions.scanAngle}
                     operation={operation}
                     units={units}
                     laserFeed={laserFeed}
@@ -1356,8 +2002,12 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                 />
                 <ToolpathSubmitControls
                     busy={busy}
+                    progress={laserBuildProgress}
                     hasActiveGeometry={
                         active.length > 0 &&
+                        !maskLinkError &&
+                        (!LASER_OPS.includes(operation) ||
+                            laserSettingsReady) &&
                         (!surfaceOperation ||
                             surfaceHeight <= stock.thicknessMm + 1e-5)
                     }
@@ -1367,9 +2017,24 @@ export const ToolpathPanel = memo(function ToolpathPanel({
                     status={status}
                     onGenerate={handleGenerate}
                     onCancelBuild={
-                        surfaceAbortControllerRef.current
-                            ? cancelSurfaceGeneration
-                            : undefined
+                        laserAbortControllerRef.current
+                            ? () => {
+                                  laserAbortControllerRef.current?.abort();
+                                  setStatus('Toolpath build cancelled.');
+                              }
+                            : surfaceAbortControllerRef.current
+                              ? cancelSurfaceGeneration
+                              : undefined
+                    }
+                    cancelBuildLabel={
+                        workspace === 'laser'
+                            ? 'Cancel laser build'
+                            : operation === 'chamfer'
+                              ? 'Cancel chamfer build'
+                              : operation === 'vcarve' ||
+                                  Boolean(editEntry?.args.vCarveInset)
+                                ? 'Cancel toolpath build'
+                                : 'Cancel 3D CAM build'
                     }
                     onCancelEdit={onCancelEdit}
                 />

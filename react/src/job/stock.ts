@@ -1,3 +1,8 @@
+import {
+    DEFAULT_LASER_ROTARY,
+    validateLaserRotary,
+    type LaserRotarySetup,
+} from '../cam/laser-rotary.js';
 import type { MaterialId } from '../cutting-parameters/types';
 
 /** Physical workpiece shared by every operation in a project. Millimetres. */
@@ -6,6 +11,8 @@ export interface JobStock {
     heightMm: number;
     thicknessMm: number;
     material: MaterialId;
+    laserMaterial?: string;
+    laserRotary?: LaserRotarySetup;
     origin?: 'front-left' | 'center';
 }
 
@@ -34,7 +41,20 @@ export function normalizeJobStock(value: unknown): JobStock {
         'hdpe',
         'foam',
     ]);
+    let laserRotary: LaserRotarySetup | undefined;
+    if (stock?.laserRotary) {
+        try {
+            laserRotary = validateLaserRotary(stock.laserRotary) ?? undefined;
+        } catch {
+            laserRotary = { ...DEFAULT_LASER_ROTARY } as LaserRotarySetup;
+        }
+    }
     return {
+        laserRotary,
+        laserMaterial:
+            typeof stock?.laserMaterial === 'string'
+                ? stock.laserMaterial.slice(0, 80)
+                : undefined,
         origin: stock?.origin === 'center' ? 'center' : 'front-left',
         widthMm: positive(stock?.widthMm, DEFAULT_JOB_STOCK.widthMm),
         heightMm: positive(stock?.heightMm, DEFAULT_JOB_STOCK.heightMm),

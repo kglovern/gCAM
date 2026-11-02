@@ -50,3 +50,27 @@ test('single-tool fallback succeeds when Grbl cannot export the combined tool ch
         exportToolpaths([path(2)], 'job', true, 'metric', settings),
     ).toContain('M3 S12000');
 });
+
+test('default grblHAL laser export checks power and excludes milling moves', () => {
+    const laser = {
+        ...path(),
+        operation: 'laser-cut',
+        operationLabel: 'Laser Cut',
+        laserFeed: 1200,
+        laserPower: 0,
+    };
+    const code = exportToolpaths([laser], 'laser', true, 'metric');
+    expect(code).toContain('G1 F1200 S0');
+    expect(code).not.toMatch(/M6|G[01] Z/);
+    expect(() =>
+        exportToolpaths(
+            [{ ...laser, laserPower: 1001 }],
+            'laser',
+            true,
+            'metric',
+        ),
+    ).toThrow('Laser power');
+    expect(() =>
+        exportToolpaths([laser, path()], 'mixed', true, 'metric'),
+    ).toThrow('separately');
+});

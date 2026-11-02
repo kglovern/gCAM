@@ -166,3 +166,55 @@ test('Transform shares selection hover and clears it while dragging or over hidd
     updateSelectionHover(event, deps);
     expect(deps.loopHoverRef.current).toBeNull();
 });
+
+test.each([
+    [{ x: 55, y: 55 }, [], 'vector-2'],
+    [{ x: 80, y: 30 }, [], 'model-1'],
+    [{ x: 55, y: 55 }, ['vector-2'], 'model-1'],
+])(
+    'visible vectors take precedence over an underlying image at %p; image interior remains selectable',
+    (point, hidden, expected) => {
+        const onSelect = jest.fn();
+        const deps = selectionDeps([], onSelect);
+        deps.viewRef.current.hidden = hidden as string[];
+        deps.viewRef.current.bitmaps = [
+            { id: 'stl-1', x: 30, y: 20, w: 60, h: 60 },
+        ];
+        finishSelection(
+            {
+                button: 0,
+                clientX: point.x,
+                clientY: 100 - point.y,
+                ctrlKey: false,
+                shiftKey: false,
+                metaKey: false,
+            } as React.MouseEvent<HTMLCanvasElement>,
+            deps,
+            { x: point.x, y: 100 - point.y },
+            null,
+        );
+        expect(onSelect).toHaveBeenCalledWith([expected]);
+    },
+);
+
+test('clicking a grouped shape selects or toggles the entire group', () => {
+    const onSelect = jest.fn();
+    const deps = selectionDeps([], onSelect);
+    deps.additiveSelection = true;
+    deps.viewRef.current.loops = deps.viewRef.current.loops.map((loop) =>
+        loop.bitmapId ? loop : { ...loop, groupId: 'trace-group' },
+    );
+    const event = {
+        button: 0,
+        clientX: 55,
+        clientY: 45,
+        ctrlKey: false,
+        shiftKey: false,
+        metaKey: false,
+    } as React.MouseEvent<HTMLCanvasElement>;
+    finishSelection(event, deps, { x: 55, y: 45 }, null);
+    expect(onSelect).toHaveBeenLastCalledWith(['vector-2', 'vector-1']);
+    deps.viewRef.current.selected = ['vector-2', 'vector-1'];
+    finishSelection(event, deps, { x: 55, y: 45 }, null);
+    expect(onSelect).toHaveBeenLastCalledWith([]);
+});

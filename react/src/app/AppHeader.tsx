@@ -41,7 +41,7 @@ export function AppHeader({
                     <RotaryToolbar rotary={rotary} commands={toolbarProps} />
                 </div>
             )}
-            {activeTab === 'toolpaths' && (
+            {(activeTab === 'toolpaths' || activeTab === 'laser') && (
                 <div className="min-w-0 flex-1 overflow-visible">
                     <CanvasToolbar {...toolbarProps} />
                 </div>

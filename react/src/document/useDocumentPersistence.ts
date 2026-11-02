@@ -2,7 +2,7 @@
  * Purpose: React hook that owns the DocumentPersistence workflow.
  */
 import { hasLayerContent, type DrawingLayer } from '../layers/model';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ViewLoop } from '../canvas/types';
 import type { ToolpathStackEntry } from '../toolpaths/useToolpathStack';
@@ -58,7 +58,22 @@ export function useDocumentPersistence({
     setStatus,
 }: UseDocumentPersistenceOptions) {
     const autosaveStoreRef = useRef(new ProjectAutosaveStore());
-    const recoveryCheckedRef = useRef(false);
+    const [recoveryChecked, setRecoveryChecked] = useState(false);
+    const currentDocument = [
+        layers,
+        activeLayerId,
+        loops,
+        selected,
+        hidden,
+        stack,
+        bitmaps,
+        guides,
+        stock,
+        fileName,
+    ];
+    const initialDocumentRef = useRef(currentDocument);
+    const latestDocumentRef = useRef(currentDocument);
+    latestDocumentRef.current = currentDocument;
 
     useEffect(() => {
         let cancelled = false;
@@ -66,6 +81,14 @@ export function useDocumentPersistence({
             .load()
             .then((recovery) => {
                 if (cancelled || !recovery) return;
+                // A newly opened or edited document takes priority over startup recovery.
+                if (
+                    initialDocumentRef.current.some(
+                        (value, index) =>
+                            value !== latestDocumentRef.current[index],
+                    )
+                )
+                    return;
                 if (
                     !recovery.snapshot.loops.length &&
                     !recovery.snapshot.stack.length &&
@@ -95,7 +118,7 @@ export function useDocumentPersistence({
                 // Private-mode browsers can deny IndexedDB. Export still works.
             })
             .finally(() => {
-                recoveryCheckedRef.current = true;
+                if (!cancelled) setRecoveryChecked(true);
             });
         return () => {
             cancelled = true;
@@ -106,7 +129,13 @@ export function useDocumentPersistence({
     }, []);
 
     useEffect(() => {
-        if (!recoveryCheckedRef.current) return;
+        if (!recoveryChecked) return;
+        if (
+            initialDocumentRef.current.every(
+                (value, index) => value === latestDocumentRef.current[index],
+            )
+        )
+            return;
         const timer = window.setTimeout(() => {
             void autosaveStoreRef.current
                 .save({
@@ -127,6 +156,7 @@ export function useDocumentPersistence({
         }, 600);
         return () => window.clearTimeout(timer);
     }, [
+        recoveryChecked,
         layers,
         activeLayerId,
         bitmaps,

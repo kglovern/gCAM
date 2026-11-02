@@ -96,6 +96,7 @@ export function useDocumentEditingCommands({
     } = document;
 
     const projectFiles = useProjectFileCommands({
+        cancelPendingImport: document.cancelUnitImport,
         outputUnits,
         onLoadOutputUnits,
         outputSettings,
@@ -183,6 +184,7 @@ export function useDocumentEditingCommands({
         PlacedBitmapRecord,
         Guide
     >({
+        cancelPendingImport: document.cancelUnitImport,
         defaultStock,
         setStock,
         layers: document.layers,

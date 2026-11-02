@@ -48,7 +48,11 @@ export function handleTabMove(
         );
         if (hit) {
             drag.along = hit.along;
-            if (Math.hypot(event.movementX, event.movementY) > 1)
+            if (
+                Math.abs(hit.along - drag.marker.along) *
+                    deps.cameraRef.current.scale >
+                1
+            )
                 drag.moved = true;
             canvas.style.cursor = 'grabbing';
             deps.forceTick();

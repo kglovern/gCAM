@@ -10,8 +10,8 @@ import {
     pointAtDistance,
     polylineLength,
 } from '../../geometry/primitives.js';
-import { boundsOfPoints } from '../../geometry/bounds.js';
 import { formatNumber } from './format.js';
+import { fitArcRun } from './fit-arc.js';
 import {
     getMinimumTabWidth,
     getTabCenterlineSpan,
@@ -83,13 +83,16 @@ function emitContourMoves(
     if (contour.length < 2) {
         return;
     }
-    if (
-        !forcePolylineArcs &&
-        tryEmitCircleArcs(lines, contour, depth, feed, plunge)
-    ) {
-        return;
-    }
     for (let i = 1; i < contour.length; i += 1) {
+        const arc = !forcePolylineArcs && fitArcRun(contour, i - 1);
+        if (arc) {
+            const end = contour[arc.end];
+            lines.push(
+                `${arc.command} X${formatNumber(end.x)} Y${formatNumber(end.y)} I${arc.i} J${arc.j} F${formatNumber(feed)}`,
+            );
+            i = arc.end;
+            continue;
+        }
         const point = contour[i];
         lines.push(
             `G1 X${formatNumber(point.x)} Y${formatNumber(point.y)} F${formatNumber(feed)}`,
@@ -319,32 +322,4 @@ export function getProfileStartPoint(contour, toolpath) {
         x: start.x - ((next.y - start.y) / length) * toolpath.trochoidRadius,
         y: start.y + ((next.x - start.x) / length) * toolpath.trochoidRadius,
     };
-}
-
-function tryEmitCircleArcs(lines, contour, depth, feed, plunge) {
-    if (contour.length < 16) {
-        return false;
-    }
-    const bounds = boundsOfPoints(contour);
-    const cx = (bounds.minX + bounds.maxX) / 2;
-    const cy = (bounds.minY + bounds.maxY) / 2;
-    const radius = dist(contour[0], { x: cx, y: cy });
-    const maxError = contour.reduce(
-        (error, point) =>
-            Math.max(error, Math.abs(dist(point, { x: cx, y: cy }) - radius)),
-        0,
-    );
-    if (maxError > 0.05) {
-        return false;
-    }
-    const start = contour[0];
-    const half = pointAtDistance(contour, polylineLength(contour) / 2);
-    lines.push(`G1 Z${formatNumber(depth)} F${formatNumber(plunge)}`);
-    lines.push(
-        `G2 X${formatNumber(half.x)} Y${formatNumber(half.y)} I${formatNumber(cx - start.x)} J${formatNumber(cy - start.y)} F${formatNumber(feed)}`,
-    );
-    lines.push(
-        `G2 X${formatNumber(start.x)} Y${formatNumber(start.y)} I${formatNumber(cx - half.x)} J${formatNumber(cy - half.y)} F${formatNumber(feed)}`,
-    );
-    return true;
 }

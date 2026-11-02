@@ -1,40 +1,179 @@
+import {
+    svgImageDescriptor,
+    svgProperty,
+    svgRectangle,
+    svgPresentation,
+} from './svg-image.js';
+import { svgDocumentSpace } from './svg-document.js';
+import { svgUseResolver } from './svg-use.js';
+import { svgLengthReader, nestedSvgViewport } from './svg-lengths.js';
 /**
  * Purpose: Implementation module for svg in the react domain.
  */
 import { svgLayerMetadata } from '../layers/importMetadata.js';
-import { TOOLPATH_SAMPLE_STEP } from './constants.js';
+import {
+    flattenBezier,
+    flattenEllipse,
+    flattenSvgArc,
+    SVG_CURVE_TOLERANCE,
+} from '../geometry/curveFlattening.js';
 import {
     createMatrix,
     multiplyMatrices,
     applyMatrixToPoint,
     parseSvgTransform,
     parseSvgPoints,
-    sampleEllipsePoints,
 } from '../geometry/matrix.js';
 import { closePoints } from '../geometry/primitives.js';
 
-export function parseSvg(text) {
+export function parseSvg(
+    text,
+    { curveTolerance = SVG_CURVE_TOLERANCE, coordinateSpace = 'svg' } = {},
+) {
+    if (coordinateSpace !== 'svg' && coordinateSpace !== 'cam')
+        throw new Error('Invalid SVG coordinate space.');
+    if (!Number.isFinite(curveTolerance) || curveTolerance <= 0)
+        throw new Error('Invalid SVG curve tolerance.');
+    const ellipse = (cx, cy, rx, ry, matrix) =>
+        flattenEllipse(
+            applyMatrixToPoint({ x: cx, y: cy }, matrix),
+            { x: matrix.a * rx, y: matrix.b * rx },
+            { x: matrix.c * ry, y: matrix.d * ry },
+            0,
+            2 * Math.PI,
+            curveTolerance,
+        );
     const parser = new DOMParser();
     const documentNode = parser.parseFromString(text, 'image/svg+xml');
     if (documentNode.querySelector('parsererror')) {
         throw new Error('Invalid SVG');
     }
 
+    const documentSpace =
+        coordinateSpace === 'cam'
+            ? svgDocumentSpace(documentNode.documentElement)
+            : null;
+    if (documentSpace && !documentSpace.rendered) return [];
     const entities = [];
+    const length = svgLengthReader();
+    const resolveUse = svgUseResolver(documentNode, length);
+    let vertexCount = 0,
+        imageCount = 0,
+        imageChars = 0;
+    const append = (entity) => {
+        vertexCount += entity.vertices?.length ?? 2;
+        if (vertexCount > 2000000)
+            throw new Error(
+                'SVG geometry is too detailed; simplify the artwork.',
+            );
+        entities.push(entity);
+    };
 
-    function visit(element, inheritedMatrix) {
+    function visit(element, inheritedMatrix, depth = 0, imageClips = []) {
+        if (depth > 256) throw new Error('SVG geometry is too deeply nested.');
         if (!(element instanceof Element)) {
             return;
         }
-        const tag = element.tagName.toLowerCase();
-        const matrix = multiplyMatrices(
-            inheritedMatrix,
-            parseSvgTransform(element.getAttribute('transform')),
-        );
+        const tag = element.localName.toLowerCase();
+        if (
+            ![
+                'g',
+                'svg',
+                'use',
+                'image',
+                'line',
+                'polyline',
+                'polygon',
+                'rect',
+                'circle',
+                'ellipse',
+                'path',
+            ].includes(tag)
+        )
+            return;
+        const presentation = svgPresentation(element);
+        if (!presentation.displayed) return;
+        // Visibility can be overridden by descendants; display:none and zero opacity cannot.
+        if (!presentation.visible && !['g', 'svg', 'use'].includes(tag)) return;
+        const transform = parseSvgTransform(element.getAttribute('transform'));
+        if (documentSpace && element === documentNode.documentElement) {
+            transform.e *= documentSpace.factor;
+            transform.f *= documentSpace.factor;
+            const { x, y } = documentSpace.origin;
+            transform.e += x - transform.a * x - transform.c * y;
+            transform.f += y - transform.b * x - transform.d * y;
+        }
+        let matrix = multiplyMatrices(inheritedMatrix, transform);
+        if (documentSpace && element === documentNode.documentElement) {
+            if (svgProperty(element, 'overflow') !== 'visible')
+                imageClips = [
+                    ...imageClips,
+                    svgRectangle(
+                        matrix,
+                        0,
+                        0,
+                        documentSpace.size.x,
+                        documentSpace.size.y,
+                    ),
+                ];
+            matrix = multiplyMatrices(matrix, documentSpace.viewport);
+        }
 
+        if (tag === 'use') {
+            const translated = multiplyMatrices(
+                matrix,
+                createMatrix(
+                    1,
+                    0,
+                    0,
+                    1,
+                    length(element, 'x', 'x'),
+                    length(element, 'y', 'y'),
+                ),
+            );
+            resolveUse(element, (clone) =>
+                visit(clone, translated, depth + 1, imageClips),
+            );
+            return;
+        }
+        if (tag === 'svg' && element !== documentNode.documentElement) {
+            const parent = element.parentElement?.closest('svg');
+            const viewport = nestedSvgViewport(
+                element,
+                length.viewport(parent),
+            );
+            if (!viewport.rendered) return;
+            if (svgProperty(element, 'overflow') !== 'visible') {
+                const { x, y, width, height } = viewport.rectangle;
+                imageClips = [
+                    ...imageClips,
+                    svgRectangle(matrix, x, y, width, height),
+                ];
+            }
+            matrix = multiplyMatrices(matrix, viewport.matrix);
+        }
         if (tag === 'g' || tag === 'svg') {
             for (const child of element.children) {
-                visit(child, matrix);
+                visit(child, matrix, depth + 1, imageClips);
+            }
+            return;
+        }
+
+        if (tag === 'image') {
+            const image = svgImageDescriptor(
+                element,
+                matrix,
+                length,
+                imageClips,
+            );
+            if (image) {
+                imageCount++;
+                imageChars += image.dataUrl.length;
+                if (imageCount > 1024 || imageChars > 64 * 1024 * 1024)
+                    throw new Error(
+                        'SVG contains too much embedded image data.',
+                    );
+                append({ ...image, ...svgLayerMetadata(element) });
             }
             return;
         }
@@ -42,27 +181,26 @@ export function parseSvg(text) {
         if (tag === 'line') {
             const start = applyMatrixToPoint(
                 {
-                    x:
-                        Number.parseFloat(element.getAttribute('x1') || '0') ||
-                        0,
-                    y:
-                        Number.parseFloat(element.getAttribute('y1') || '0') ||
-                        0,
+                    x: length(element, 'x1', 'x'),
+                    y: length(element, 'y1', 'y'),
                 },
                 matrix,
             );
             const end = applyMatrixToPoint(
                 {
-                    x:
-                        Number.parseFloat(element.getAttribute('x2') || '0') ||
-                        0,
-                    y:
-                        Number.parseFloat(element.getAttribute('y2') || '0') ||
-                        0,
+                    x: length(element, 'x2', 'x'),
+                    y: length(element, 'y2', 'y'),
                 },
                 matrix,
             );
-            entities.push({
+            if (
+                [start, end].some(
+                    (point) =>
+                        !Number.isFinite(point.x) || !Number.isFinite(point.y),
+                )
+            )
+                throw new Error('Invalid SVG geometry coordinates.');
+            append({
                 type: 'LINE',
                 ...svgLayerMetadata(element),
                 handle: '',
@@ -81,7 +219,7 @@ export function parseSvg(text) {
                 matrix,
             );
             if (points.length >= 2) {
-                entities.push(
+                append(
                     polylineEntityFromPoints(
                         points,
                         tag === 'polygon',
@@ -93,34 +231,49 @@ export function parseSvg(text) {
         }
 
         if (tag === 'rect') {
-            const x = Number.parseFloat(element.getAttribute('x') || '0') || 0;
-            const y = Number.parseFloat(element.getAttribute('y') || '0') || 0;
-            const width =
-                Number.parseFloat(element.getAttribute('width') || '0') || 0;
-            const height =
-                Number.parseFloat(element.getAttribute('height') || '0') || 0;
+            const x = length(element, 'x', 'x');
+            const y = length(element, 'y', 'y');
+            const width = length(element, 'width', 'x');
+            const height = length(element, 'height', 'y');
             if (width > 0 && height > 0) {
-                const points = [
-                    applyMatrixToPoint({ x, y }, matrix),
-                    applyMatrixToPoint({ x: x + width, y }, matrix),
-                    applyMatrixToPoint({ x: x + width, y: y + height }, matrix),
-                    applyMatrixToPoint({ x, y: y + height }, matrix),
-                ];
-                entities.push(polylineEntityFromPoints(points, true, element));
+                const radiusX = length(element, 'rx', 'x', null),
+                    radiusY = length(element, 'ry', 'y', null);
+                const validX =
+                    radiusX !== null && radiusX >= 0 ? radiusX : null;
+                const validY =
+                    radiusY !== null && radiusY >= 0 ? radiusY : null;
+                const rx = Math.min(validX ?? validY ?? 0, width / 2),
+                    ry = Math.min(validY ?? validX ?? 0, height / 2);
+                const points =
+                    rx > 0 && ry > 0
+                        ? sampleSvgPathPoints(
+                              `M${x + rx} ${y} H${x + width - rx} A${rx} ${ry} 0 0 1 ${x + width} ${y + ry} V${y + height - ry} A${rx} ${ry} 0 0 1 ${x + width - rx} ${y + height} H${x + rx} A${rx} ${ry} 0 0 1 ${x} ${y + height - ry} V${y + ry} A${rx} ${ry} 0 0 1 ${x + rx} ${y} Z`,
+                              matrix,
+                              true,
+                              curveTolerance,
+                          )
+                        : [
+                              applyMatrixToPoint({ x, y }, matrix),
+                              applyMatrixToPoint({ x: x + width, y }, matrix),
+                              applyMatrixToPoint(
+                                  { x: x + width, y: y + height },
+                                  matrix,
+                              ),
+                              applyMatrixToPoint({ x, y: y + height }, matrix),
+                          ];
+                append(polylineEntityFromPoints(points, true, element));
             }
             return;
         }
 
         if (tag === 'circle') {
-            const cx =
-                Number.parseFloat(element.getAttribute('cx') || '0') || 0;
-            const cy =
-                Number.parseFloat(element.getAttribute('cy') || '0') || 0;
-            const r = Number.parseFloat(element.getAttribute('r') || '0') || 0;
+            const cx = length(element, 'cx', 'x');
+            const cy = length(element, 'cy', 'y');
+            const r = length(element, 'r', 'diagonal');
             if (r > 0) {
-                entities.push(
+                append(
                     polylineEntityFromPoints(
-                        sampleEllipsePoints(cx, cy, r, r, matrix),
+                        ellipse(cx, cy, r, r, matrix),
                         true,
                         element,
                     ),
@@ -130,18 +283,14 @@ export function parseSvg(text) {
         }
 
         if (tag === 'ellipse') {
-            const cx =
-                Number.parseFloat(element.getAttribute('cx') || '0') || 0;
-            const cy =
-                Number.parseFloat(element.getAttribute('cy') || '0') || 0;
-            const rx =
-                Number.parseFloat(element.getAttribute('rx') || '0') || 0;
-            const ry =
-                Number.parseFloat(element.getAttribute('ry') || '0') || 0;
+            const cx = length(element, 'cx', 'x');
+            const cy = length(element, 'cy', 'y');
+            const rx = length(element, 'rx', 'x');
+            const ry = length(element, 'ry', 'y');
             if (rx > 0 && ry > 0) {
-                entities.push(
+                append(
                     polylineEntityFromPoints(
-                        sampleEllipsePoints(cx, cy, rx, ry, matrix),
+                        ellipse(cx, cy, rx, ry, matrix),
                         true,
                         element,
                     ),
@@ -157,9 +306,14 @@ export function parseSvg(text) {
                     splitSvgPathSubpaths(pathData),
                 )) {
                     const closed = /[zZ]/.test(subpath);
-                    const points = sampleSvgPathPoints(subpath, matrix, closed);
+                    const points = sampleSvgPathPoints(
+                        subpath,
+                        matrix,
+                        closed,
+                        curveTolerance,
+                    );
                     if (points.length >= 2) {
-                        entities.push(
+                        append(
                             polylineEntityFromPoints(points, closed, element),
                         );
                     }
@@ -168,7 +322,7 @@ export function parseSvg(text) {
         }
     }
 
-    visit(documentNode.documentElement, createMatrix());
+    visit(documentNode.documentElement, documentSpace?.flip ?? createMatrix());
     return entities;
 }
 
@@ -300,6 +454,12 @@ function polylineEntityFromPoints(
     element,
     sourceType = 'POLYLINE',
 ) {
+    if (
+        points.some(
+            (point) => !Number.isFinite(point.x) || !Number.isFinite(point.y),
+        )
+    )
+        throw new Error('Invalid SVG geometry coordinates.');
     return {
         type: sourceType,
         ...svgLayerMetadata(element),
@@ -310,32 +470,132 @@ function polylineEntityFromPoints(
     };
 }
 
-function sampleSvgPathPoints(pathData, matrix, closed) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', pathData);
-    svg.appendChild(path);
-    svg.style.position = 'absolute';
-    svg.style.width = '0';
-    svg.style.height = '0';
-    svg.style.overflow = 'hidden';
-    svg.style.opacity = '0';
-    svg.style.pointerEvents = 'none';
-    document.body.appendChild(svg);
-
-    try {
-        const totalLength = path.getTotalLength();
-        const steps = Math.max(
-            24,
-            Math.ceil(totalLength / TOOLPATH_SAMPLE_STEP),
-        );
-        const points = [];
-        for (let i = 0; i <= steps; i += 1) {
-            const point = path.getPointAtLength((totalLength * i) / steps);
-            points.push(applyMatrixToPoint({ x: point.x, y: point.y }, matrix));
+export function* svgPathSegments(pathData) {
+    const commands = parsePathCommands(pathData);
+    if (commands[0]?.command.toLowerCase() !== 'm')
+        throw new Error('SVG path must start with a move.');
+    const point = { x: 0, y: 0, startX: 0, startY: 0 };
+    let cubic = null,
+        quadratic = null;
+    for (const { command, args } of commands) {
+        const key = command.toLowerCase(),
+            count = PATH_ARG_COUNTS[key];
+        if (
+            !args.every(Number.isFinite) ||
+            (count
+                ? !args.length || args.length % count !== 0
+                : args.length !== 0)
+        )
+            throw new Error('Invalid SVG path coordinates.');
+        if (key === 'z') {
+            const start = { x: point.x, y: point.y };
+            advancePathPoint([{ command, args }], point);
+            yield {
+                start,
+                end: { x: point.x, y: point.y },
+                move: false,
+                curve: null,
+            };
+            cubic = quadratic = null;
+            continue;
         }
-        return closed ? closePoints(points) : points;
-    } finally {
-        svg.remove();
+        for (let i = 0; i < args.length; i += count) {
+            const values = args.slice(i, i + count);
+            const next =
+                key === 'm' && i > 0 ? (command === 'm' ? 'l' : 'L') : command;
+            const type = next.toLowerCase(),
+                relative = next !== next.toUpperCase();
+            const start = { x: point.x, y: point.y };
+            const absolute = (index) => ({
+                x: values[index] + (relative ? start.x : 0),
+                y: values[index + 1] + (relative ? start.y : 0),
+            });
+            advancePathPoint([{ command: next, args: values }], point);
+            const end = { x: point.x, y: point.y };
+            let curve = null,
+                controls = null,
+                arc = null,
+                nextCubic = null,
+                nextQuadratic = null;
+            if (type === 'c' || type === 's') {
+                const first =
+                    type === 'c'
+                        ? absolute(0)
+                        : cubic
+                          ? {
+                                x: 2 * start.x - cubic.x,
+                                y: 2 * start.y - cubic.y,
+                            }
+                          : start;
+                const second = absolute(type === 'c' ? 2 : 0);
+                curve = `C${first.x} ${first.y} ${second.x} ${second.y} ${end.x} ${end.y}`;
+                controls = [start, first, second, end];
+                nextCubic = second;
+            } else if (type === 'q' || type === 't') {
+                const control =
+                    type === 'q'
+                        ? absolute(0)
+                        : quadratic
+                          ? {
+                                x: 2 * start.x - quadratic.x,
+                                y: 2 * start.y - quadratic.y,
+                            }
+                          : start;
+                curve = `Q${control.x} ${control.y} ${end.x} ${end.y}`;
+                controls = [start, control, end];
+                nextQuadratic = control;
+            } else if (type === 'a') {
+                arc = values.slice(0, 5);
+                curve = `A${arc.join(' ')} ${end.x} ${end.y}`;
+            }
+            cubic = nextCubic;
+            quadratic = nextQuadratic;
+            yield {
+                start,
+                end,
+                move: type === 'm',
+                controls,
+                arc,
+                curve: curve ? `M${start.x} ${start.y} ${curve}` : null,
+            };
+        }
     }
+}
+
+function sampleSvgPathPoints(pathData, matrix, closed, tolerance) {
+    const points = [];
+    const append = (point) => {
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y))
+            throw new Error('Invalid SVG path coordinates.');
+        if (points.at(-1)?.x === point.x && points.at(-1)?.y === point.y)
+            return;
+        if (points.length >= 1000000)
+            throw new Error('SVG path is too detailed; simplify the artwork.');
+        points.push(point);
+    };
+    for (const segment of svgPathSegments(pathData)) {
+        const budget = Math.min(1000000, 1000000 - points.length + 1);
+        const sampled = segment.controls
+            ? flattenBezier(
+                  segment.controls.map((point) =>
+                      applyMatrixToPoint(point, matrix),
+                  ),
+                  tolerance,
+                  budget,
+              )
+            : segment.arc
+              ? flattenSvgArc(
+                    segment.start,
+                    segment.end,
+                    segment.arc,
+                    matrix,
+                    tolerance,
+                    budget,
+                )
+              : null;
+        if (sampled)
+            for (let i = 1; i < sampled.length; i++) append(sampled[i]);
+        else append(applyMatrixToPoint(segment.end, matrix));
+    }
+    return closed ? closePoints(points) : points;
 }

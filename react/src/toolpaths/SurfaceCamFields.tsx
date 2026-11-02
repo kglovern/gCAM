@@ -56,7 +56,7 @@ export function SurfaceCamFields({
             </p>
             {!hasModel && (
                 <p className="text-xs text-red-600 dark:text-red-300">
-                    Select a placed STL heightmap to machine its retained mesh.
+                    Select a placed 3D model or image heightmap.
                 </p>
             )}
             {hasModel && (

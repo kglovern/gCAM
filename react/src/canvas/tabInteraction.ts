@@ -22,19 +22,21 @@ export function findTabHover(
     const seen = new Map<string, number>();
     let best: (TabHoverCandidate & { distance: number }) | null = null;
     preview.forEach((contour, previewIndex) => {
-        if (contour.tabEligible === false || contour.points.length < 2) return;
         const contourIndex = seen.get(contour.entryId) ?? 0;
         seen.set(contour.entryId, contourIndex + 1);
+        if (contour.tabEligible === false || contour.points.length < 2) return;
         const hit = nearestPointOnPolyline(contour.points, world);
         if (!hit || hit.distance > tolerance) return;
         const toolDiameter =
             Number(contour.toolDiameter) > 0 ? Number(contour.toolDiameter) : 6;
         const tabWidth =
             Number(contour.tabWidth) > 0 ? Number(contour.tabWidth) : 9;
-        const span = getTabCenterlineSpan(
-            Math.max(tabWidth, getMinimumTabWidth(toolDiameter)),
-            toolDiameter,
-        );
+        const span =
+            contour.tabSpan ??
+            getTabCenterlineSpan(
+                Math.max(tabWidth, getMinimumTabWidth(toolDiameter)),
+                toolDiameter,
+            );
         const total = polylineLength(contour.points);
         const start = pointAtDistance(
             contour.points,

@@ -13,6 +13,7 @@ import { DEFAULT_JOB_STOCK, type JobStock } from '../job/stock';
 
 interface UseNewCanvasCommandOptions<TLoop, TStack, TBitmap, TGuide> {
     defaultStock?: JobStock;
+    cancelPendingImport?(): void;
     setStock: Dispatch<SetStateAction<JobStock>>;
     setLayers?: Dispatch<SetStateAction<DrawingLayer[]>>;
     setActiveLayerId?: Dispatch<SetStateAction<string>>;
@@ -64,6 +65,7 @@ export function useNewCanvasCommand<TLoop, TStack, TBitmap, TGuide>(
         ) {
             return;
         }
+        options.cancelPendingImport?.();
         if (hasWork) options.pushHistory();
         options.setEmptyStateDismissed(true);
         options.setSelected([]);

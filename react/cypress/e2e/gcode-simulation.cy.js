@@ -36,7 +36,7 @@ describe('G-code-only Simulation', () => {
         });
         cy.then(() => expect(previewWorkers.length).to.be.greaterThan(0));
         cy.contains('button', /^Simulate$/).should('not.exist');
-        cy.get('[aria-label="Toolpaths"]').click();
+        cy.get('[aria-label="Milling"]').click();
         cy.get('[aria-label="Simulation"]').click();
         cy.contains('G-code preview').should('be.visible');
         cy.contains('Stock simulation').should('not.exist');

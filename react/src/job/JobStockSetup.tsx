@@ -1,3 +1,4 @@
+import { LaserRotaryFields } from './LaserRotaryFields';
 import { UnitInput } from '../components/UnitInput';
 import { MATERIAL_RECIPES } from '../cutting-parameters/recipes';
 import { displayValue, lengthUnit } from '../lib/units';
@@ -13,6 +14,7 @@ export function JobStockSetup({
     maxYTravelMm,
     machineName,
     embedded = false,
+    laser = false,
 }: {
     stock: JobStock;
     units: UnitSystem;
@@ -21,6 +23,7 @@ export function JobStockSetup({
     maxYTravelMm: number | null;
     machineName: string;
     embedded?: boolean;
+    laser?: boolean;
 }) {
     const update = (next: Partial<JobStock>) => onChange({ ...stock, ...next });
     const unit = lengthUnit(units);
@@ -102,15 +105,33 @@ export function JobStockSetup({
                 <select
                     aria-label="Stock material"
                     className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-robin-900 dark:bg-dark dark:text-white"
-                    value={stock.material}
+                    value={
+                        laser
+                            ? (stock.laserMaterial ?? 'plywood')
+                            : stock.material
+                    }
                     onChange={(event) =>
-                        update({
-                            material: event.target
-                                .value as JobStock['material'],
-                        })
+                        update(
+                            laser
+                                ? { laserMaterial: event.target.value }
+                                : {
+                                      material: event.target
+                                          .value as JobStock['material'],
+                                  },
+                        )
                     }
                 >
-                    {Object.values(MATERIAL_RECIPES).map((recipe) => (
+                    {(laser
+                        ? [
+                              { id: 'plywood', label: 'Plywood' },
+                              { id: 'solid-wood', label: 'Solid wood' },
+                              { id: 'paper-card', label: 'Paper / card' },
+                              { id: 'acrylic', label: 'Laser-safe acrylic' },
+                              { id: 'leather', label: 'Laser-safe leather' },
+                              { id: 'other', label: 'Other' },
+                          ]
+                        : Object.values(MATERIAL_RECIPES)
+                    ).map((recipe) => (
                         <option key={recipe.id} value={recipe.id}>
                             {recipe.label}
                         </option>
@@ -118,8 +139,17 @@ export function JobStockSetup({
                 </select>
             </label>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-                Shared by all toolpaths and the stock-removal simulation.
+                {laser
+                    ? 'Suggestions match this material and thickness to your laser setup.'
+                    : 'Shared by all toolpaths and the stock-removal simulation.'}
             </p>
+            {laser && stock.laserRotary && (
+                <LaserRotaryFields
+                    stock={stock}
+                    onChange={onChange}
+                    units={units}
+                />
+            )}
         </section>
     );
 }

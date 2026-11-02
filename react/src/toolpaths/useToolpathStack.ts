@@ -1,3 +1,4 @@
+import { pointAtDistance } from '../geometry/primitives.js';
 /**
  * Purpose: React hook that owns the ToolpathStack workflow.
  */
@@ -14,8 +15,15 @@ import { defaultTabsForContours, operationUsesTabs } from '../lib/tabs';
 export interface ToolpathStackEntry {
     id: string;
     label: string;
+    customLabel?: string;
+    outputEnabled?: boolean;
     args: ProfileArgs;
-    preview: { points: { x: number; y: number }[]; intensity?: number }[];
+    preview: {
+        points: { x: number; y: number }[];
+        intensity?: number;
+        laserPower?: number;
+        variableLaserPower?: boolean;
+    }[];
     toolpath: Record<string, unknown>;
 }
 
@@ -44,12 +52,17 @@ function withoutBitmap(args: ProfileArgs): ProfileArgs {
     return persisted;
 }
 
-function previewFor(result: ToolpathResult) {
+export function previewFor(result: ToolpathResult) {
     return [
         ...result.previewContours,
         ...(result.trochoidPreviewContours ?? []),
     ].map((points) => ({
         points,
+        variableLaserPower: (
+            points as typeof points & { _laserVariablePower?: boolean }
+        )._laserVariablePower,
+        laserPower: (points as typeof points & { _laserPower?: number })
+            ._laserPower,
         intensity:
             Number(
                 (
@@ -67,12 +80,63 @@ function previewFor(result: ToolpathResult) {
  * rebuilds consistently.
  */
 export function useToolpathStack(options: ToolpathStackOptions) {
+    const commitPair = (
+        result: ToolpathResult,
+        args: ProfileArgs,
+        editingId?: string,
+    ) => {
+        if (!result.clearing) return false;
+        const clearing = result.clearing;
+        options.pushHistory();
+        options.setStack((current) => {
+            const belongs = (entry: ToolpathStackEntry) =>
+                entry.id === editingId ||
+                Boolean(
+                    args.vCarvePairId &&
+                        entry.args.vCarvePairId === args.vCarvePairId,
+                );
+            const old = current.filter(belongs);
+            const first = current.findIndex(belongs);
+            const make = (
+                r: ToolpathResult,
+                a: ProfileArgs,
+                operation: string,
+            ): ToolpathStackEntry => {
+                const previous = old.find(
+                    (e) => e.args.operation === operation,
+                );
+                return {
+                    id: previous?.id ?? createDocumentId('toolpath'),
+                    customLabel: previous?.customLabel,
+                    outputEnabled: previous?.outputEnabled,
+                    label: previous?.customLabel ?? r.label,
+                    args: withoutBitmap(a),
+                    preview: previewFor(r),
+                    toolpath: r.toolpath,
+                };
+            };
+            const pair = [
+                make(clearing.result, clearing.args, 'pocket'),
+                make(result, args, 'vcarve'),
+            ];
+            const rest = current.filter((e) => !belongs(e));
+            rest.splice(first < 0 ? rest.length : first, 0, ...pair);
+            return rest;
+        });
+        options.setSelected([]);
+        options.setEditingId(null);
+        options.setDraftPreview([]);
+        options.setDraftProgress(null);
+        options.setStatus('V-carve clearing and finishing toolpaths saved.');
+        return true;
+    };
     const clearDraft = () => {
         options.setDraftPreview([]);
         options.setDraftProgress(null);
     };
 
     const handleResult = (result: ToolpathResult, args: ProfileArgs) => {
+        if (commitPair(result, args)) return;
         options.pushHistory();
         const persisted = withoutBitmap(args);
         const finish = (
@@ -153,20 +217,66 @@ export function useToolpathStack(options: ToolpathStackOptions) {
         result: ToolpathResult,
         args: ProfileArgs,
     ) => {
+        if (commitPair(result, args, id)) return;
         options.pushHistory();
         const persisted = withoutBitmap(args);
         options.setStack((current) =>
-            current.map((entry) =>
-                entry.id === id
-                    ? {
-                          ...entry,
-                          args: persisted,
-                          label: result.label,
-                          preview: previewFor(result),
-                          toolpath: result.toolpath,
-                      }
-                    : entry,
-            ),
+            current
+                .filter(
+                    (entry) =>
+                        !(
+                            args.operation === 'vcarve' &&
+                            !args.vCarveClearingTool &&
+                            args.vCarvePairId &&
+                            entry.args.vCarvePairId === args.vCarvePairId &&
+                            entry.args.operation === 'pocket'
+                        ),
+                )
+                .map((entry) =>
+                    entry.id === id
+                        ? {
+                              ...entry,
+                              args: {
+                                  ...persisted,
+                                  ...(args.operation === 'laser-cut'
+                                      ? {
+                                            tabs:
+                                                (result.toolpath
+                                                    .laserManualTabs as
+                                                    | PlacedTab[]
+                                                    | undefined) ?? [],
+                                        }
+                                      : {}),
+                              },
+                              label: entry.customLabel ?? result.label,
+                              preview: previewFor(result),
+                              toolpath: {
+                                  ...result.toolpath,
+                                  label: entry.customLabel ?? result.label,
+                              },
+                          }
+                        : args.vCarveInset &&
+                            args.vCarvePairId &&
+                            entry.args.vCarvePairId === args.vCarvePairId &&
+                            entry.args.operation === 'vcarve'
+                          ? {
+                                ...entry,
+                                args: {
+                                    ...entry.args,
+                                    vCarveClearingTool: {
+                                        toolDiameter: args.toolDiameter,
+                                        toolNumber: args.toolNumber,
+                                        feedRate: args.feedRate,
+                                        plungeRate: args.plungeRate,
+                                        spindle: args.spindle,
+                                        passDepth: args.passDepth,
+                                        libraryToolId: args.libraryToolId,
+                                        libraryToolName: args.libraryToolName,
+                                    },
+                                },
+                            }
+                          : entry,
+                ),
         );
         options.setEditingId(null);
         clearDraft();
@@ -178,16 +288,49 @@ export function useToolpathStack(options: ToolpathStackOptions) {
             (candidate) => candidate.id === entryId,
         );
         if (!entry) return;
-        options.setStatus('Updating tabs…');
+        if (entry.args.operation === 'laser-cut') {
+            tabs = tabs.map((tab) => ({
+                ...tab,
+                anchor:
+                    pointAtDistance(
+                        entry.preview[tab.contourIndex]?.points ?? [],
+                        tab.along,
+                    ) ?? undefined,
+            }));
+        }
+        options.setStatus(
+            entry.args.operation === 'laser-cut'
+                ? 'Updating bridges…'
+                : 'Updating tabs…',
+        );
         options.pushHistory();
-        void buildToolpathGcode({ ...entry.args, tabs }).then(
+        const args = {
+            ...entry.args,
+            tabs,
+            ...(entry.args.operation === 'laser-cut' && tabs.length
+                ? {
+                      laserOptions: {
+                          ...entry.args.laserOptions,
+                          bridges: true,
+                          bridgeMode: 'manual' as const,
+                      },
+                  }
+                : {}),
+        };
+        void buildToolpathGcode(args).then(
             (result) => {
                 options.setStack((current) =>
                     current.map((candidate) =>
                         candidate.id === entryId
                             ? {
                                   ...candidate,
-                                  args: { ...entry.args, tabs },
+                                  args: {
+                                      ...args,
+                                      tabs:
+                                          (result.toolpath.laserManualTabs as
+                                              | PlacedTab[]
+                                              | undefined) ?? tabs,
+                                  },
                                   label: result.label,
                                   preview: previewFor(result),
                                   toolpath: result.toolpath,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import { GcodeExportButton } from './GcodeExportButton';
 import type { ToolpathStackEntry } from './useToolpathStack';
@@ -58,7 +58,9 @@ test('exports one complete program with current units and no other toolpath', as
     fireEvent.click(
         screen.getByRole('button', { name: 'Export individual toolpaths' }),
     );
-    fireEvent.click(screen.getByRole('button', { name: '1. Profile 1' }));
+    await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: '1. Profile 1' }));
+    });
     const raw = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));

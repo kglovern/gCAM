@@ -1,3 +1,6 @@
+import { validateToolpaths } from '../cam/gcode-validation.js';
+import { processLaserImage } from '../cam/laser.js';
+import { exportToolpaths } from '../gcode/exportToolpaths';
 /**
  * Purpose: Implementation module for cam-worker in the engine domain.
  */
@@ -33,7 +36,8 @@ function postProgress(id: number, percent: number, label: string): void {
 }
 
 async function buildToolpath(data: BuildToolpathRequest): Promise<unknown> {
-    const { id, selectedLoops, config, toolpathOptions } = data;
+    const { id, selectedLoops, config } = data;
+    const { validateResult, ...toolpathOptions } = data.toolpathOptions;
     postProgress(id, 8, 'Preparing toolpath');
     const options = {
         ...toolpathOptions,
@@ -43,9 +47,16 @@ async function buildToolpath(data: BuildToolpathRequest): Promise<unknown> {
     };
     const result = await CamOps.createToolpathFromLoopsAsync(
         selectedLoops,
-        config,
+        String(config.operation).startsWith('laser-')
+            ? Object.fromEntries(
+                  Object.entries(config).filter(
+                      ([key]) => key !== 'sourceEntities',
+                  ),
+              )
+            : config,
         options,
     );
+    if (validateResult) validateToolpaths([result]);
     return result;
 }
 
@@ -68,11 +79,35 @@ self.onmessage = async (event: MessageEvent<CamWorkerRequest>) => {
         return;
     }
     try {
+        if (data.type === 'process-laser-image') {
+            const result = processLaserImage(
+                data.bitmap,
+                data.interval,
+                data.gamma,
+                data.options,
+                (percent, label) => postProgress(data.id, percent, label),
+            );
+            self.postMessage(
+                { id: data.id, result },
+                { transfer: [result.data.buffer] },
+            );
+            return;
+        }
         await ensureClipper();
+        if (data.type === 'export-program')
+            postProgress(data.id, 5, 'Preparing laser export');
         const result =
-            data.type === 'build-toolpath'
-                ? await buildToolpath(data)
-                : await buildGcode(data);
+            data.type === 'export-program'
+                ? exportToolpaths(
+                      data.toolpaths,
+                      data.fileName,
+                      data.arcs,
+                      data.units,
+                      data.settings,
+                  )
+                : data.type === 'build-toolpath'
+                  ? await buildToolpath(data)
+                  : await buildGcode(data);
         if (!cancelledRequestIds.has(data.id)) {
             postProgress(
                 data.id,

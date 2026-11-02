@@ -2,6 +2,7 @@ package com.petervanderwalt.gcam;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.util.Base64;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import org.apache.cordova.CallbackContext;
@@ -13,15 +14,19 @@ import org.json.JSONException;
 public class GcamFiles extends CordovaPlugin {
     private static final int SAVE = 701;
     private CallbackContext pending;
-    private String content;
+    private byte[] content;
 
     @Override public boolean execute(String action, JSONArray args, CallbackContext callback) throws JSONException {
-        if (!"save".equals(action)) return false;
+        if (!"save".equals(action) && !"saveBinary".equals(action)) return false;
         if (pending != null) { callback.error("Another export is still open."); return true; }
         final String name = args.getString(0);
-        content = args.getString(1);
-        pending = callback;
         final String mime = args.getString(2);
+        try {
+            content = "saveBinary".equals(action)
+                ? Base64.decode(args.getString(1), Base64.NO_WRAP)
+                : args.getString(1).getBytes(StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException error) { callback.error("Invalid binary export data."); return true; }
+        pending = callback;
         cordova.getActivity().runOnUiThread(() -> {
             try {
                 Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
@@ -38,13 +43,13 @@ public class GcamFiles extends CordovaPlugin {
         if (request != SAVE || pending == null) return;
         if (result != Activity.RESULT_OK || data == null || data.getData() == null) { finish("CANCELLED"); return; }
         final CallbackContext callback = pending;
-        final String text = content;
+        final byte[] bytes = content;
         pending = null;
         content = null;
         cordova.getThreadPool().execute(() -> {
             try (OutputStream output = cordova.getActivity().getContentResolver().openOutputStream(data.getData(), "wt")) {
                 if (output == null) throw new IllegalStateException("Could not open the chosen file.");
-                output.write(text.getBytes(StandardCharsets.UTF_8));
+                output.write(bytes);
                 callback.success();
             } catch (Exception error) { callback.error(error.getMessage()); }
         });

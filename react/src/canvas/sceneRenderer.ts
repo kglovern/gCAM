@@ -1,3 +1,4 @@
+import { resolveLinkedImageMask } from '../lib/image-mask';
 /**
  * Purpose: Implementation module for sceneRenderer in the react domain.
  */
@@ -5,6 +6,9 @@ import { layerDisplayColor } from '../layers/displayColor';
 import { getMinimumTabWidth, getTabCenterlineSpan } from '../cam/cam-ops.js';
 import { pointAtDistance, polylineLength } from '../geometry/primitives.js';
 import { drawOriginGuides, strokePoints } from './primitives';
+import { strokePoweredPath } from './poweredPath';
+import { drawPocketDepths } from './pocketDepthPreview';
+import { drawCutDepthImage } from './cutDepthImage';
 import type { CanvasCamera } from './camera';
 import { findGuideSource, type Guide, type GuideDraft } from '../lib/guides';
 
@@ -32,9 +36,14 @@ export interface CanvasSceneLoop {
 }
 
 export interface CanvasScenePreview {
+    depthImage?: import('../lib/cut-depth-preview').DepthPreviewImage;
+    pocket?: import('./types').PreviewLoop['pocket'];
     points: Point[];
     intensity?: number;
+    laserPower?: number;
+    variableLaserPower?: boolean;
     tabWidth?: number;
+    tabSpan?: number;
     toolDiameter?: number;
 }
 
@@ -51,6 +60,7 @@ export interface CanvasTabHover {
 }
 
 export interface CanvasSceneInput {
+    laserMasking?: boolean;
     ctx: CanvasRenderingContext2D;
     width: number;
     height: number;
@@ -89,6 +99,7 @@ export interface CanvasSceneInput {
         w: number;
         h: number;
         rotation?: number;
+        maskSourceIds?: string[];
         img?: HTMLImageElement;
     }[];
     guides: Guide[];
@@ -153,7 +164,18 @@ export function drawCanvasScene(input: CanvasSceneInput): void {
         x: cam.tx + x * cam.scale,
         y: cam.ty - y * cam.scale,
     });
-    drawBitmaps(ctx, bitmaps, toScreen, cam);
+    drawBitmaps(
+        ctx,
+        bitmaps,
+        toScreen,
+        cam,
+        input.laserMasking ? loops : undefined,
+    );
+    if (!input.laserMasking) {
+        const image = preview.find((p) => p.depthImage)?.depthImage;
+        if (image) drawCutDepthImage(ctx, image, cam, darkMode);
+        else drawPocketDepths(ctx, preview, cam, darkMode);
+    }
     for (const loop of loops) {
         if (hidden.includes(loop.id)) continue;
         const ghosted = input.ghostedIds?.includes(loop.id);
@@ -404,6 +426,7 @@ function drawBitmaps(
     bitmaps: CanvasSceneInput['bitmaps'],
     toScreen: (x: number, y: number) => Point,
     camera: CanvasCamera,
+    maskLoops?: import('./types').ViewLoop[],
 ): void {
     for (const bitmap of bitmaps) {
         if (!(bitmap.img instanceof HTMLImageElement)) continue;
@@ -411,10 +434,24 @@ function drawBitmaps(
             bitmap.x + bitmap.w / 2,
             bitmap.y + bitmap.h / 2,
         );
+        ctx.save();
         try {
-            ctx.save();
             ctx.translate(center.x, center.y);
             ctx.rotate(-((bitmap.rotation ?? 0) * Math.PI) / 180);
+            if (maskLoops && bitmap.maskSourceIds?.length) {
+                const mask = resolveLinkedImageMask(bitmap, maskLoops);
+                ctx.beginPath();
+                for (const poly of mask) {
+                    poly.forEach((p, i) => {
+                        const x = (p.x - 0.5) * bitmap.w * camera.scale,
+                            y = (0.5 - p.y) * bitmap.h * camera.scale;
+                        if (i) ctx.lineTo(x, y);
+                        else ctx.moveTo(x, y);
+                    });
+                    ctx.closePath();
+                }
+                ctx.clip('evenodd');
+            }
             ctx.drawImage(
                 bitmap.img,
                 -(bitmap.w * camera.scale) / 2,
@@ -422,9 +459,10 @@ function drawBitmaps(
                 bitmap.w * camera.scale,
                 bitmap.h * camera.scale,
             );
-            ctx.restore();
         } catch {
-            /* image not yet decodable — skip frame */
+            /* Undecodable images and unresolved masks stay hidden. */
+        } finally {
+            ctx.restore();
         }
     }
 }
@@ -439,7 +477,14 @@ function drawPreviewContours(
     ctx.strokeStyle = theme.preview;
     ctx.lineWidth = 1.25;
     for (const contour of preview) {
-        ctx.globalAlpha = intensityAlpha(contour.intensity);
+        if (contour.variableLaserPower) {
+            strokePoweredPath(ctx, contour.points, toScreen);
+            continue;
+        }
+        ctx.globalAlpha =
+            contour.laserPower === undefined
+                ? intensityAlpha(contour.intensity)
+                : Math.max(0, Math.min(1, contour.laserPower));
         strokePoints(ctx, contour.points, toScreen);
     }
     ctx.globalAlpha = 1;
@@ -449,11 +494,20 @@ function drawPreviewContours(
     for (const contour of draftPreview) {
         const styled = contour as Point[] & {
             _intensity?: number;
+            _laserPower?: number;
+            _laserVariablePower?: boolean;
             _solidPreview?: boolean;
         };
         ctx.lineWidth = styled._solidPreview ? 0.9 : 2;
         ctx.setLineDash(styled._solidPreview ? [] : [8, 6]);
-        ctx.globalAlpha = intensityAlpha(styled._intensity);
+        if (styled._laserVariablePower) {
+            strokePoweredPath(ctx, contour, toScreen);
+            continue;
+        }
+        ctx.globalAlpha =
+            styled._laserPower === undefined
+                ? intensityAlpha(styled._intensity)
+                : Math.max(0, Math.min(1, styled._laserPower));
         strokePoints(ctx, contour, toScreen);
     }
     ctx.globalAlpha = 1;
@@ -487,10 +541,12 @@ function drawTabs(
             Number(contour.toolDiameter) > 0 ? Number(contour.toolDiameter) : 6;
         const width =
             Number(contour.tabWidth) > 0 ? Number(contour.tabWidth) : 9;
-        const span = getTabCenterlineSpan(
-            Math.max(width, getMinimumTabWidth(diameter)),
-            diameter,
-        );
+        const span =
+            contour.tabSpan ??
+            getTabCenterlineSpan(
+                Math.max(width, getMinimumTabWidth(diameter)),
+                diameter,
+            );
         const along =
             activeDrag?.marker.entryId === marker.entryId &&
             activeDrag.marker.tabIndex === marker.tabIndex

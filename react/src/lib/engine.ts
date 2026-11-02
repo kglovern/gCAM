@@ -1,3 +1,4 @@
+import type { LaserOptions } from '../toolpaths/toolpathRequest';
 /**
  * Purpose: Implementation module for engine in the lib domain.
  */
@@ -31,6 +32,7 @@ export type Operation =
     | 'vcarve'
     | 'countersink'
     | 'texture-fill'
+    | 'laser-fill'
     | 'laser-cut'
     | 'laser-raster'
     | 'wavy-raster'
@@ -40,12 +42,33 @@ export type Operation =
     | 'surface-waterline';
 
 export interface PlacedTab {
+    anchor?: { x: number; y: number };
     contourIndex: number;
     along: number;
 }
 
 export interface ProfileArgs {
-    loops: { id?: string; points: { x: number; y: number }[] }[];
+    vCarvePairId?: string;
+    vCarveClearingTool?: Pick<
+        ProfileArgs,
+        | 'toolDiameter'
+        | 'toolNumber'
+        | 'feedRate'
+        | 'plungeRate'
+        | 'spindle'
+        | 'passDepth'
+        | 'libraryToolId'
+        | 'libraryToolName'
+    >;
+    vCarveInset?: { depth: number; angle: number; diameter: number };
+    vCarveEdgeFinish?: boolean;
+    chamferWidthMm?: number;
+    chamferTipOffsetMm?: number;
+    loops: {
+        id?: string;
+        groupId?: string;
+        points: { x: number; y: number }[];
+    }[];
     operation: Operation;
     toolDiameter: number;
     cutDepth: number;
@@ -56,6 +79,7 @@ export interface ProfileArgs {
     laserSMin?: number;
     laserSMax?: number;
     laserGamma?: number;
+    laserOptions?: LaserOptions;
     laserOverscan?: number;
     wavySpot?: number;
     wavyMinDepth?: number;
@@ -101,6 +125,7 @@ export interface ProfileArgs {
 }
 
 export interface ToolpathResult {
+    clearing?: { result: ToolpathResult; args: ProfileArgs };
     gcode: string;
     previewContours: { x: number; y: number }[][];
     trochoidPreviewContours?: { x: number; y: number }[][];
@@ -174,6 +199,7 @@ export function buildSurfaceToolpathResult(options: {
  * GRBL emitter. Returns preview contours for canvas overlay.
  */
 export interface RasterBitmap {
+    rotation?: number;
     imageData: {
         width: number;
         height: number;
@@ -199,6 +225,7 @@ function makeBase(
         laserSMin?: number;
         laserSMax?: number;
         laserGamma?: number;
+        laserOptions?: LaserOptions;
         laserOverscan?: number;
         wavySpot?: number;
         wavyMinDepth?: number;
@@ -234,6 +261,7 @@ function makeBase(
         laserSMin = 0,
         laserSMax = 1000,
         laserGamma = 1,
+        laserOptions,
         laserOverscan = 2,
         wavySpot = 2,
         wavyMinDepth = 0,
@@ -289,6 +317,7 @@ function makeBase(
         laserSMin,
         laserSMax,
         laserGamma,
+        laserOptions,
         laserOverscan,
         wavySpot,
         wavyMinDepth,
@@ -303,17 +332,24 @@ function makeBase(
 }
 
 export function buildToolpathGcode({
+    vCarveInset,
+    vCarvePairId,
+    vCarveEdgeFinish,
     loops,
     operation,
     toolDiameter,
     cutDepth,
     cutterAngle = 90,
+    chamferWidthMm,
+    chamferTipOffsetMm,
+    stockThicknessMm,
     laserFeed = 3000,
     laserPower = 1000,
     laserSpot = 0.2,
     laserSMin = 0,
     laserSMax = 1000,
     laserGamma = 1,
+    laserOptions,
     laserOverscan = 2,
     wavySpot = 2,
     wavyMinDepth = 0,
@@ -366,16 +402,24 @@ export function buildToolpathGcode({
         );
     assertToolpathRequest({ operation, toolDiameter, cutDepth }, bitmap);
     const base = makeToolpathConfig({
+        vCarveInset,
+        vCarvePairId,
+        vCarveEdgeFinish,
+        laserManualTabs: operation === 'laser-cut' ? tabs : undefined,
         operation,
         toolDiameter,
         cutDepth,
         cutterAngle,
+        chamferWidthMm,
+        chamferTipOffsetMm,
+        stockThicknessMm,
         laserFeed,
         laserPower,
         laserSpot,
         laserSMin,
         laserSMax,
         laserGamma,
+        laserOptions,
         laserOverscan,
         wavySpot,
         wavyMinDepth,
@@ -505,9 +549,68 @@ export function combineToolpaths(
 export async function buildToolpathGcodeAsync(
     args: ProfileArgs & {
         bitmap?: RasterBitmap;
+        /** Geometry consumers can defer program emission to the final job export. */
+        geometryOnly?: boolean;
         onProgress?: (percent: number, label: string) => void;
+        signal?: AbortSignal;
     },
 ): Promise<ToolpathResult> {
+    if (args.operation === 'vcarve' && args.vCarveClearingTool) {
+        const { vCarveClearingTool: tool, ...finishing } = args;
+        if (
+            !Number.isInteger(tool.toolNumber) ||
+            !(Number(tool.toolNumber) > 0) ||
+            tool.toolNumber === args.toolNumber ||
+            !(tool.toolDiameter > 0)
+        )
+            throw new Error('Choose a separate flat endmill for clearing.');
+        if (
+            !(args.cutDepth > 0) ||
+            !args.stockThicknessMm ||
+            args.cutDepth >= args.stockThicknessMm
+        )
+            throw new Error(
+                'V-carve clearing depth must be above the bottom of the stock.',
+            );
+        const clearingArgs: ProfileArgs = {
+            loops: args.loops,
+            operation: 'pocket',
+            ...tool,
+            cutterType: 'flat',
+            cutDepth: args.cutDepth,
+            stockThicknessMm: args.stockThicknessMm,
+            material: args.material,
+            machineProfileId: args.machineProfileId,
+            safeZ: args.safeZ,
+            arcs: args.arcs,
+            tabHeight: 0,
+            overlapPercent: 50,
+            vCarvePairId: args.vCarvePairId,
+            vCarveInset: {
+                depth: args.cutDepth,
+                angle: args.cutterAngle ?? 90,
+                diameter: args.toolDiameter,
+            },
+        };
+        const clearing = await buildToolpathGcodeAsync({
+            ...clearingArgs,
+            signal: args.signal,
+            geometryOnly: args.geometryOnly,
+            onProgress: args.onProgress,
+        });
+        if (!clearing.previewContours.length)
+            throw new Error(
+                'The clearing endmill does not fit. Choose a smaller endmill or reduce depth.',
+            );
+        clearing.label = 'V-carve clearing';
+        clearing.toolpath.label = clearing.label;
+        const result = await buildToolpathGcodeAsync({
+            ...finishing,
+            vCarveEdgeFinish: true,
+        });
+        result.clearing = { result: clearing, args: clearingArgs };
+        return result;
+    }
     const {
         loops,
         operation,
@@ -515,12 +618,16 @@ export async function buildToolpathGcodeAsync(
         fileName,
         bitmap,
         onProgress,
+        signal,
+        geometryOnly = false,
         halftoneResolution = 50,
         halftoneInvert = false,
         tabs = [],
         ...config
     } = args;
 
+    if (signal?.aborted)
+        throw new DOMException('Laser build cancelled.', 'AbortError');
     if (!loops.length) throw new Error('No shapes selected.');
     assertToolpathRequest({ operation, ...config }, bitmap);
 
@@ -534,6 +641,7 @@ export async function buildToolpathGcodeAsync(
         : undefined;
 
     const base = makeToolpathConfig({
+        laserManualTabs: operation === 'laser-cut' ? tabs : undefined,
         operation,
         ...config,
         halftoneResolution,
@@ -543,7 +651,14 @@ export async function buildToolpathGcodeAsync(
     const toolpath = await createToolpathInWorker(
         raster.loops,
         { ...base, ...raster.options },
-        { onProgress: workerProgress },
+        {
+            onProgress:
+                operation.startsWith('laser-') && onProgress && !geometryOnly
+                    ? (p) => onProgress(p.percent * 0.85, p.label)
+                    : workerProgress,
+            signal,
+            validateResult: geometryOnly,
+        },
     );
 
     // Apply tabs after worker returns
@@ -556,13 +671,20 @@ export async function buildToolpathGcodeAsync(
     }
 
     // Build G-code in worker
-    const gcode = await buildGcodeInWorker({
-        toolpaths: [toolpath],
-        fileName: fileName || 'gcam',
-        forcePolylineArcs: !arcs,
-        onProgress: workerProgress,
-    });
+    const gcode = geometryOnly
+        ? ''
+        : await buildGcodeInWorker({
+              toolpaths: [toolpath],
+              fileName: fileName || 'gcam',
+              forcePolylineArcs: !arcs,
+              onProgress:
+                  operation.startsWith('laser-') && onProgress
+                      ? (p) => onProgress(85 + p.percent * 0.15, p.label)
+                      : workerProgress,
+              signal,
+          });
 
+    if (geometryOnly) onProgress?.(100, 'Toolpath ready');
     return {
         gcode,
         previewContours: toolpath.previewContours,

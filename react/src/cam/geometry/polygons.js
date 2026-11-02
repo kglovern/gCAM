@@ -4,7 +4,7 @@
 import '../../engine/clipper-shim.js';
 import { CLIPPER_SCALE } from '../../engine/constants.js';
 import { closePoints, clonePoint } from '../../geometry/primitives.js';
-import { polygonArea } from '../../geometry/bounds.js';
+import { boundsOfPoints, polygonArea } from '../../geometry/bounds.js';
 
 export function clipperPathFromPoints(points) {
     const path = points.slice(0, -1).map((point) => ({
@@ -72,21 +72,77 @@ export function polygonCentroid(points) {
     return { x: cx * scale, y: cy * scale };
 }
 
-export function compositePocketSeedPaths(selectedLoops) {
-    const records = selectedLoops.map((loop) => ({
-        loop,
-        points: closePoints(loop.points),
-        area: Math.abs(polygonArea(loop.points)),
-    }));
-
-    records.sort((a, b) => b.area - a.area);
-    for (const record of records) {
-        const sample = polygonCentroid(record.points);
-        record.depth = records.reduce((depth, candidate) => {
-            if (candidate === record || candidate.area <= record.area)
-                return depth;
-            return pointInPolygon(sample, candidate.points) ? depth + 1 : depth;
-        }, 0);
+export function compositePocketGeometry(selectedLoops, minArea = 1) {
+    const candidates = selectedLoops
+        .map((loop, index) => {
+            const points = closePoints(loop.points);
+            return {
+                points,
+                path: clipperPathFromPoints(points),
+                bounds: boundsOfPoints(points),
+                area: Math.abs(polygonArea(points)),
+                depth: 0,
+                parent: null,
+                sources: [{ loop, index }],
+            };
+        })
+        .sort((a, b) => b.area - a.area);
+    const difference = (a, b, operation) => {
+        const clipper = new ClipperLib.Clipper(),
+            result = new ClipperLib.Paths();
+        clipper.AddPath(a.path, ClipperLib.PolyType.ptSubject, true);
+        clipper.AddPath(b.path, ClipperLib.PolyType.ptClip, true);
+        clipper.Execute(
+            operation,
+            result,
+            ClipperLib.PolyFillType.pftNonZero,
+            ClipperLib.PolyFillType.pftNonZero,
+        );
+        return result.length;
+    };
+    const records = [],
+        sameBounds = new Map();
+    for (const record of candidates) {
+        const box = record.bounds;
+        const key = [box.minX, box.minY, box.maxX, box.maxY]
+            .map((value) => Math.round(value * CLIPPER_SCALE))
+            .join(',');
+        const matches = sameBounds.get(key) ?? [];
+        // Duplicate outlines must not change winding counts or erase enclosed holes.
+        const duplicate = matches.find(
+            (other) => !difference(record, other, ClipperLib.ClipType.ctXor),
+        );
+        if (duplicate) {
+            duplicate.sources.push(...record.sources);
+            continue;
+        }
+        matches.push(record);
+        sameBounds.set(key, matches);
+        records.push(record);
+    }
+    for (let i = 0; i < records.length; i++) {
+        const record = records[i],
+            b = record.bounds;
+        // The smallest enclosing contour determines depth; a centroid can lie outside a concave shape.
+        for (let j = i - 1; j >= 0; j--) {
+            const candidate = records[j],
+                a = candidate.bounds;
+            if (
+                candidate.area <= record.area ||
+                b.minX < a.minX ||
+                b.minY < a.minY ||
+                b.maxX > a.maxX ||
+                b.maxY > a.maxY
+            )
+                continue;
+            if (
+                !difference(record, candidate, ClipperLib.ClipType.ctDifference)
+            ) {
+                record.depth = candidate.depth + 1;
+                record.parent = candidate;
+                break;
+            }
+        }
     }
 
     const orientedPaths = records.map((record) =>
@@ -107,12 +163,17 @@ export function compositePocketSeedPaths(selectedLoops) {
         ClipperLib.PolyFillType.pftNonZero,
         ClipperLib.PolyFillType.pftNonZero,
     );
-    return solution
+    const paths = solution
         .map(pointsFromClipperPath)
-        .filter((points) => Math.abs(polygonArea(points)) > 1);
+        .filter((points) => Math.abs(polygonArea(points)) > minArea);
+    return { paths, records };
 }
 
-export function offsetCompositePolygons(paths, delta) {
+export function compositePocketSeedPaths(selectedLoops, minArea = 1) {
+    return compositePocketGeometry(selectedLoops, minArea).paths;
+}
+
+export function offsetCompositePolygons(paths, delta, minArea = 1) {
     if (!paths.length) return [];
     const offsetter = new ClipperLib.ClipperOffset(2, 0.25 * CLIPPER_SCALE);
     offsetter.AddPaths(
@@ -124,7 +185,7 @@ export function offsetCompositePolygons(paths, delta) {
     offsetter.Execute(solution, delta * CLIPPER_SCALE);
     return solution
         .map(pointsFromClipperPath)
-        .filter((points) => Math.abs(polygonArea(points)) > 1);
+        .filter((points) => Math.abs(polygonArea(points)) > minArea);
 }
 
 export function booleanPolygons(selectedLoops, operation = 'union') {
@@ -179,4 +240,36 @@ export function booleanPolygons(selectedLoops, operation = 'union') {
     return solution
         .map(pointsFromClipperPath)
         .filter((points) => Math.abs(polygonArea(points)) > 1e-6);
+}
+
+/** Separate filled islands while keeping each immediate hole with its enclosing outline. */
+export function groupCompositePolygons(paths) {
+    const clipper = new ClipperLib.Clipper();
+    clipper.AddPaths(
+        paths.map(clipperPathFromPoints),
+        ClipperLib.PolyType.ptSubject,
+        true,
+    );
+    const tree = new ClipperLib.PolyTree();
+    clipper.Execute(
+        ClipperLib.ClipType.ctUnion,
+        tree,
+        ClipperLib.PolyFillType.pftNonZero,
+        ClipperLib.PolyFillType.pftNonZero,
+    );
+    const groups = [],
+        pending = [...tree.Childs()];
+    while (pending.length) {
+        const node = pending.pop();
+        const children = node.Childs();
+        if (!node.IsHole())
+            groups.push([
+                pointsFromClipperPath(node.Contour()),
+                ...children
+                    .filter((child) => child.IsHole())
+                    .map((child) => pointsFromClipperPath(child.Contour())),
+            ]);
+        for (const child of children) pending.push(child);
+    }
+    return groups;
 }

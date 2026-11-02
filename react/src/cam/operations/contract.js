@@ -32,6 +32,7 @@ export const OPERATION_LABELS = {
     vcarve: 'V-Carve',
     countersink: 'V-Bit Countersink',
     'texture-fill': 'Texture Fill',
+    'laser-fill': 'Laser Fill',
     'laser-cut': 'Laser Cut',
     'laser-raster': 'Laser Raster',
     'wavy-raster': 'Wavy',

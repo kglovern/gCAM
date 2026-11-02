@@ -56,6 +56,16 @@ try {
               .run({
                   browser: 'electron',
                   ...(process.argv[2] ? { spec: process.argv[2] } : {}),
+                  ...(process.argv[2]?.includes('cypress/benchmarks/')
+                      ? {
+                            config: {
+                                specPattern: [
+                                    'cypress/e2e/**/*.cy.js',
+                                    'cypress/benchmarks/**/*.cy.js',
+                                ],
+                            },
+                        }
+                      : {}),
               })
               .then((result) => result.totalFailed || result.failures || 0);
 } finally {

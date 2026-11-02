@@ -5,6 +5,8 @@
 import { Check, Loader2, Tablet } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import cx from 'classnames';
+import { DEFAULT_OUTPUT, type ControllerId } from '../../gcode/profiles';
+import { gsenderSupportsController } from '../gsender/gsenderClient';
 import { gcodeFileName } from '../../toolpaths/exportGcode';
 import { type PendantTablet, pendantBridge } from './pendantBridge';
 import { usePendantTablets } from './usePendantTablets';
@@ -38,10 +40,14 @@ export function SendToTabletButton({
     gcode,
     fileName,
     className,
+    extension = DEFAULT_OUTPUT.extension,
+    controller = DEFAULT_OUTPUT.controller,
 }: {
     gcode: string;
     fileName: string;
     className?: string;
+    extension?: string;
+    controller?: ControllerId;
 }) {
     const { pairedTablets } = usePendantTablets();
     const [state, setState] = useState<SendState>({ phase: 'idle' });
@@ -51,7 +57,9 @@ export function SendToTabletButton({
 
     if (!pendantBridge() || !pairedTablets.length) return null;
 
+    const compatible = gsenderSupportsController(controller);
     const send = async (tablet: PendantTablet) => {
+        if (!compatible || !gcode.trim() || state.phase === 'sending') return;
         const bridge = pendantBridge();
         if (!bridge) return;
         window.clearTimeout(resetTimer.current);
@@ -59,7 +67,7 @@ export function SendToTabletButton({
         setState({ phase: 'sending' });
         const result = await bridge.send({
             tabletId: tablet.id,
-            name: gcodeFileName(fileName),
+            name: gcodeFileName(fileName, extension),
             gcode,
         });
         setState(
@@ -74,7 +82,7 @@ export function SendToTabletButton({
     };
 
     const onClick = () => {
-        if (!gcode.trim() || state.phase === 'sending') return;
+        if (!compatible || !gcode.trim() || state.phase === 'sending') return;
         if (pairedTablets.length === 1) {
             void send(pairedTablets[0]);
             return;
@@ -104,14 +112,20 @@ export function SendToTabletButton({
         <div className="relative space-y-1">
             <button
                 type="button"
-                disabled={!gcode.trim() || state.phase === 'sending'}
+                disabled={
+                    !compatible || !gcode.trim() || state.phase === 'sending'
+                }
                 onClick={onClick}
                 aria-expanded={
                     pairedTablets.length > 1
                         ? state.phase === 'picking'
                         : undefined
                 }
-                title="Load this program on a paired gSender tablet"
+                title={
+                    compatible
+                        ? 'Load this program on a paired gSender tablet'
+                        : 'gSender tablets support Grbl and grblHAL output. Export this profile for a compatible sender.'
+                }
                 className={cx(
                     'flex w-full items-center justify-center gap-2 rounded-lg border border-robin-500 px-3 py-2 text-sm font-semibold text-robin-600 transition-colors hover:bg-robin-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-robin-300',
                     className,
@@ -123,7 +137,7 @@ export function SendToTabletButton({
                 />
                 <span className="truncate">{label}</span>
             </button>
-            {state.phase === 'picking' && (
+            {compatible && state.phase === 'picking' && (
                 <ul
                     aria-label="Paired tablets"
                     className="absolute bottom-full left-0 right-0 z-20 mb-1 overflow-hidden rounded-lg border border-slate-300 bg-white shadow-lg dark:border-robin-900 dark:bg-slate-900"
@@ -132,6 +146,7 @@ export function SendToTabletButton({
                         <li key={tablet.id}>
                             <button
                                 type="button"
+                                disabled={!gcode.trim()}
                                 onClick={() => void send(tablet)}
                                 className={cx(
                                     'flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-800 hover:bg-robin-50 dark:text-slate-100 dark:hover:bg-robin-950',

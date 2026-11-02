@@ -88,3 +88,14 @@ test('requires tool-library cutter types to match 3D surface strategy', () => {
         ]),
     ).toThrow('from the tool library');
 });
+
+test('laser output validates speed and power without requiring an endmill', () => {
+    const laser = { operation: 'laser-cut', laserFeed: 1200, laserPower: 0 };
+    expect(() => validateToolpaths([laser])).not.toThrow();
+    expect(() => validateToolpaths([{ ...laser, laserPower: 1001 }])).toThrow(
+        'Laser power',
+    );
+    expect(() => validateToolpaths([{ ...laser, laserFeed: 0 }])).toThrow(
+        'Laser feed',
+    );
+});

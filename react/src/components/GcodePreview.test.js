@@ -3,11 +3,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 const download = jest.fn();
 const sendToTablet = jest.fn(() => null);
+const sendToGsender = jest.fn(() => null);
 jest.unstable_mockModule('../toolpaths/exportGcode', () => ({
     downloadGcode: download,
 }));
 jest.unstable_mockModule('../integrations/gsender/SendToGsenderButton', () => ({
-    SendToGsenderButton: () => null,
+    SendToGsenderButton: sendToGsender,
 }));
 jest.unstable_mockModule('../integrations/pendant/SendToTabletButton', () => ({
     SendToTabletButton: sendToTablet,
@@ -29,9 +30,31 @@ test('limits DOM text for a large program but exports the complete file', () => 
         'Preview truncated',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save GCODE' }));
-    expect(download).toHaveBeenCalledWith(gcode, 'large');
+    expect(download).toHaveBeenCalledWith(gcode, 'large', 'gcode');
     expect(sendToTablet.mock.calls[0][0]).toMatchObject({
         gcode,
         fileName: 'large',
     });
+});
+
+test('Simulation saving and both send routes share the selected controller and extension', () => {
+    const outputSettings = { controller: 'duet', extension: 'g' };
+    const gcode = 'M453\nG1 X10 S0.5';
+    render(
+        <GcodePreview
+            gcode={gcode}
+            fileName="design.svg"
+            outputSettings={outputSettings}
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save GCODE' }));
+    expect(download).toHaveBeenLastCalledWith(gcode, 'design.svg', 'g');
+    const expected = {
+        gcode,
+        fileName: 'design.svg',
+        extension: 'g',
+        controller: 'duet',
+    };
+    expect(sendToTablet.mock.calls.at(-1)[0]).toMatchObject(expected);
+    expect(sendToGsender.mock.calls.at(-1)[0]).toMatchObject(expected);
 });

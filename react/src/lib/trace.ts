@@ -70,6 +70,8 @@ export interface PreprocessOptions {
     /** 0..255 binarization cutoff, null = no threshold */
     threshold: number | null;
     invert: boolean;
+    traceTransparency?: boolean;
+    cutoff?: number;
 }
 
 /** In-place brightness/contrast/grayscale/threshold/invert scan. */
@@ -83,16 +85,25 @@ export function preprocessImageData(
     const factor =
         (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
     for (let i = 0; i < data.length; i += 4) {
-        let lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        const alpha = data[i + 3] / 255;
+        let lum = opts.traceTransparency
+            ? 255 - data[i + 3]
+            : (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) *
+                  alpha +
+              255 * (1 - alpha);
         lum = factor * (lum - 128) + 128 + brightness;
         if (opts.threshold != null) {
-            lum = lum >= opts.threshold ? 255 : 0;
+            lum = lum >= opts.threshold || lum < (opts.cutoff ?? 0) ? 255 : 0;
         }
         if (opts.invert) lum = 255 - lum;
-        const v = Math.max(0, Math.min(255, Math.round(lum)));
+        const v =
+            !opts.traceTransparency && alpha === 0
+                ? 255
+                : Math.max(0, Math.min(255, Math.round(lum)));
         data[i] = v;
         data[i + 1] = v;
         data[i + 2] = v;
+        data[i + 3] = 255;
     }
 }
 

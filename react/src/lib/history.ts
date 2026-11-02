@@ -8,6 +8,56 @@ export interface History<T> {
     clone: (value: T) => T;
 }
 
+const sharedHistoryData = new WeakSet<object>();
+
+/** Seal output geometry in short slices so preparing Undo does not block the UI. */
+export async function freezeHistoryData<T>(
+    value: T,
+    signal?: AbortSignal,
+): Promise<T> {
+    if (signal?.aborted) return value;
+    const visiting = new WeakSet<object>();
+    function* freeze(item: unknown): Generator<void, boolean, undefined> {
+        yield;
+        if (typeof item === 'function') return false;
+        if (item === null || typeof item !== 'object') return true;
+        if (sharedHistoryData.has(item)) return true;
+        const prototype = Object.getPrototypeOf(item);
+        if (
+            (!Array.isArray(item) &&
+                prototype !== Object.prototype &&
+                prototype !== null) ||
+            visiting.has(item)
+        )
+            return false;
+        visiting.add(item);
+        for (const key of Reflect.ownKeys(item)) {
+            const descriptor = Object.getOwnPropertyDescriptor(item, key)!;
+            if (
+                descriptor.get ||
+                descriptor.set ||
+                !(yield* freeze(descriptor.value))
+            )
+                return false;
+        }
+        Object.freeze(item);
+        sharedHistoryData.add(item);
+        return true;
+    }
+    const walk = freeze(value);
+    let deadline = performance.now() + 6,
+        count = 0;
+    while (!walk.next().done) {
+        if (++count % 128 !== 0) continue;
+        if (signal?.aborted) return value;
+        if (performance.now() >= deadline) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            deadline = performance.now() + 6;
+        }
+    }
+    return value;
+}
+
 function defaultClone<T>(value: T): T {
     if (typeof structuredClone === 'function') return structuredClone(value);
     return JSON.parse(JSON.stringify(value)) as T;
@@ -24,6 +74,7 @@ function cloneHistoryValue(
 ): unknown {
     if (typeof value === 'function') return undefined;
     if (value === null || typeof value !== 'object') return value;
+    if (sharedHistoryData.has(value)) return value;
 
     const existing = seen.get(value);
     if (existing !== undefined) return existing;

@@ -6,7 +6,8 @@ import { Check, Loader2, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import cx from 'classnames';
 import { gcodeFileName } from '../../toolpaths/exportGcode';
-import { sendGcodeToGsender } from './gsenderClient';
+import { DEFAULT_OUTPUT, type ControllerId } from '../../gcode/profiles';
+import { gsenderSupportsController, sendGcodeToGsender } from './gsenderClient';
 import { loadGsenderPort } from './settings';
 
 type SendState =
@@ -19,23 +20,28 @@ export function SendToGsenderButton({
     gcode,
     fileName,
     className,
+    extension = DEFAULT_OUTPUT.extension,
+    controller = DEFAULT_OUTPUT.controller,
 }: {
     gcode: string;
     fileName: string;
     className?: string;
+    extension?: string;
+    controller?: ControllerId;
 }) {
     const [state, setState] = useState<SendState>({ phase: 'idle' });
     const resetTimer = useRef<number | undefined>(undefined);
 
     useEffect(() => () => window.clearTimeout(resetTimer.current), []);
 
+    const compatible = gsenderSupportsController(controller);
     const send = async () => {
-        if (!gcode.trim() || state.phase === 'sending') return;
+        if (!compatible || !gcode.trim() || state.phase === 'sending') return;
         window.clearTimeout(resetTimer.current);
         setState({ phase: 'sending' });
         const result = await sendGcodeToGsender(
             loadGsenderPort(),
-            gcodeFileName(fileName),
+            gcodeFileName(fileName, extension),
             gcode,
         );
         setState(
@@ -60,9 +66,15 @@ export function SendToGsenderButton({
         <div className="space-y-1">
             <button
                 type="button"
-                disabled={!gcode.trim() || state.phase === 'sending'}
+                disabled={
+                    !compatible || !gcode.trim() || state.phase === 'sending'
+                }
                 onClick={send}
-                title="Load this program into gSender running on this computer"
+                title={
+                    compatible
+                        ? 'Load this program into gSender running on this computer'
+                        : 'gSender supports Grbl and grblHAL output. Export this profile for a compatible sender.'
+                }
                 className={cx(
                     'flex w-full items-center justify-center gap-2 rounded-lg border border-robin-500 px-3 py-2 text-sm font-semibold text-robin-600 transition-colors hover:bg-robin-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-robin-300',
                     className,

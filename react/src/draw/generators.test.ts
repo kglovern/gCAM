@@ -91,6 +91,8 @@ test('generated ellipse exports negative coordinates around the origin without t
     });
     const result = await buildToolpathGcode({
         loops,
+        // Check the exact source vertices independently of arc approximation.
+        arcs: false,
         operation: 'engrave',
         toolDiameter: 3,
         cutDepth: 1,

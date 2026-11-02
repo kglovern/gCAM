@@ -4,11 +4,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScanLine, X } from 'lucide-react';
 import cx from 'classnames';
-import {
-    preprocessImageData,
-    traceProcessedCanvas,
-    type PlacedTrace,
-} from '../lib/trace';
+import { type PlacedTrace } from '../lib/trace';
+import { traceBitmapInWorker } from '../engine/cam-worker-client';
 
 interface TraceModalProps {
     fileName: string;
@@ -17,8 +14,9 @@ interface TraceModalProps {
     originY: number;
     widthMm: number;
     heightMm: number;
+    rotation?: number;
     onClose: () => void;
-    onImport: (traced: PlacedTrace[]) => void;
+    onImport: (traced: PlacedTrace[], deleteImage: boolean) => void;
 }
 
 /**
@@ -32,27 +30,30 @@ export function TraceModal({
     originY,
     widthMm,
     heightMm,
+    rotation = 0,
     onClose,
     onImport,
 }: TraceModalProps) {
+    const [traceMode, setTraceMode] = useState<'outline' | 'centerline'>(
+        'outline',
+    );
     const [threshold, setThreshold] = useState(128);
+    const [cutoff, setCutoff] = useState(0);
     const [brightness, setBrightness] = useState(0);
     const [contrast, setContrast] = useState(0);
     const [invert, setInvert] = useState(false);
+    const [deleteImage, setDeleteImage] = useState(true);
+    const [traceTransparency, setTraceTransparency] = useState(false);
+    const [resolution, setResolution] = useState(800);
+    const [error, setError] = useState('');
     const [turdsize, setTurdsize] = useState(2);
+    const [smoothness, setSmoothness] = useState(1);
+    const [optimize, setOptimize] = useState(0.2);
     const [vectorCount, setVectorCount] = useState(0);
     const [working, setWorking] = useState(true);
     const workRef = useRef<HTMLCanvasElement>(null);
     const previewRef = useRef<HTMLCanvasElement>(null);
     const tracedRef = useRef<PlacedTrace[]>([]);
-    const optsRef = useRef({
-        threshold,
-        brightness,
-        contrast,
-        invert,
-        turdsize,
-    });
-    optsRef.current = { threshold, brightness, contrast, invert, turdsize };
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -64,81 +65,109 @@ export function TraceModal({
 
     useEffect(() => {
         let cancelled = false;
+        let task: ReturnType<typeof traceBitmapInWorker> | undefined;
         setWorking(true);
+        setError('');
+        tracedRef.current = [];
+        const failed = (reason: unknown) => {
+            if (cancelled) return;
+            tracedRef.current = [];
+            setVectorCount(0);
+            setWorking(false);
+            setError(reason instanceof Error ? reason.message : String(reason));
+        };
         const timer = window.setTimeout(() => {
-            const work = workRef.current;
-            const preview = previewRef.current;
-            if (!work || !preview) return;
-            const scale = Math.min(
-                1,
-                800 / Math.max(1, img.naturalWidth, img.naturalHeight),
-            );
-            const pw = Math.max(1, Math.round(img.naturalWidth * scale));
-            const ph = Math.max(1, Math.round(img.naturalHeight * scale));
-            work.width = pw;
-            work.height = ph;
-            const wctx = work.getContext('2d', { willReadFrequently: true });
-            if (!wctx) return;
-            wctx.drawImage(img, 0, 0, pw, ph);
-            const image = wctx.getImageData(0, 0, pw, ph);
-            const opts = optsRef.current;
-            preprocessImageData(image, {
-                brightness: opts.brightness,
-                contrast: opts.contrast,
-                threshold: opts.threshold,
-                invert: opts.invert,
-            });
-            wctx.putImageData(image, 0, 0);
-            preview.width = pw;
-            preview.height = ph;
-            traceProcessedCanvas(
-                work,
-                pw,
-                ph,
-                originX,
-                originY,
-                widthMm,
-                heightMm,
-                Math.max(1, Math.round(opts.turdsize)),
-            ).then(
-                (traced) => {
+            try {
+                const work = workRef.current,
+                    preview = previewRef.current;
+                if (!work || !preview)
+                    throw new Error('Trace preview is unavailable.');
+                const scale = resolution
+                    ? Math.min(
+                          1,
+                          resolution /
+                              Math.max(1, img.naturalWidth, img.naturalHeight),
+                      )
+                    : 1;
+                const pw = Math.max(1, Math.round(img.naturalWidth * scale)),
+                    ph = Math.max(1, Math.round(img.naturalHeight * scale));
+                if (pw * ph > 16777216)
+                    throw new Error(
+                        'Trace exceeds 16 million pixels; choose a lower resolution.',
+                    );
+                work.width = pw;
+                work.height = ph;
+                const context = work.getContext('2d', {
+                    willReadFrequently: true,
+                });
+                if (!context) throw new Error('Could not read trace pixels.');
+                context.drawImage(img, 0, 0, pw, ph);
+                const image = context.getImageData(0, 0, pw, ph);
+                const previewScale = 560 / Math.max(pw, ph);
+                preview.width = Math.max(1, Math.round(pw * previewScale));
+                preview.height = Math.max(1, Math.round(ph * previewScale));
+                task = traceBitmapInWorker({
+                    image: { width: pw, height: ph, data: image.data },
+                    placement: {
+                        x: originX,
+                        y: originY,
+                        width: widthMm,
+                        height: heightMm,
+                        rotation,
+                    },
+                    options: {
+                        brightness,
+                        contrast,
+                        traceMode,
+                        threshold,
+                        cutoff,
+                        invert,
+                        turdsize,
+                        smoothness,
+                        optimize,
+                        traceTransparency,
+                    },
+                });
+                task.promise.then((traced) => {
                     if (cancelled) return;
                     tracedRef.current = traced;
                     setVectorCount(traced.length);
-                    const pctx = preview.getContext('2d');
-                    if (pctx) {
-                        // This is deliberately a geometry preview, not the
-                        // thresholded bitmap: it shows exactly what Import
-                        // will put on the canvas.
-                        pctx.fillStyle = '#ffffff';
-                        pctx.fillRect(0, 0, pw, ph);
-                        pctx.strokeStyle = '#0f766e';
-                        pctx.lineWidth = 1.5;
+                    const context = preview.getContext('2d');
+                    if (context) {
+                        context.fillStyle = '#ffffff';
+                        context.fillRect(0, 0, preview.width, preview.height);
+                        context.strokeStyle = '#0f766e';
+                        context.lineWidth = 1.5;
+                        const angle = (rotation * Math.PI) / 180,
+                            cos = Math.cos(angle),
+                            sin = Math.sin(angle);
                         for (const path of traced) {
-                            if (path.points.length < 2) continue;
-                            pctx.beginPath();
+                            context.beginPath();
                             path.points.forEach((point, index) => {
-                                const x = ((point.x - originX) / widthMm) * pw;
-                                const y = ((point.y - originY) / heightMm) * ph;
-                                if (index === 0) pctx.moveTo(x, y);
-                                else pctx.lineTo(x, y);
+                                const dx = point.x - originX - widthMm / 2,
+                                    dy = point.y - originY - heightMm / 2;
+                                const x =
+                                    ((dx * cos + dy * sin) / widthMm + 0.5) *
+                                    preview.width;
+                                const y =
+                                    (0.5 - (-dx * sin + dy * cos) / heightMm) *
+                                    preview.height;
+                                if (index) context.lineTo(x, y);
+                                else context.moveTo(x, y);
                             });
-                            pctx.stroke();
+                            context.stroke();
                         }
                     }
                     setWorking(false);
-                },
-                () => {
-                    if (cancelled) return;
-                    tracedRef.current = [];
-                    setVectorCount(0);
-                    setWorking(false);
-                },
-            );
+                }, failed);
+            } catch (reason) {
+                failed(reason);
+            }
         }, 250);
         return () => {
             cancelled = true;
             window.clearTimeout(timer);
+            task?.cancel();
         };
     }, [
         img,
@@ -146,12 +175,25 @@ export function TraceModal({
         originY,
         widthMm,
         heightMm,
+        rotation,
+        traceMode,
         threshold,
+        cutoff,
         brightness,
         contrast,
         invert,
         turdsize,
+        smoothness,
+        optimize,
+        traceTransparency,
+        resolution,
     ]);
+
+    const invalidate = () => {
+        setWorking(true);
+        tracedRef.current = [];
+        setVectorCount(0);
+    };
 
     return (
         <div
@@ -193,6 +235,8 @@ export function TraceModal({
                         </div>
                         <canvas
                             ref={previewRef}
+                            role="img"
+                            aria-label="Traced shape preview"
                             className="w-full rounded-lg border border-slate-200 dark:border-robin-900 bg-white"
                         />
                         <canvas ref={workRef} className="hidden" />
@@ -201,23 +245,112 @@ export function TraceModal({
                                 ? 'Scanning…'
                                 : `${vectorCount} shape${vectorCount === 1 ? '' : 's'} found`}
                         </div>
+                        {error && (
+                            <p role="alert" className="text-sm text-red-600">
+                                {error}
+                            </p>
+                        )}
                     </div>
                     <div className="space-y-3">
-                        <Slider
-                            label="Threshold"
-                            value={threshold}
-                            min={0}
-                            max={255}
-                            step={1}
-                            onChange={setThreshold}
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <label className="block text-xs">
+                                Trace mode
+                                <select
+                                    aria-label="Trace mode"
+                                    className="mt-1 w-full rounded border bg-transparent px-2 py-1"
+                                    value={traceMode}
+                                    onChange={(e) => {
+                                        invalidate();
+                                        setTraceMode(
+                                            e.target.value as
+                                                | 'outline'
+                                                | 'centerline',
+                                        );
+                                    }}
+                                >
+                                    <option value="outline">Outline</option>
+                                    <option value="centerline">
+                                        Center line
+                                    </option>
+                                </select>
+                            </label>
+                            <label className="block text-xs">
+                                Trace resolution
+                                <select
+                                    aria-label="Trace resolution"
+                                    className="mt-1 w-full rounded border bg-transparent px-2 py-1"
+                                    value={resolution}
+                                    onChange={(event) => {
+                                        invalidate();
+                                        setResolution(
+                                            Number(event.currentTarget.value),
+                                        );
+                                    }}
+                                >
+                                    <option value={800}>800 px maximum</option>
+                                    <option value={1600}>
+                                        1600 px maximum
+                                    </option>
+                                    <option value={3200}>
+                                        3200 px maximum
+                                    </option>
+                                    <option value={0}>
+                                        Original (up to 16 MP)
+                                    </option>
+                                </select>
+                            </label>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                aria-label="Trace transparency"
+                                type="checkbox"
+                                checked={traceTransparency}
+                                onChange={(event) => {
+                                    invalidate();
+                                    setTraceTransparency(
+                                        event.currentTarget.checked,
+                                    );
+                                }}
+                            />
+                            Trace transparency
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Slider
+                                label="Cutoff"
+                                value={cutoff}
+                                min={0}
+                                max={threshold}
+                                step={1}
+                                onChange={(value) => {
+                                    invalidate();
+                                    setCutoff(value);
+                                }}
+                            />
+                            <Slider
+                                label="Threshold"
+                                value={threshold}
+                                min={0}
+                                max={255}
+                                step={1}
+                                onChange={(value) => {
+                                    invalidate();
+                                    setThreshold(value);
+                                    setCutoff((current) =>
+                                        Math.min(current, value),
+                                    );
+                                }}
+                            />
+                        </div>
                         <Slider
                             label="Brightness"
                             value={brightness}
                             min={-100}
                             max={100}
                             step={1}
-                            onChange={setBrightness}
+                            onChange={(value) => {
+                                invalidate();
+                                setBrightness(value);
+                            }}
                         />
                         <Slider
                             label="Contrast"
@@ -225,7 +358,10 @@ export function TraceModal({
                             min={-100}
                             max={100}
                             step={1}
-                            onChange={setContrast}
+                            onChange={(value) => {
+                                invalidate();
+                                setContrast(value);
+                            }}
                         />
                         <Slider
                             label="Speckle filter"
@@ -233,17 +369,61 @@ export function TraceModal({
                             min={1}
                             max={32}
                             step={1}
-                            onChange={setTurdsize}
+                            onChange={(value) => {
+                                invalidate();
+                                setTurdsize(value);
+                            }}
                         />
-                        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                            <input
-                                type="checkbox"
-                                checked={invert}
-                                onChange={(e) => setInvert(e.target.checked)}
-                                className="accent-robin-500 w-4 h-4"
-                            />
-                            Invert
-                        </label>
+                        {traceMode === 'outline' && (
+                            <>
+                                <Slider
+                                    label="Smoothness"
+                                    value={smoothness}
+                                    min={0}
+                                    max={1.33}
+                                    step={0.01}
+                                    onChange={(value) => {
+                                        invalidate();
+                                        setSmoothness(value);
+                                    }}
+                                />
+                                <Slider
+                                    label="Optimize"
+                                    value={optimize}
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    onChange={(value) => {
+                                        invalidate();
+                                        setOptimize(value);
+                                    }}
+                                />
+                            </>
+                        )}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={deleteImage}
+                                    onChange={(e) =>
+                                        setDeleteImage(e.target.checked)
+                                    }
+                                />
+                                Delete source image
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={invert}
+                                    onChange={(e) => {
+                                        invalidate();
+                                        setInvert(e.target.checked);
+                                    }}
+                                    className="accent-robin-500 w-4 h-4"
+                                />
+                                Invert
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <footer className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-robin-900 flex justify-end gap-2">
@@ -254,7 +434,7 @@ export function TraceModal({
                         Cancel
                     </button>
                     <button
-                        onClick={() => onImport(tracedRef.current)}
+                        onClick={() => onImport(tracedRef.current, deleteImage)}
                         disabled={working || !vectorCount}
                         className={cx(
                             'rounded-lg bg-robin-500 hover:bg-robin-600 disabled:opacity-40 text-white',

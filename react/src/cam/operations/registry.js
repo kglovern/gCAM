@@ -32,6 +32,11 @@ const countersinkOperation = defineOperation({
 });
 
 const operations = [
+    defineOperation({
+        id: 'laser-fill',
+        emission: 'laser-cut',
+        createPreview: () => [],
+    }),
     profileOutsideOperation,
     profileInsideOperation,
     pocketOperation,

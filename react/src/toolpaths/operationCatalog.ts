@@ -12,6 +12,7 @@ export const OPERATIONS: { value: Operation; label: string }[] = [
     { value: 'vcarve', label: 'V-Carve' },
     { value: 'countersink', label: 'V-Bit Countersink' },
     { value: 'texture-fill', label: 'Texture Fill' },
+    { value: 'laser-fill', label: 'Laser Fill' },
     { value: 'laser-cut', label: 'Laser Cut' },
     { value: 'laser-raster', label: 'Laser Raster' },
     { value: 'wavy-raster', label: 'Wavy' },
@@ -35,6 +36,7 @@ export const OPERATION_IMAGES: Partial<Record<Operation, string>> = {
     vcarve: operationAsset('vcarve'),
     countersink: operationSvgAsset('countersink'),
     'texture-fill': operationAsset('texture-fill'),
+    'laser-fill': operationAsset('pocket'),
     'laser-cut': operationAsset('engrave'),
     'laser-raster': operationAsset('engrave'),
     'wavy-raster': operationAsset('pocket'),
@@ -50,13 +52,23 @@ export const RASTER_OPERATIONS: Operation[] = [
     'halftone',
 ];
 
+export const isLaserOperation = (operation: string) =>
+    operation.startsWith('laser-');
+
 export function operationsForSelection(selection: {
+    workspace?: 'milling' | 'laser';
     hasBitmap: boolean;
     hasVector: boolean;
     hasSurfaceModel: boolean;
     surfaceModelSelectedAlone: boolean;
 }) {
     return OPERATIONS.filter((operation) => {
+        if (
+            selection.workspace &&
+            isLaserOperation(operation.value) !==
+                (selection.workspace === 'laser')
+        )
+            return false;
         const raster = RASTER_OPERATIONS.includes(operation.value);
         const surface =
             operation.value === 'surface-clear' ||
@@ -67,6 +79,13 @@ export function operationsForSelection(selection: {
                 selection.surfaceModelSelectedAlone &&
                 (surface || operation.value === 'profile-outside')
             );
+        if (
+            selection.workspace === 'laser' &&
+            selection.hasBitmap &&
+            selection.hasVector &&
+            !selection.hasSurfaceModel
+        )
+            return true;
         if (selection.hasBitmap && !selection.hasVector) return raster;
         if (selection.hasVector) return !raster && !surface;
         return true;

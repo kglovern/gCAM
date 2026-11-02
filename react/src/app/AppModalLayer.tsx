@@ -7,6 +7,10 @@ import type {
     ReactNode,
     SetStateAction,
 } from 'react';
+import { useRef } from 'react';
+import { imageDataOf } from '../lib/bitmap';
+import { bitmapHeightmapInWorker } from '../engine/cam-worker-client';
+import { jobStockBounds, type JobStock } from '../job/stock';
 import { ToastStack } from '../components/Toasts';
 import { TraceModal } from '../components/TraceModal';
 import { type ViewLoop } from '../canvas/types';
@@ -27,6 +31,8 @@ import type { MachineTravelLimits } from '../cutting-parameters/types';
 type Point = { x: number; y: number };
 
 interface AppModalLayerProps {
+    stock?: JobStock;
+    laser?: boolean;
     units: UnitSystem;
     machineSetupOpen: boolean;
     machineProfileId: string;
@@ -75,6 +81,8 @@ interface AppModalLayerProps {
 
 /** Binds document commands to the shared transient-dialog layer. */
 export function AppModalLayer({
+    stock,
+    laser,
     units,
     machineSetupOpen,
     machineProfileId,
@@ -109,6 +117,12 @@ export function AppModalLayer({
     resolveSurfaceModelUnits,
     cancelSurfaceModelUnits,
 }: AppModalLayerProps) {
+    const heightmapSource = useRef({
+        choice: bitmapImportChoice,
+        laser,
+        stock,
+    });
+    heightmapSource.current = { choice: bitmapImportChoice, laser, stock };
     const traceImage = traceSource?.img ?? null;
     return (
         <>
@@ -144,8 +158,10 @@ export function AppModalLayer({
                 bitmap={
                     bitmapImportChoice
                         ? {
+                              units,
                               choice: {
                                   ...bitmapImportChoice,
+                                  laser,
                                   isSurfaceModel: Boolean(
                                       bitmapImportChoice.entry.surfaceMesh,
                                   ),
@@ -165,6 +181,93 @@ export function AppModalLayer({
                                   ),
                               onUseBitmap: () => {
                                   commitBitmapPlacement(bitmapImportChoice);
+                                  setBitmapImportChoice(null);
+                              },
+                              onUseHeightmap: async (
+                                  reliefMm,
+                                  spacingMm,
+                                  invert,
+                                  signal,
+                              ) => {
+                                  const choice = bitmapImportChoice;
+                                  const img = choice.entry.img;
+                                  if (
+                                      !img ||
+                                      img.naturalWidth * img.naturalHeight >
+                                          16_000_000
+                                  )
+                                      throw new Error(
+                                          'Heightmap images must contain at most 16 million pixels.',
+                                      );
+                                  const pixels = imageDataOf(img);
+                                  const { promise } = bitmapHeightmapInWorker(
+                                      {
+                                          image: {
+                                              width: pixels.width,
+                                              height: pixels.height,
+                                              data: pixels.data,
+                                          },
+                                          widthMm: choice.entry.w,
+                                          heightMm: choice.entry.h,
+                                          reliefMm,
+                                          spacingMm,
+                                          invert,
+                                          fileName: choice.fileName,
+                                      },
+                                      signal,
+                                  );
+                                  const surfaceMesh = await promise;
+                                  if (
+                                      signal.aborted ||
+                                      heightmapSource.current.choice !==
+                                          choice ||
+                                      heightmapSource.current.laser ||
+                                      heightmapSource.current.stock !== stock
+                                  )
+                                      throw new DOMException(
+                                          'Heightmap import cancelled.',
+                                          'AbortError',
+                                      );
+                                  const bounds = stock
+                                      ? jobStockBounds(stock)
+                                      : null;
+                                  const x = bounds
+                                      ? (bounds.minX +
+                                            bounds.maxX -
+                                            choice.entry.w) /
+                                        2
+                                      : choice.entry.x;
+                                  const y = bounds
+                                      ? (bounds.minY +
+                                            bounds.maxY -
+                                            choice.entry.h) /
+                                        2
+                                      : choice.entry.y;
+                                  commitBitmapPlacement({
+                                      ...choice,
+                                      rect: {
+                                          ...choice.rect,
+                                          points: choice.rect.points.map(
+                                              (point) => ({
+                                                  x:
+                                                      point.x +
+                                                      x -
+                                                      choice.entry.x,
+                                                  y:
+                                                      point.y +
+                                                      y -
+                                                      choice.entry.y,
+                                              }),
+                                          ),
+                                      },
+                                      entry: {
+                                          ...choice.entry,
+                                          x,
+                                          y,
+                                          surfaceMesh,
+                                          surfaceMachinableTopDown: true,
+                                      },
+                                  });
                                   setBitmapImportChoice(null);
                               },
                               onTrace: () => {
@@ -187,13 +290,19 @@ export function AppModalLayer({
                                   originY: traceSource.y,
                                   widthMm: traceSource.w,
                                   heightMm: traceSource.h,
+                                  rotation: traceSource.rotation ?? 0,
                                   onClose: () => {
                                       setTraceOpen(false);
                                       setPendingTraceBitmap(null);
                                   },
-                                  onImport: (traced) => {
+                                  onImport: (traced, deleteImage) => {
                                       setTraceOpen(false);
-                                      commitTraced(traced, traceSource.id);
+                                      commitTraced(
+                                          traced,
+                                          deleteImage
+                                              ? traceSource.id
+                                              : undefined,
+                                      );
                                       setPendingTraceBitmap(null);
                                   },
                               }

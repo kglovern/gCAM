@@ -65,6 +65,10 @@ Cypress.Commands.add('menu', (name, item) => {
     cy.get(`button[aria-label="${name}"]`).then(($button) => {
         if ($button.attr('aria-expanded') !== 'true') cy.wrap($button).click();
     });
+    if (name === 'Draw' && /Mandala|Clock/.test(item))
+        cy.contains('summary', 'Plugins').then(($summary) => {
+            if (!$summary.parent().prop('open')) cy.wrap($summary).click();
+        });
     cy.contains('[role="menuitem"]', item).should('be.visible').click();
 });
 Cypress.Commands.add('importDesign', (file) => {
@@ -128,9 +132,19 @@ Cypress.Commands.add('worldDrag', (from, to, options = {}) => {
 Cypress.Commands.add('snapshot', () => {
     cy.task('clearDownloads');
     cy.menu('File', 'Export Project');
-    return cy
-        .readDownload('.gcam.json')
-        .then((raw) => JSON.parse(raw).snapshot);
+    return cy.readDownload('.gcam.json').then((raw) => {
+        const doc = JSON.parse(raw);
+        if (doc.version !== 3 && doc.version !== 4) return doc.snapshot;
+        return cy.window().then(async (win) => {
+            const { deserializeProject } = await win.eval(
+                "import('/src/lib/project.ts')",
+            );
+            return {
+                ...doc.snapshot,
+                bitmaps: deserializeProject(raw).bitmaps,
+            };
+        });
+    });
 });
 Cypress.Commands.add('readDownload', (extension) => {
     const poll = (attempt = 0) =>
@@ -143,7 +157,14 @@ Cypress.Commands.add('readDownload', (extension) => {
     return poll();
 });
 Cypress.Commands.add('addOperation', (label, options = {}) => {
+    if (label.startsWith('Laser')) {
+        cy.get('[aria-label="Laser"]').click();
+    }
     cy.contains('button', new RegExp(`^${label}$`)).click();
+    if (label.startsWith('Laser')) {
+        cy.contains('button', /^Change$/).click();
+        cy.contains('button', 'Use manual values').click();
+    }
     if (!label.startsWith('Laser')) {
         const cutter = [
             'Wavy',
@@ -192,7 +213,20 @@ Cypress.Commands.add('addOperation', (label, options = {}) => {
     );
     cy.snapshot().then((project) => {
         expect(project.stack).to.have.length(1);
-        expect(project.stack[0].preview.length).to.be.greaterThan(0);
+        if (label === 'Laser Raster') {
+            expect(project.stack[0].preview).to.deep.equal([]);
+            expect(project.stack[0].toolpath.previewFromLaserPaths).to.equal(
+                true,
+            );
+            expect(
+                project.stack[0].toolpath.laserPaths.length,
+            ).to.be.greaterThan(0);
+            expect(
+                project.stack[0].toolpath.laserPaths.some((path) =>
+                    path.points.some((point) => point.power > 0),
+                ),
+            ).to.equal(true);
+        } else expect(project.stack[0].preview.length).to.be.greaterThan(0);
         if (options.rectangle)
             expect(project.stack[0].args.surfaceBoundaryMode).to.equal(
                 'rectangle',
@@ -213,6 +247,10 @@ Cypress.Commands.add('addOperation', (label, options = {}) => {
         expect(gcode).to.match(/G0?[123]\b/);
         expect(gcode).not.to.match(/NaN|Infinity|undefined/);
         expect(gcode).to.match(/M(?:2|30)\b/);
+        if (label.startsWith('Laser')) {
+            expect(gcode).to.match(/\bS\d/);
+            expect(gcode).not.to.match(/M6|G[01] Z/);
+        }
         if (label.startsWith('3D')) {
             const cuttingZ = gcode
                 .split('\n')

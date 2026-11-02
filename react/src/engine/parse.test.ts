@@ -2,7 +2,7 @@
  * Tests: parseDxf reads an LWPOLYLINE square; buildLoops closes the square with correct area and perimeter; parseSvg reads rect and circle without DOM measurement; relative subpath moves keep their absolute position; compact transform lists parse.
  */
 import { parseDxf } from './dxf.js';
-import { absolutizeSubpathStarts, parseSvg } from './svg.js';
+import { absolutizeSubpathStarts, parseSvg, svgPathSegments } from './svg.js';
 import { parseSvgTransform } from '../geometry/matrix.js';
 import {
     boundsOfEntities,
@@ -166,4 +166,76 @@ test('parseSvgTransform reads compact number lists', () => {
         e: 10,
         f: -5,
     });
+});
+
+test('SVG line-path commands preserve explicit concave corners without DOM length sampling', () => {
+    const entities = parseSvg(
+        '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 H10 V3 H3 V7 H10 V10 H0 Z"/></svg>',
+    );
+    expect(
+        entities[0].vertices.map(({ x, y }: { x: number; y: number }) => [
+            x,
+            y,
+        ]),
+    ).toEqual([
+        [0, 0],
+        [10, 0],
+        [10, 3],
+        [3, 3],
+        [3, 7],
+        [10, 7],
+        [10, 10],
+        [0, 10],
+        [0, 0],
+    ]);
+});
+test('SVG repeated move coordinates become lines and relative commands retain transformed corners', () => {
+    const entities = parseSvg(
+        '<svg xmlns="http://www.w3.org/2000/svg"><path transform="translate(2 3)" d="m1 1 4 0 0 4 h-4 v-4 z m10 0 l2 0 0 2 z"/></svg>',
+    );
+    expect(entities).toHaveLength(2);
+    expect(
+        entities[0].vertices.map(({ x, y }: { x: number; y: number }) => [
+            x,
+            y,
+        ]),
+    ).toEqual([
+        [3, 4],
+        [7, 4],
+        [7, 8],
+        [3, 8],
+        [3, 4],
+    ]);
+    expect(entities[1].vertices[0]).toMatchObject({ x: 13, y: 4 });
+});
+
+test('independent SVG curve segments expand smooth controls and reset them after lines', () => {
+    const segments = [
+        ...svgPathSegments(
+            'M1 2 c1 0 2 1 3 2 s2 2 3 0 q1 -1 2 0 t2 0 l1 0 t2 1 a3 4 30 012 3 z',
+        ),
+    ];
+    expect(segments.map((segment) => segment.curve).filter(Boolean)).toEqual([
+        'M1 2 C2 2 3 3 4 4',
+        'M4 4 C5 5 6 6 7 4',
+        'M7 4 Q8 3 9 4',
+        'M9 4 Q10 5 11 4',
+        'M12 4 Q12 4 14 5',
+        'M14 5 A3 4 30 0 1 16 8',
+    ]);
+    expect(segments[segments.length - 1].end).toEqual({ x: 1, y: 2 });
+});
+test('repeated SVG curve groups retain all endpoints and reject invalid coordinates', () => {
+    const segments = [
+        ...svgPathSegments('M0 0 C1 0 2 1 3 1 4 1 5 0 6 0 S8 0 9 1 10 2 11 2'),
+    ];
+    expect(segments.map((segment) => segment.end)).toEqual([
+        { x: 0, y: 0 },
+        { x: 3, y: 1 },
+        { x: 6, y: 0 },
+        { x: 9, y: 1 },
+        { x: 11, y: 2 },
+    ]);
+    expect(() => [...svgPathSegments('M0 0 C1 2 3')]).toThrow(/coordinates/);
+    expect(() => [...svgPathSegments('M0 0 L1e999 2')]).toThrow(/coordinates/);
 });

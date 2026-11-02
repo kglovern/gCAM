@@ -1,3 +1,4 @@
+import { DEFAULT_OUTPUT, type OutputSettings } from '../gcode/profiles';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useMemo } from 'react';
 /**
@@ -10,9 +11,11 @@ import { downloadGcode } from '../toolpaths/exportGcode';
 export function GcodePreview({
     gcode,
     fileName,
+    outputSettings = DEFAULT_OUTPUT,
 }: {
     gcode: string;
     fileName: string;
+    outputSettings?: Pick<OutputSettings, 'extension' | 'controller'>;
 }) {
     const compact = useMediaQuery('(max-width: 767px), (max-height: 600px)');
     const preview = useMemo(
@@ -39,7 +42,9 @@ export function GcodePreview({
                 </pre>
             </details>
             <button
-                onClick={() => downloadGcode(gcode, fileName)}
+                onClick={() =>
+                    downloadGcode(gcode, fileName, outputSettings.extension)
+                }
                 disabled={!gcode}
                 className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     gcode
@@ -49,8 +54,18 @@ export function GcodePreview({
             >
                 Save GCODE
             </button>
-            <SendToGsenderButton gcode={gcode} fileName={fileName} />
-            <SendToTabletButton gcode={gcode} fileName={fileName} />
+            <SendToGsenderButton
+                gcode={gcode}
+                fileName={fileName}
+                extension={outputSettings.extension}
+                controller={outputSettings.controller}
+            />
+            <SendToTabletButton
+                gcode={gcode}
+                fileName={fileName}
+                extension={outputSettings.extension}
+                controller={outputSettings.controller}
+            />
         </div>
     );
 }

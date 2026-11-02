@@ -1,3 +1,6 @@
+import { createLaserToolpath } from './laser.js';
+import { normalizeChamfer } from './chamfer.js';
+import { vCarveClearingRegion, vCarveFinishPaths } from './vcarve-clearing.js';
 /**
  * Purpose: Implementation module for cam-ops in the react domain.
  */
@@ -70,17 +73,45 @@ export async function createToolpathFromLoopsAsync(
     }
 
     const compositeSelection = compositePocketSeedPaths(selectedLoops);
-    const vCarvePassDepth = Math.max(0.01, config.cutDepth);
-    const motionPaths = await generateVCarveToolpaths(
+    let vCarvePassDepth = Math.max(0.01, config.cutDepth);
+    if (config.vCarveEdgeFinish) {
+        let minX = Infinity,
+            minY = Infinity,
+            maxX = -Infinity,
+            maxY = -Infinity;
+        for (const contour of compositeSelection)
+            for (const p of contour) {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            }
+        // Request the natural medial geometry once, before any depth clipping or roughing passes.
+        vCarvePassDepth =
+            Math.hypot(maxX - minX, maxY - minY) /
+                Math.tan((config.cutterAngle * Math.PI) / 360) +
+            1;
+    }
+    let motionPaths = await generateVCarveToolpaths(
         compositeSelection.map(mmPointsToClipperPath),
         {
             cutterAngle: config.cutterAngle,
             passDepth: vCarvePassDepth,
-            maxDepth: config.cutDepth,
+            maxDepth: config.vCarveEdgeFinish ? undefined : config.cutDepth,
             onProgress: options.onProgress,
         },
     );
 
+    if (config.vCarveEdgeFinish) {
+        motionPaths = vCarveFinishPaths(
+            motionPaths,
+            selectedLoops,
+            config.cutDepth,
+            config.passDepth,
+            config.cutterAngle,
+            config.toolDiameter,
+        );
+    }
     toolpath.motionPaths = motionPaths;
     toolpath.previewContours = motionPaths
         .map((path) => path.points.map(({ x, y }) => ({ x, y })))
@@ -90,6 +121,9 @@ export async function createToolpathFromLoopsAsync(
 }
 
 function createToolpathSkeleton(selectedLoops, config, options = {}) {
+    config = normalizeChamfer(config);
+    if (String(config.operation).startsWith('laser-'))
+        return createLaserToolpath(selectedLoops, config, options);
     const reportProgress = options.onProgress || (() => {});
     const previewContours = [];
     const trochoidPreviewContours = [];
@@ -176,10 +210,27 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
     const isRasterOp =
         config.operation === 'laser-raster' ||
         config.operation === 'wavy-raster';
-    const compositeSelection = isRasterOp
+    let compositeSelection = isRasterOp
         ? []
-        : compositePocketSeedPaths(selectedLoops);
+        : compositePocketSeedPaths(
+              selectedLoops,
+              config.operation === 'chamfer' &&
+                  config.chamferWidthMm !== undefined
+                  ? 1e-8
+                  : 1,
+          );
     reportProgress(32, 'Combining shapes');
+    if (config.operation === 'pocket' && config.vCarveInset) {
+        const { depth, angle, diameter } = config.vCarveInset;
+        if (Math.abs(depth - config.cutDepth) > 1e-6)
+            throw new Error('Clearing depth must match the linked V-carve.');
+        compositeSelection = vCarveClearingRegion(
+            selectedLoops,
+            depth,
+            angle,
+            diameter,
+        );
+    }
 
     if (
         config.operation === 'engrave' ||
@@ -189,6 +240,8 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
         previewContours.push(
             ...operation.createPreview({
                 selectedLoops,
+                config,
+                compositeSelection,
                 services: operationServices,
             }),
         );
@@ -482,7 +535,8 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
         `${operationLabel} (${selectedLoops.length} shape${selectedLoops.length === 1 ? '' : 's'})`;
     const chamferWidth =
         config.operation === 'chamfer' && Number.isFinite(config.cutterAngle)
-            ? 2 * cutDepth * Math.tan((config.cutterAngle * Math.PI) / 360)
+            ? (config.chamferWidthMm ??
+              2 * cutDepth * Math.tan((config.cutterAngle * Math.PI) / 360))
             : null;
     const trochoidMeta =
         config.trochoidEnabled &&
@@ -511,9 +565,9 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
         config.operation === 'halftone'
     ) {
         extra.laserFeed = config.laserFeed || config.feedRate;
-        extra.laserPower = config.laserPower || 1000;
+        extra.laserPower = config.laserPower ?? 1000;
         extra.laserSMin = config.laserSMin || 0;
-        extra.laserSMax = config.laserSMax || 1000;
+        extra.laserSMax = config.laserSMax ?? 1000;
         extra.laserSpot = config.laserSpot || 0.2;
         extra.laserGamma = config.laserGamma || 1;
         extra.laserOverscan = Math.max(0, Number(config.laserOverscan) || 0);
@@ -541,7 +595,17 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
         toolDiameter: config.toolDiameter,
         toolRadius: config.toolRadius,
         cutterAngle: config.cutterAngle,
+        ...(config.operation === 'chamfer' &&
+        config.chamferWidthMm !== undefined
+            ? {
+                  chamferWidthMm: config.chamferWidthMm,
+                  chamferTipOffsetMm: config.chamferTipOffsetMm ?? 0,
+              }
+            : {}),
         overlapPercent: config.overlapPercent,
+        ...(config.vCarveInset ? { vCarveInset: config.vCarveInset } : {}),
+        ...(config.vCarvePairId ? { vCarvePairId: config.vCarvePairId } : {}),
+        ...(config.vCarveEdgeFinish ? { vCarveEdgeFinish: true } : {}),
         cutDepth,
         passDepth,
         passDepths,
@@ -568,6 +632,9 @@ function createToolpathSkeleton(selectedLoops, config, options = {}) {
         trochoidPreviewContours,
         motionPaths,
         sourceLoops,
+        ...(config.operation === 'pocket'
+            ? { pocketRegion: compositeSelection }
+            : {}),
         tabs: [],
         ...extra,
     };

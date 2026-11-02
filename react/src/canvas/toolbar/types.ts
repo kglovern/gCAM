@@ -86,6 +86,18 @@ export interface CanvasToolbarProps {
     canUndo?: boolean;
     canRedo?: boolean;
     onImportFile?: () => void;
+    onSelectOpenShapes?(): void;
+    onRepairPaths?(): void;
+    onArrange?(): void;
+    onPattern?(kind: 'mirror' | 'rectangular' | 'circular'): void;
+    canPattern?: boolean;
+    canArrange?: boolean;
+    onSimplifyPaths?(): void;
+    onDeleteDuplicates?(): void;
+    canRepairPaths?: boolean;
+    canConvertToBitmap?: boolean;
+    onConvertToBitmap?(): void;
+    onImportSvgImage?: () => void;
     onImportProject?: () => void;
     onExportProject?: () => void;
     onNewCanvas?: () => void;
