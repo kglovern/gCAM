@@ -9,7 +9,7 @@ import {
 } from '../lib/project';
 
 export function downloadProject(snapshot: ProjectSnapshot): string {
-    const raw = serializeProject(snapshot);
+    const raw = serializeProject(snapshot, { compact: true });
     const base = (snapshot.fileName || 'project').replace(/\.[^.]+$/, '');
     saveTextFile(raw, `${base}.gcam.json`, 'application/json');
     return `${base}.gcam.json`;

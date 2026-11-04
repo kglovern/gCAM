@@ -14,6 +14,14 @@ import type { JobStock } from '../job/stock';
 import { normalizeJobStock } from '../job/stock';
 import { controllerPreset, type OutputSettings } from '../gcode/profiles';
 import type { UnitSystem } from '../lib/units';
+import {
+    describeRegenerationReport,
+    hasPendingRegeneration,
+    regenerateStack,
+} from '../toolpaths/regenerate-stack';
+
+/** Only the most recent import may commit after an asynchronous toolpath rebuild. */
+let latestImport = 0;
 
 interface IdentifiedLoop {
     id: string;
@@ -108,8 +116,23 @@ export function useProjectFileCommands<
         const file = files?.[0];
         if (!file) return;
         options.cancelPendingImport?.();
+        const token = ++latestImport;
         try {
             const snapshot = await readProjectFile(file);
+            let notice: string | null = null;
+            if (hasPendingRegeneration(snapshot.stack)) {
+                const rebuilt = await regenerateStack(snapshot.stack, {
+                    onProgress: (done, total, label) => {
+                        if (token === latestImport && done < total)
+                            options.setStatus(
+                                `Rebuilding toolpaths ${done + 1}/${total} · ${label}`,
+                            );
+                    },
+                });
+                snapshot.stack = rebuilt.stack;
+                notice = describeRegenerationReport(rebuilt.report);
+            }
+            if (token !== latestImport) return;
             options.onLoadOutputSettings?.(
                 snapshot.outputSettings ?? controllerPreset(),
             );
@@ -141,8 +164,13 @@ export function useProjectFileCommands<
             options.setFileName(snapshot.fileName);
             options.onLoadRotaryProject?.(snapshot.rotary);
             options.onLoadedBounds(loops);
-            options.setStatus(`Loaded ${file.name}.`);
+            options.setStatus(
+                notice
+                    ? `Loaded ${file.name}. ${notice}`
+                    : `Loaded ${file.name}.`,
+            );
         } catch (error) {
+            if (token !== latestImport) return;
             options.setStatus(
                 error instanceof Error ? error.message : 'Could not load',
             );

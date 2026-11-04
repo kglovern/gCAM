@@ -139,14 +139,26 @@ Cypress.Commands.add('snapshot', () => {
     cy.menu('File', 'Export Project');
     return cy.readDownload('.gcam.json').then((raw) => {
         const doc = JSON.parse(raw);
-        if (doc.version !== 3 && doc.version !== 4) return doc.snapshot;
+        if (doc.version !== 3 && doc.version !== 4 && doc.version !== 5)
+            return doc.snapshot;
         return cy.window().then(async (win) => {
             const { deserializeProject } = await win.eval(
                 "import('/src/lib/project.ts')",
             );
+            const loaded = deserializeProject(raw);
+            if (doc.version !== 5)
+                return { ...doc.snapshot, bitmaps: loaded.bitmaps };
+            // Compact exports omit rebuildable toolpaths; rebuild them like an import does.
+            const { regenerateStack } = await win.eval(
+                "import('/src/toolpaths/regenerate-stack.ts')",
+            );
+            const { stack } = await regenerateStack(loaded.stack);
             return {
                 ...doc.snapshot,
-                bitmaps: deserializeProject(raw).bitmaps,
+                bitmaps: loaded.bitmaps,
+                stack: doc.snapshot.stack.map((entry, index) =>
+                    entry.toolpath?.pendingRegeneration ? stack[index] : entry,
+                ),
             };
         });
     });

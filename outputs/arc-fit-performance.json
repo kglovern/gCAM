@@ -1,0 +1,54 @@
+{
+  "points": 100100,
+  "scope": "Actual worker startup, request/result cloning and G-code emission. Excludes source generation, canvas rendering and controller formatting.",
+  "trials": [
+    {
+      "repeat": 0,
+      "arcs": false,
+      "milliseconds": 257.2999999523163,
+      "bytes": 2740396,
+      "arcCommands": 0,
+      "callbacks": 41
+    },
+    {
+      "repeat": 0,
+      "arcs": true,
+      "milliseconds": 154.5,
+      "bytes": 18463,
+      "arcCommands": 300,
+      "callbacks": 11
+    },
+    {
+      "repeat": 1,
+      "arcs": false,
+      "milliseconds": 162.39999997615814,
+      "bytes": 2740396,
+      "arcCommands": 0,
+      "callbacks": 23
+    },
+    {
+      "repeat": 1,
+      "arcs": true,
+      "milliseconds": 162.89999997615814,
+      "bytes": 18463,
+      "arcCommands": 300,
+      "callbacks": 25
+    },
+    {
+      "repeat": 2,
+      "arcs": false,
+      "milliseconds": 154.30000001192093,
+      "bytes": 2740396,
+      "arcCommands": 0,
+      "callbacks": 23
+    },
+    {
+      "repeat": 2,
+      "arcs": true,
+      "milliseconds": 165.9000000357628,
+      "bytes": 18463,
+      "arcCommands": 300,
+      "callbacks": 26
+    }
+  ]
+}

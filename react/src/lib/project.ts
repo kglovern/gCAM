@@ -97,11 +97,17 @@ export type ProjectEnvelopeV4 = Omit<ProjectEnvelopeV3, 'version'> & {
     version: 4;
 };
 
+/** V4 layout whose stack may hold entries saved without computed toolpath data. */
+export type ProjectEnvelopeV5 = Omit<ProjectEnvelopeV3, 'version'> & {
+    version: 5;
+};
+
 export type ProjectEnvelope =
     | ProjectEnvelopeV1
     | ProjectEnvelopeV2
     | ProjectEnvelopeV3
-    | ProjectEnvelopeV4;
+    | ProjectEnvelopeV4
+    | ProjectEnvelopeV5;
 
 export const PROJECT_KINDS = ['gcam.project', 'camcanvas.project'];
 
@@ -158,7 +164,148 @@ function restoreLaserPreview(entry: StackEntryLike): StackEntryLike {
     };
 }
 
-export function serializeProject(snapshot: ProjectSnapshot): string {
+/**
+ * Bitmap and GPU surface operations need decoded pixels or WebGPU to rebuild,
+ * so they keep their computed data; every other operation rebuilds from args.
+ */
+const KEEP_COMPUTED = new Set(['laser-raster', 'wavy-raster', 'halftone']);
+
+export function canRegenerateToolpath(entry: StackEntryLike): boolean {
+    const operation = (entry.args as { operation?: unknown } | undefined)
+        ?.operation;
+    return (
+        typeof operation === 'string' &&
+        !KEEP_COMPUTED.has(operation) &&
+        !operation.startsWith('surface-') &&
+        entry.toolpath?.operation === operation &&
+        Array.isArray((entry.args as { loops?: unknown }).loops)
+    );
+}
+
+/** Saved in place of omitted geometry; see serializeProject `compact`. */
+export interface PendingRegeneration {
+    /** toolpathDigest of the geometry when saved. */
+    digest: string;
+    /** Original toolpath key order, so a rebuild restores the same shape. */
+    keys: string[];
+    /** Built by the CAM worker rather than the main-thread engine. */
+    worker: boolean;
+}
+
+export function pendingRegeneration(
+    entry: StackEntryLike,
+): PendingRegeneration | null {
+    const pending = entry.toolpath?.pendingRegeneration;
+    return pending && typeof pending === 'object'
+        ? (pending as PendingRegeneration)
+        : null;
+}
+
+export function isPendingRegeneration(entry: StackEntryLike): boolean {
+    return pendingRegeneration(entry) !== null;
+}
+
+/**
+ * Order-sensitive fingerprint of the geometry the G-code emitter consumes,
+ * rounded to 1 µm so it survives float noise between machines.
+ */
+export function toolpathDigest(toolpath: Record<string, unknown>): string {
+    let hash = 0x811c9dc5;
+    let count = 0;
+    const mix = (value: number) => {
+        hash = Math.imul(hash ^ (value | 0), 0x01000193) >>> 0;
+    };
+    for (const key of [
+        'motionPaths',
+        'previewContours',
+        'trochoidPreviewContours',
+    ]) {
+        const paths = toolpath[key];
+        mix(Array.isArray(paths) ? paths.length : -1);
+        if (!Array.isArray(paths)) continue;
+        for (const path of paths) {
+            const points = Array.isArray(path)
+                ? path
+                : (path as { points?: unknown })?.points;
+            if (!Array.isArray(points)) continue;
+            mix(points.length);
+            for (const point of points as {
+                x: number;
+                y: number;
+                z?: number;
+            }[]) {
+                mix(Math.round(point.x * 1000));
+                mix(Math.round(point.y * 1000));
+                if (typeof point.z === 'number')
+                    mix(Math.round(point.z * 1000));
+                count += 1;
+            }
+        }
+    }
+    return `${hash.toString(16).padStart(8, '0')}:${count}`;
+}
+
+/**
+ * Arrays hold the computed geometry and are omitted; scalar settings stay so a
+ * rebuild only has to supply geometry.
+ */
+function omitToolpathData(entry: StackEntryLike): StackEntryLike {
+    if (isPendingRegeneration(entry) || !canRegenerateToolpath(entry))
+        return entry;
+    const settings = Object.fromEntries(
+        Object.entries(entry.toolpath).filter(
+            ([, value]) => !Array.isArray(value),
+        ),
+    );
+    const pending: PendingRegeneration = {
+        digest: toolpathDigest(entry.toolpath),
+        keys: Object.keys(entry.toolpath),
+        // Only the worker client tags source loops with isBitmap.
+        worker:
+            Array.isArray(entry.toolpath.sourceLoops) &&
+            entry.toolpath.sourceLoops.some(
+                (loop) =>
+                    loop && typeof loop === 'object' && 'isBitmap' in loop,
+            ),
+    };
+    return {
+        ...entry,
+        preview: [],
+        toolpath: { ...settings, pendingRegeneration: pending },
+    };
+}
+
+function validatePendingEntry(entry: StackEntryLike): StackEntryLike {
+    if (entry.toolpath?.pendingRegeneration === undefined) return entry;
+    const pending = pendingRegeneration(entry);
+    if (
+        !pending ||
+        !canRegenerateToolpath(entry) ||
+        typeof pending.digest !== 'string' ||
+        typeof pending.worker !== 'boolean' ||
+        !Array.isArray(pending.keys) ||
+        !pending.keys.every((key) => typeof key === 'string')
+    )
+        throw new Error('Invalid saved toolpath.');
+    return { ...entry, preview: [] };
+}
+
+export interface SerializeOptions {
+    /**
+     * Drop toolpath geometry that rebuilds from each entry's args and write
+     * minified JSON. Readers must call regenerateStack before export.
+     */
+    compact?: boolean;
+}
+
+export function serializeProject(
+    snapshot: ProjectSnapshot,
+    options: SerializeOptions = {},
+): string {
+    const compacted = options.compact
+        ? snapshot.stack.map(omitToolpathData)
+        : snapshot.stack;
+    const pending = compacted.some(isPendingRegeneration);
     const sources = [...new Set(snapshot.bitmaps.map((b) => b.dataUrl))];
     const shared = sources.length < snapshot.bitmaps.length;
     const linked =
@@ -176,15 +323,15 @@ export function serializeProject(snapshot: ProjectSnapshot): string {
         fileName: snapshot.fileName || '',
         snapshot: {
             ...snapshot,
-            stack: snapshot.stack.map(compactLaserPreview),
+            stack: compacted.map(compactLaserPreview),
         },
     };
-    // Older readers must reject source sharing or live mask links they cannot preserve.
+    // Older readers must reject source sharing, live mask links or omitted toolpaths they cannot preserve.
     const envelope: ProjectEnvelope =
-        shared || linked
+        shared || linked || pending
             ? {
                   ...base,
-                  version: linked ? 4 : 3,
+                  version: pending ? 5 : linked ? 4 : 3,
                   bitmapSources: sources,
                   snapshot: {
                       ...base.snapshot,
@@ -197,7 +344,9 @@ export function serializeProject(snapshot: ProjectSnapshot): string {
                   },
               }
             : base;
-    return JSON.stringify(envelope, null, 2);
+    return options.compact
+        ? JSON.stringify(envelope)
+        : JSON.stringify(envelope, null, 2);
 }
 
 export function deserializeProject(raw: string): ProjectSnapshot {
@@ -214,7 +363,8 @@ export function deserializeProject(raw: string): ProjectSnapshot {
         (doc.version !== 1 &&
             doc.version !== 2 &&
             doc.version !== 3 &&
-            doc.version !== 4) ||
+            doc.version !== 4 &&
+            doc.version !== 5) ||
         !snap ||
         !Array.isArray(snap.loops) ||
         !Array.isArray(snap.stack)
@@ -222,7 +372,7 @@ export function deserializeProject(raw: string): ProjectSnapshot {
         throw new Error('This is not a valid gCAM project file.');
     }
     let bitmaps: BitmapLike[];
-    if (doc.version === 3 || doc.version === 4) {
+    if (doc.version === 3 || doc.version === 4 || doc.version === 5) {
         const sources = doc.bitmapSources;
         if (
             !Array.isArray(sources) ||
@@ -273,7 +423,9 @@ export function deserializeProject(raw: string): ProjectSnapshot {
         activeLayerId: snap.activeLayerId,
         loops: snap.loops,
         selected: Array.isArray(snap.selected) ? snap.selected : [],
-        stack: snap.stack.map(restoreLaserPreview),
+        stack: snap.stack.map((entry) =>
+            restoreLaserPreview(validatePendingEntry(entry)),
+        ),
         hidden: Array.isArray((snap as { hidden?: unknown }).hidden)
             ? (snap as unknown as { hidden: string[] }).hidden
             : [],

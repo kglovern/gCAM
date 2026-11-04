@@ -11,6 +11,10 @@ import type { Guide } from '../lib/guides';
 import type { DocumentSnapshot } from './useDocumentState';
 import type { PlacedBitmapRecord } from './useBitmapCommands';
 import { normalizeJobStock, type JobStock } from '../job/stock';
+import {
+    hasPendingRegeneration,
+    regenerateStack,
+} from '../toolpaths/regenerate-stack';
 
 type AppSnapshot = DocumentSnapshot<
     ViewLoop,
@@ -79,8 +83,14 @@ export function useDocumentPersistence({
         let cancelled = false;
         void autosaveStoreRef.current
             .load()
-            .then((recovery) => {
+            .then(async (recovery) => {
                 if (cancelled || !recovery) return;
+                // Autosaves keep full geometry; only entries that failed to rebuild on import stay pending.
+                if (hasPendingRegeneration(recovery.snapshot.stack))
+                    recovery.snapshot.stack = (
+                        await regenerateStack(recovery.snapshot.stack)
+                    ).stack;
+                if (cancelled) return;
                 // A newly opened or edited document takes priority over startup recovery.
                 if (
                     initialDocumentRef.current.some(
