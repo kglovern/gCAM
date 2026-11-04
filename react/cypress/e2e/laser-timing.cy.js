@@ -91,6 +91,8 @@ describe('Offline laser timing', () => {
         cy.get('[aria-label="Simulation"]').click();
         cy.contains('Drag to orbit', { timeout: 90000 }).should('be.visible');
         let canonical, original;
+        // Earlier specs can leave G-code in the shared downloads folder.
+        cy.task('clearDownloads');
         cy.contains('button', /^Save GCODE$/).click();
         cy.readDownload('.gcode').then((code) => {
             canonical = code;
@@ -251,6 +253,7 @@ describe('Offline laser timing', () => {
             ).lessThan(1);
         });
         cy.screenshot('laser-full-circle-dwell', { capture: 'viewport' });
+        cy.task('clearDownloads');
         cy.contains('button', /^Save GCODE$/).click();
         cy.readDownload('.gcode').then((code) =>
             expect(code).match(/G2\s+I-20/),
