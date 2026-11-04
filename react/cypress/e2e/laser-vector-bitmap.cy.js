@@ -249,8 +249,11 @@ describe('Selected artwork to bitmap', () => {
         cy.window()
             .then(async (win) => {
                 const { buildToolpathGcodeAsync } = await win.eval(
-                    "import('/src/lib/engine.ts')",
-                );
+                        "import('/src/lib/engine.ts')",
+                    ),
+                    { previewFor } = await win.eval(
+                        "import('/src/toolpaths/useToolpathStack.ts')",
+                    );
                 const loops = [
                     rect('a', 100, 100, 20, 20),
                     rect('b', 130, 100, 20, 20),
@@ -272,9 +275,8 @@ describe('Selected artwork to bitmap', () => {
                         id: 'job-' + i,
                         label: result.label,
                         args,
-                        preview: result.previewContours.map((points) => ({
-                            points,
-                        })),
+                        // Match the preview the app commits; project loads rebuild it this way.
+                        preview: previewFor(result),
                         toolpath: { ...result.toolpath, id: 'job-' + i },
                     });
                 }

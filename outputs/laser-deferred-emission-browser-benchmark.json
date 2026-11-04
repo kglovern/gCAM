@@ -3,12 +3,12 @@
   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
   "cold": {
     "individual": {
-      "milliseconds": 1134,
+      "milliseconds": 1019.6999999880791,
       "workers": 7,
       "discardedBytes": 2287160
     },
     "deferred": {
-      "milliseconds": 750.9000000357628,
+      "milliseconds": 725.6999999880791,
       "workers": 4,
       "discardedBytes": 0
     }
@@ -16,34 +16,34 @@
   "runs": {
     "individual": [
       {
-        "milliseconds": 1034,
+        "milliseconds": 976.6000000238419,
         "workers": 7,
         "discardedBytes": 2287160
       },
       {
-        "milliseconds": 982.1999999880791,
+        "milliseconds": 975.5,
         "workers": 7,
         "discardedBytes": 2287160
       },
       {
-        "milliseconds": 941.0999999642372,
+        "milliseconds": 951.5,
         "workers": 7,
         "discardedBytes": 2287160
       }
     ],
     "deferred": [
       {
-        "milliseconds": 742.5,
+        "milliseconds": 736.7999999523163,
         "workers": 4,
         "discardedBytes": 0
       },
       {
-        "milliseconds": 731.1999999880791,
+        "milliseconds": 709.5999999642372,
         "workers": 4,
         "discardedBytes": 0
       },
       {
-        "milliseconds": 712.8999999761581,
+        "milliseconds": 710.9000000357628,
         "workers": 4,
         "discardedBytes": 0
       }
@@ -52,7 +52,7 @@
   "outputBytes": 2287075,
   "hash": "eb3f68b7ae03ee5e36cac841ffc7c4c20ab330c793f515e8b9e5fe180f9cdc3d",
   "medians": {
-    "individual": 982.1999999880791,
-    "deferred": 731.1999999880791
+    "individual": 975.5,
+    "deferred": 710.9000000357628
   }
 }

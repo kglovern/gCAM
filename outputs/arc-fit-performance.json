@@ -5,50 +5,50 @@
     {
       "repeat": 0,
       "arcs": false,
-      "milliseconds": 257.2999999523163,
+      "milliseconds": 132.10000002384186,
       "bytes": 2740396,
       "arcCommands": 0,
-      "callbacks": 41
+      "callbacks": 25
     },
     {
       "repeat": 0,
       "arcs": true,
-      "milliseconds": 154.5,
+      "milliseconds": 118.80000001192093,
       "bytes": 18463,
       "arcCommands": 300,
-      "callbacks": 11
+      "callbacks": 22
     },
     {
       "repeat": 1,
       "arcs": false,
-      "milliseconds": 162.39999997615814,
+      "milliseconds": 142.19999998807907,
+      "bytes": 2740396,
+      "arcCommands": 0,
+      "callbacks": 24
+    },
+    {
+      "repeat": 1,
+      "arcs": true,
+      "milliseconds": 117,
+      "bytes": 18463,
+      "arcCommands": 300,
+      "callbacks": 22
+    },
+    {
+      "repeat": 2,
+      "arcs": false,
+      "milliseconds": 124.80000001192093,
       "bytes": 2740396,
       "arcCommands": 0,
       "callbacks": 23
     },
     {
-      "repeat": 1,
-      "arcs": true,
-      "milliseconds": 162.89999997615814,
-      "bytes": 18463,
-      "arcCommands": 300,
-      "callbacks": 25
-    },
-    {
-      "repeat": 2,
-      "arcs": false,
-      "milliseconds": 154.30000001192093,
-      "bytes": 2740396,
-      "arcCommands": 0,
-      "callbacks": 23
-    },
-    {
       "repeat": 2,
       "arcs": true,
-      "milliseconds": 165.9000000357628,
+      "milliseconds": 112.30000001192093,
       "bytes": 18463,
       "arcCommands": 300,
-      "callbacks": 26
+      "callbacks": 21
     }
   ]
 }
