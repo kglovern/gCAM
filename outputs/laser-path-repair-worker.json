@@ -1,0 +1,24 @@
+{
+  "sourceShapes": 10000,
+  "sourcePoints": 20000,
+  "outputShapes": 1,
+  "outputPoints": 10001,
+  "trials": [
+    {
+      "milliseconds": 54.90000003576279,
+      "ticks": 10,
+      "hash": "6f65d7e46769126288ed5c1bd63efe93bd8b8789da1996ff1ef31c92eccf2819"
+    },
+    {
+      "milliseconds": 70.69999998807907,
+      "ticks": 10,
+      "hash": "6f65d7e46769126288ed5c1bd63efe93bd8b8789da1996ff1ef31c92eccf2819"
+    },
+    {
+      "milliseconds": 52.30000001192093,
+      "ticks": 9,
+      "hash": "6f65d7e46769126288ed5c1bd63efe93bd8b8789da1996ff1ef31c92eccf2819"
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36"
+}

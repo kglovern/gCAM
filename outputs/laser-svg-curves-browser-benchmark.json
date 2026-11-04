@@ -1,0 +1,164 @@
+{
+  "scope": "Identical SVG and importer; only sampler replaced. Tessellation differs intentionally to preserve joints. Browser import time only; no CAM, controller throughput, competitor or peak-memory measurement.",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
+  "results": [
+    {
+      "shapes": 20,
+      "inputBytes": 2462,
+      "inputSha256": "e3cc8167496b6135677f31d22c9d3d28d6fc4ed792bbea939d42414e99ef99ce",
+      "modes": {
+        "uniform": {
+          "cold": {
+            "ms": 118.60000002384186,
+            "vertices": 1720,
+            "exactJoints": 0
+          },
+          "warmups": 1,
+          "measurements": [
+            {
+              "ms": 115.79999995231628,
+              "vertices": 1720,
+              "exactJoints": 0
+            },
+            {
+              "ms": 111.69999998807907,
+              "vertices": 1720,
+              "exactJoints": 0
+            },
+            {
+              "ms": 110.80000001192093,
+              "vertices": 1720,
+              "exactJoints": 0
+            },
+            {
+              "ms": 110.5,
+              "vertices": 1720,
+              "exactJoints": 0
+            },
+            {
+              "ms": 111.10000002384186,
+              "vertices": 1720,
+              "exactJoints": 0
+            }
+          ],
+          "medianMs": 111.10000002384186
+        },
+        "commandPreserving": {
+          "cold": {
+            "ms": 2.899999976158142,
+            "vertices": 1200,
+            "exactJoints": 5
+          },
+          "warmups": 1,
+          "measurements": [
+            {
+              "ms": 1.199999988079071,
+              "vertices": 1200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 1.600000023841858,
+              "vertices": 1200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 1,
+              "vertices": 1200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 1,
+              "vertices": 1200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 0.699999988079071,
+              "vertices": 1200,
+              "exactJoints": 5
+            }
+          ],
+          "medianMs": 1
+        }
+      }
+    },
+    {
+      "shapes": 120,
+      "inputBytes": 14630,
+      "inputSha256": "07e8baf7f847532ba2c6f7a8f85ed688540f30ccc7087c3e4d88f20ad5fa9f26",
+      "modes": {
+        "uniform": {
+          "cold": {
+            "ms": 675.0999999642372,
+            "vertices": 10320,
+            "exactJoints": 0
+          },
+          "warmups": 1,
+          "measurements": [
+            {
+              "ms": 670.8000000119209,
+              "vertices": 10320,
+              "exactJoints": 0
+            },
+            {
+              "ms": 672,
+              "vertices": 10320,
+              "exactJoints": 0
+            },
+            {
+              "ms": 679.3999999761581,
+              "vertices": 10320,
+              "exactJoints": 0
+            },
+            {
+              "ms": 680,
+              "vertices": 10320,
+              "exactJoints": 0
+            },
+            {
+              "ms": 680.3999999761581,
+              "vertices": 10320,
+              "exactJoints": 0
+            }
+          ],
+          "medianMs": 679.3999999761581
+        },
+        "commandPreserving": {
+          "cold": {
+            "ms": 4,
+            "vertices": 7200,
+            "exactJoints": 5
+          },
+          "warmups": 1,
+          "measurements": [
+            {
+              "ms": 4,
+              "vertices": 7200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 3.5,
+              "vertices": 7200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 2.900000035762787,
+              "vertices": 7200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 4,
+              "vertices": 7200,
+              "exactJoints": 5
+            },
+            {
+              "ms": 3.199999988079071,
+              "vertices": 7200,
+              "exactJoints": 5
+            }
+          ],
+          "medianMs": 3.5
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "scope": "Native versus imported nonzero painted coverage; opacity is not interpreted as laser power.",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
+  "report": [
+    {
+      "name": "display attribute",
+      "entities": 0,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "display inline",
+      "entities": 0,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "zero opacity",
+      "entities": 0,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "negative opacity",
+      "entities": 0,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "partial opacity",
+      "entities": 1,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "hidden child override",
+      "entities": 1,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "important override",
+      "entities": 1,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "instance override",
+      "entities": 1,
+      "coverageDifferences": 0
+    },
+    {
+      "name": "invalid opacity attribute",
+      "entities": 1,
+      "coverageDifferences": 0
+    }
+  ]
+}

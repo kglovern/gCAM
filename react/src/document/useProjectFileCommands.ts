@@ -93,22 +93,31 @@ export function useProjectFileCommands<
             );
             return;
         }
-        const name = downloadProject({
-            outputUnits: options.outputUnits,
-            outputSettings: options.outputSettings,
-            layers: options.layers,
-            activeLayerId: options.activeLayerId,
-            loops: options.loops,
-            selected: options.selected,
-            hidden: options.hidden,
-            stack: options.stack,
-            bitmaps: options.bitmaps.map(({ img, ...bitmap }) => bitmap),
-            guides: options.guides,
-            stock: options.stock,
-            fileName: options.fileName,
-            // Keep the rotary setup in portable project files.
-            rotary: options.rotaryProject,
-        });
+        let name: string;
+        try {
+            name = downloadProject({
+                outputUnits: options.outputUnits,
+                outputSettings: options.outputSettings,
+                layers: options.layers,
+                activeLayerId: options.activeLayerId,
+                loops: options.loops,
+                selected: options.selected,
+                hidden: options.hidden,
+                stack: options.stack,
+                bitmaps: options.bitmaps.map(({ img, ...bitmap }) => bitmap),
+                guides: options.guides,
+                stock: options.stock,
+                fileName: options.fileName,
+                // Keep the rotary setup in portable project files.
+                rotary: options.rotaryProject,
+            });
+        } catch (error) {
+            console.error(error);
+            options.setStatus(
+                error instanceof Error ? error.message : 'Could not export.',
+            );
+            return;
+        }
         options.setStatus(`Exported ${name}.`);
     };
 

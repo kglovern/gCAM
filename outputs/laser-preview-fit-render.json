@@ -1,0 +1,29 @@
+{
+  "scope": "Actual WebGL first-load full-power laser-colour pixels and occupied viewport spans, followed by refit and resize. No physical power or competitive performance claim.",
+  "report": [
+    {
+      "phase": "initial",
+      "width": 1178,
+      "height": 196,
+      "laserPixels": 497,
+      "spanX": 0.16553480475382004,
+      "spanY": 0.6938775510204082
+    },
+    {
+      "phase": "refit",
+      "width": 1178,
+      "height": 196,
+      "laserPixels": 497,
+      "spanX": 0.16553480475382004,
+      "spanY": 0.6938775510204082
+    },
+    {
+      "phase": "narrow",
+      "width": 674,
+      "height": 389,
+      "laserPixels": 1227,
+      "spanX": 0.5741839762611276,
+      "spanY": 0.7017994858611826
+    }
+  ]
+}

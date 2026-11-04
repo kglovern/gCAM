@@ -1,0 +1,195 @@
+[
+  {
+    "name": "plain",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 12012,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "misplaced-control",
+    "reference": "original SVG",
+    "meanError": 40.77772620100207,
+    "badFraction": 0.3611111111111111,
+    "active": 13572,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "recoloured-control",
+    "reference": "original SVG",
+    "meanError": 67.33597236097236,
+    "badFraction": 1,
+    "active": 12012,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "clone",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 24024,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "nestedclip",
+    "reference": "original SVG",
+    "meanError": 0.011831388950033018,
+    "badFraction": 0,
+    "active": 4543,
+    "pixels": [
+      407,
+      305
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "style",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 12012,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "jpeg",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 12012,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "meet",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 6844,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "slice",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 11252,
+    "pixels": [
+      610,
+      508
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "stretch",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 11252,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "rotate",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 12100,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  },
+  {
+    "name": "reflect",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 12012,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "skew",
+    "reference": "original SVG",
+    "meanError": 0.000010212418300653706,
+    "badFraction": 0,
+    "active": 12096,
+    "pixels": [
+      1003,
+      407
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "opacity",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 12012,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "root-clip",
+    "reference": "original SVG",
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 9048,
+    "pixels": [
+      610,
+      407
+    ],
+    "retainedSource": false
+  },
+  {
+    "name": "intrinsic",
+    "reference": "intrinsic dimensions explicitly resolved; raw Chromium SVG-image auto size was blank",
+    "rawAutoActive": 0,
+    "meanError": 0,
+    "badFraction": 0,
+    "active": 47432,
+    "pixels": [
+      80,
+      40
+    ],
+    "retainedSource": true
+  }
+]

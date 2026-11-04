@@ -1,0 +1,38 @@
+{
+  "scope": "Same-input gCAM-only development-server browser comparison, canvas/fixed-step flattening versus isolated worker/adaptive 0.05mm chords. Both include pixel reads; worker includes startup, transfer, preprocessing and returned geometry. One trace per path; exports use two trials per path in legacy/worker/worker/legacy order with startup included. No competitor, controller or peak-memory measurement.",
+  "pixels": 1048576,
+  "fixture": "square rings",
+  "contours": 512,
+  "maxBoundsDeltaMm": 0,
+  "maxAreaDeltaMm2": 0,
+  "legacy": {
+    "milliseconds": 46.69999998807907,
+    "timerTicksDuringWork": 0,
+    "points": 4608,
+    "serializedBytes": 110401
+  },
+  "worker": {
+    "milliseconds": 93.09999996423721,
+    "timerTicksDuringWork": 18,
+    "points": 4608,
+    "serializedBytes": 110401
+  },
+  "legacyGcode": {
+    "bytes": 79559,
+    "lines": 5133,
+    "milliseconds": 207.30000004172325,
+    "trialMilliseconds": [
+      149.9000000357628,
+      264.7000000476837
+    ]
+  },
+  "workerGcode": {
+    "bytes": 79559,
+    "lines": 5133,
+    "milliseconds": 236.09999999403954,
+    "trialMilliseconds": [
+      230.30000001192093,
+      241.89999997615814
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "scope": "Current browser SVG image import and portable project serialization, compared with expanded v2 storage of the identical placements and sources. One cold, one warmup, three measurements. Pixel counts describe placed bitmap records, not peak memory. No CAM, G-code-size, competitor or controller-throughput measurement.",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
+  "date": "2026-11-04T00:46:36.106Z",
+  "results": [
+    {
+      "name": "repeated source",
+      "count": 100,
+      "inputBytes": 55752,
+      "cold": {
+        "importMs": 9.400000035762787,
+        "serializeMs": 0.2999999523162842,
+        "expandedBytes": 5111555,
+        "portableBytes": 118550,
+        "decodedPixels": 7372800,
+        "sourceRetained": 100
+      },
+      "warmups": 1,
+      "measurements": [
+        {
+          "importMs": 4.199999988079071,
+          "serializeMs": 0.09999996423721313,
+          "expandedBytes": 5111555,
+          "portableBytes": 118550,
+          "decodedPixels": 7372800,
+          "sourceRetained": 100
+        },
+        {
+          "importMs": 3.600000023841858,
+          "serializeMs": 0.19999998807907104,
+          "expandedBytes": 5111555,
+          "portableBytes": 118550,
+          "decodedPixels": 7372800,
+          "sourceRetained": 100
+        },
+        {
+          "importMs": 3.800000011920929,
+          "serializeMs": 0.19999998807907104,
+          "expandedBytes": 5111555,
+          "portableBytes": 118550,
+          "decodedPixels": 7372800,
+          "sourceRetained": 100
+        }
+      ],
+      "medianImportMs": 3.800000011920929
+    },
+    {
+      "name": "skewed source",
+      "count": 10,
+      "inputBytes": 51200,
+      "cold": {
+        "importMs": 266.39999997615814,
+        "serializeMs": 1.5,
+        "expandedBytes": 2886066,
+        "portableBytes": 2310477,
+        "decodedPixels": 3784000,
+        "sourceRetained": 0
+      },
+      "warmups": 1,
+      "measurements": [
+        {
+          "importMs": 167,
+          "serializeMs": 1.5999999642372131,
+          "expandedBytes": 2886066,
+          "portableBytes": 2310477,
+          "decodedPixels": 3784000,
+          "sourceRetained": 0
+        },
+        {
+          "importMs": 166.4000000357628,
+          "serializeMs": 1.5,
+          "expandedBytes": 2886066,
+          "portableBytes": 2310477,
+          "decodedPixels": 3784000,
+          "sourceRetained": 0
+        },
+        {
+          "importMs": 167,
+          "serializeMs": 1.5,
+          "expandedBytes": 2886066,
+          "portableBytes": 2310477,
+          "decodedPixels": 3784000,
+          "sourceRetained": 0
+        }
+      ],
+      "medianImportMs": 167
+    }
+  ]
+}

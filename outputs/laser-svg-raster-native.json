@@ -1,0 +1,61 @@
+{
+  "scope": "Native SVG-as-image versus imported PNG, white-composited pixels. Current generation times only, no peak-memory, competitor or controller-throughput claim.",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
+  "report": [
+    {
+      "name": "clipped masked gradient and pattern",
+      "pixelW": 600,
+      "pixelH": 400,
+      "wMm": 60,
+      "hMm": 40,
+      "meanByteError": 0,
+      "maximumByteError": 0,
+      "renderEncodeMs": 76.30000001192093,
+      "pngBytes": 37539
+    },
+    {
+      "name": "object bounding box clip",
+      "pixelW": 600,
+      "pixelH": 400,
+      "wMm": 60,
+      "hMm": 40,
+      "meanByteError": 0,
+      "maximumByteError": 0,
+      "renderEncodeMs": 14.399999976158142,
+      "pngBytes": 10584
+    },
+    {
+      "name": "blur and group compositing",
+      "pixelW": 600,
+      "pixelH": 400,
+      "wMm": 60,
+      "hMm": 40,
+      "meanByteError": 0,
+      "maximumByteError": 0,
+      "renderEncodeMs": 65.10000002384186,
+      "pngBytes": 25962
+    },
+    {
+      "name": "CSS and even-odd clipping",
+      "pixelW": 600,
+      "pixelH": 400,
+      "wMm": 60,
+      "hMm": 40,
+      "meanByteError": 0,
+      "maximumByteError": 0,
+      "renderEncodeMs": 43.69999998807907,
+      "pngBytes": 8108
+    },
+    {
+      "name": "hyperlink selectors and escaped local clipping",
+      "pixelW": 600,
+      "pixelH": 400,
+      "wMm": 60,
+      "hMm": 40,
+      "meanByteError": 0,
+      "maximumByteError": 0,
+      "renderEncodeMs": 4.899999976158142,
+      "pngBytes": 13471
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
+  "scope": "Fresh worker per mode/case; identical canonical input, imports/planning/emission excluded. One cold, one warmup, three measured renderer runs. No competitor/controller timing or browser memory measurement.",
+  "cases": [
+    {
+      "controller": "grblhal",
+      "units": "metric",
+      "count": 200,
+      "results": [
+        {
+          "mode": "reference",
+          "coldMs": 644.8000000119209,
+          "medianMs": 614.8999999761581,
+          "sha256": "e008de971bb25700b63a5b8bc55f5140645669dfb724d26ccf86f3fceaaa310f",
+          "bytes": 4371320,
+          "canonicalSha256": "c7fc7d1917f396dcdd21beff0e186102f674672d9f2b3dec230a91226b61b80c"
+        },
+        {
+          "mode": "optimized",
+          "coldMs": 478.10000002384186,
+          "medianMs": 467.69999998807907,
+          "sha256": "e008de971bb25700b63a5b8bc55f5140645669dfb724d26ccf86f3fceaaa310f",
+          "bytes": 4371320,
+          "canonicalSha256": "c7fc7d1917f396dcdd21beff0e186102f674672d9f2b3dec230a91226b61b80c"
+        }
+      ]
+    },
+    {
+      "controller": "duet",
+      "units": "metric",
+      "count": 100,
+      "results": [
+        {
+          "mode": "reference",
+          "coldMs": 376.69999998807907,
+          "medianMs": 333.5999999642372,
+          "sha256": "88efeafe87df09a576557678b30be50f2951353e6534307eef3463236c7282f2",
+          "bytes": 2163416,
+          "canonicalSha256": "d95bf46f54c4c9c8fccd46fe79fc3a376a5887c2172d4498f52a212c72d8f5d2"
+        },
+        {
+          "mode": "optimized",
+          "coldMs": 276.2000000476837,
+          "medianMs": 265.80000001192093,
+          "sha256": "88efeafe87df09a576557678b30be50f2951353e6534307eef3463236c7282f2",
+          "bytes": 2163416,
+          "canonicalSha256": "d95bf46f54c4c9c8fccd46fe79fc3a376a5887c2172d4498f52a212c72d8f5d2"
+        }
+      ]
+    },
+    {
+      "controller": "grbl",
+      "units": "imperial",
+      "count": 100,
+      "results": [
+        {
+          "mode": "reference",
+          "coldMs": 351.19999998807907,
+          "medianMs": 335.9000000357628,
+          "sha256": "b8cd76f1c512c652364a5d0bb5e3db073fec8e7a788cb8f15c5b55c2c0ca8d5b",
+          "bytes": 2605385,
+          "canonicalSha256": "d95bf46f54c4c9c8fccd46fe79fc3a376a5887c2172d4498f52a212c72d8f5d2"
+        },
+        {
+          "mode": "optimized",
+          "coldMs": 282.5,
+          "medianMs": 270,
+          "sha256": "b8cd76f1c512c652364a5d0bb5e3db073fec8e7a788cb8f15c5b55c2c0ca8d5b",
+          "bytes": 2605385,
+          "canonicalSha256": "d95bf46f54c4c9c8fccd46fe79fc3a376a5887c2172d4498f52a212c72d8f5d2"
+        }
+      ]
+    }
+  ]
+}

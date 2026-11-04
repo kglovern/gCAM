@@ -1,0 +1,11 @@
+{
+  "scope": "Current synchronous bounds scan at 2-million-point output capacity; synthetic raster-like points, not CAM generation, peak memory, competitor or controller measurements.",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cypress/15.21.1 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36",
+  "points": 2000000,
+  "coldMs": 17.599999964237213,
+  "measurementsMs": [
+    25.600000023841858,
+    25.19999998807907,
+    25.19999998807907
+  ]
+}

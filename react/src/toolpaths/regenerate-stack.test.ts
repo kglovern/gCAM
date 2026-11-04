@@ -325,3 +325,26 @@ test('entries rebuild on the build path that made them', async () => {
         false,
     ]);
 });
+
+test('projects too large to stringify name their largest part', async () => {
+    const original = await snapshot();
+    original.stack[1] = {
+        ...original.stack[1],
+        toolpath: {
+            ...original.stack[1].toolpath,
+            cache: new Float32Array(1_000_000),
+        },
+    };
+    const stringify = jest
+        .spyOn(JSON, 'stringify')
+        .mockImplementationOnce(() => {
+            throw new RangeError('Invalid string length');
+        });
+    try {
+        expect(() => serializeProject(original, { compact: true })).toThrow(
+            'Project is too large to save: project.snapshot.stack.1.toolpath.cache is about 10 MB.',
+        );
+    } finally {
+        stringify.mockRestore();
+    }
+});

@@ -344,9 +344,54 @@ export function serializeProject(
                   },
               }
             : base;
-    return options.compact
-        ? JSON.stringify(envelope)
-        : JSON.stringify(envelope, null, 2);
+    try {
+        return options.compact
+            ? JSON.stringify(envelope)
+            : JSON.stringify(envelope, null, 2);
+    } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        const [path, size] = largestJsonPath(envelope);
+        throw new Error(
+            `Project is too large to save: ${path} is about ${Math.round(size / 1e6)} MB.`,
+        );
+    }
+}
+
+const JSON_SIZE_CAP = 2 ** 30;
+
+/** Approximate JSON length, counting shared references once per use as JSON.stringify does. */
+function jsonSize(value: unknown, budget = JSON_SIZE_CAP): number {
+    if (value === null || typeof value !== 'object')
+        return typeof value === 'string'
+            ? value.length + 2
+            : String(value).length;
+    if (ArrayBuffer.isView(value))
+        // Typed arrays serialize as {"0":v,...}.
+        return (value as unknown as ArrayLike<unknown>).length * 10;
+    let size = 2;
+    for (const [key, child] of Object.entries(value)) {
+        size += key.length + 4 + jsonSize(child, budget - size);
+        if (size > budget) return size;
+    }
+    return size;
+}
+
+/** Descend into the largest child until no single child dominates. */
+function largestJsonPath(root: unknown): [string, number] {
+    let path = 'project';
+    let value = root;
+    let size = jsonSize(root);
+    for (let depth = 0; depth < 8; depth++) {
+        if (value === null || typeof value !== 'object') break;
+        let best: [string, unknown, number] | null = null;
+        for (const [key, child] of Object.entries(value)) {
+            const childSize = jsonSize(child);
+            if (!best || childSize > best[2]) best = [key, child, childSize];
+        }
+        if (!best || best[2] < size / 2) break;
+        [path, value, size] = [`${path}.${best[0]}`, best[1], best[2]];
+    }
+    return [path, size];
 }
 
 export function deserializeProject(raw: string): ProjectSnapshot {
