@@ -5,17 +5,17 @@
   "outputShapes": 10000,
   "trials": [
     {
-      "milliseconds": 78.29999995231628,
+      "milliseconds": 77,
       "ticks": 12,
       "hash": "efa2f230ffd827715cbd26077966a6daf701ee1a4793249ed061eb491463e894"
     },
     {
-      "milliseconds": 91.60000002384186,
-      "ticks": 13,
+      "milliseconds": 100.30000001192093,
+      "ticks": 12,
       "hash": "efa2f230ffd827715cbd26077966a6daf701ee1a4793249ed061eb491463e894"
     },
     {
-      "milliseconds": 79.59999996423721,
+      "milliseconds": 75.80000001192093,
       "ticks": 12,
       "hash": "efa2f230ffd827715cbd26077966a6daf701ee1a4793249ed061eb491463e894"
     }
