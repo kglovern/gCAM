@@ -29,7 +29,6 @@ function drawPolylineIntoPath(path, points, transform, startNewSubpath = true) {
 function lineSegment(start, end, entity, sourceEntityIndex = -1) {
     return {
         kind: 'line',
-        source: entity,
         sourceEntityIndex,
         start: clonePoint(start),
         end: clonePoint(end),
@@ -68,7 +67,6 @@ function arcSegment({
 }) {
     return {
         kind: 'arc',
-        source: entity,
         sourceEntityIndex,
         start: clonePoint(start),
         end: clonePoint(end),
@@ -162,7 +160,6 @@ export function entityToSegment(entity, sourceEntityIndex = -1) {
     if (entity.type === 'CIRCLE')
         return {
             kind: 'circle',
-            source: entity,
             sourceEntityIndex,
             closed: true,
             cx: entity.cx,
@@ -266,7 +263,6 @@ function createSplineSegment(entity) {
     if (isBezier)
         return {
             kind: 'bezier',
-            source: entity,
             sourceEntityIndex: entity.__sourceEntityIndex ?? -1,
             cps: cps.map(clonePoint),
             start: clonePoint(cps[0]),
@@ -311,7 +307,6 @@ function createSplineSegment(entity) {
         );
     return {
         kind: 'spline',
-        source: entity,
         sourceEntityIndex: entity.__sourceEntityIndex ?? -1,
         cps,
         degree,
@@ -366,7 +361,6 @@ export function polylineSegmentFromPoints(
         end = points[points.length - 1];
     return {
         kind: 'polyline',
-        source: entity,
         sourceEntityIndex: resolved,
         start,
         end,

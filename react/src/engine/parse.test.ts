@@ -1,5 +1,5 @@
 /**
- * Tests: parseDxf reads an LWPOLYLINE square; buildLoops closes the square with correct area and perimeter; parseSvg reads rect and circle without DOM measurement; relative subpath moves keep their absolute position; compact transform lists parse.
+ * Tests: parseDxf reads an LWPOLYLINE square; buildLoops closes the square with correct area and perimeter; parseSvg reads rect and circle without DOM measurement; relative subpath moves keep their absolute position; compact transform lists parse; imported loops serialize in size linear to their vertices.
  */
 import { parseDxf } from './dxf.js';
 import { absolutizeSubpathStarts, parseSvg, svgPathSegments } from './svg.js';
@@ -238,4 +238,22 @@ test('repeated SVG curve groups retain all endpoints and reject invalid coordina
     ]);
     expect(() => [...svgPathSegments('M0 0 C1 2 3')]).toThrow(/coordinates/);
     expect(() => [...svgPathSegments('M0 0 L1e999 2')]).toThrow(/coordinates/);
+});
+
+test('imported loops serialize in size linear to their vertices', () => {
+    const count = 500;
+    const points = Array.from({ length: count }, (_, i) => {
+        const angle = (i / count) * 2 * Math.PI;
+        return `${(50 + 40 * Math.cos(angle)).toFixed(3)},${(50 + 40 * Math.sin(angle)).toFixed(3)}`;
+    }).join(' ');
+    const loops = buildLoops(
+        parseSvg(
+            `<svg xmlns="http://www.w3.org/2000/svg"><polygon points="${points}"/></svg>`,
+        ),
+    ) as { segments: object[] }[];
+    expect(loops[0].segments.length).toBeGreaterThan(count / 2);
+    // Segments once kept their whole source entity, so projects grew with vertices².
+    for (const segment of loops[0].segments)
+        expect(segment).not.toHaveProperty('source');
+    expect(JSON.stringify(loops).length).toBeLessThan(count * 1000);
 });
